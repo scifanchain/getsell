@@ -1,0 +1,32 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "files.exclude": {
+            "**/node_modules": true,
+            "**/data": true,
+            "**/*.db": true,
+            "**/*.db-*": true
+        },
+        "search.exclude": {
+            "**/node_modules": true,
+            "**/data": true,
+            "**/*.db": true
+        },
+        "files.watcherExclude": {
+            "**/node_modules/**": true,
+            "**/data/**": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-vscode.vscode-electron",
+            "ms-vscode.js-debug",
+            "bradlc.vscode-tailwindcss",
+            "esbenp.prettier-vscode"
+        ]
+    }
+}

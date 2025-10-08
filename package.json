@@ -1,0 +1,55 @@
+{
+  "name": "gestell",
+  "version": "0.1.0",
+  "description": "座架-科幻小说写作工具",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "rebuild": "electron-rebuild",
+    "postinstall": "electron-rebuild"
+  },
+  "keywords": [
+    "electron",
+    "sqlite3",
+    "database"
+  ],
+  "author": "unity",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^24.13.3",
+    "@electron/rebuild": "^3.6.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "crypto-js": "^4.2.0",
+    "ulid": "^2.3.0",
+    "marked": "^14.1.2",
+    "highlight.js": "^11.10.0",
+    "quill": "^2.0.2",
+    "quill-delta": "^5.1.0",
+    "jszip": "^3.10.1",
+    "electron-store": "^10.0.0"
+  },
+  "build": {
+    "appId": "com.scifan.gestell",
+    "productName": "Gestell",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

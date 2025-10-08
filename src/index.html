@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestell - 去中心化科幻写作平台</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Quill编辑器样式 -->
+    <link href="../node_modules/quill/dist/quill.snow.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 标题栏区域 -->
+        <header class="titlebar">
+            <div class="titlebar-content">
+                <div class="app-logo">
+                    <span class="logo-icon">🌌</span>
+                    <span class="app-name">Gestell</span>
+                    <span class="app-subtitle">去中心化科幻写作平台</span>
+                </div>
+                <div class="window-controls">
+                    <button class="control-btn minimize" id="minimize-btn" title="最小化" 
+                            onclick="console.log('最小化按钮被点击!'); window.gestell.window.minimize();">─</button>
+                    <button class="control-btn maximize" id="maximize-btn" title="最大化"
+                            onclick="console.log('最大化按钮被点击!'); window.gestell.window.toggleMaximize();">□</button>
+                    <button class="control-btn close" id="close-btn" title="关闭"
+                            onclick="console.log('关闭按钮被点击!'); window.gestell.window.close();">×</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 侧边栏 -->
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <div class="nav-section">
+                        <h3>📖 我的作品</h3>
+                        <ul class="nav-list" id="projects-list">
+                            <li class="nav-item loading">加载中...</li>
+                        </ul>
+                        <button class="btn btn-primary btn-block" id="new-project-btn" onclick="console.log('🆕 HTML onclick: 新建项目按钮被点击！'); if(window.showNewProjectModal) window.showNewProjectModal(); else alert('showNewProjectModal函数未找到');">
+                            ✨ 新建项目
+                        </button>
+                        
+
+                    </div>
+
+                    <div class="nav-section">
+                        <h3>🔧 工具</h3>
+                        <ul class="nav-list">
+                            <li class="nav-item" data-view="characters">
+                                <a href="#characters">👥 角色管理</a>
+                            </li>
+                            <li class="nav-item" data-view="worldbuilding">
+                                <a href="#worldbuilding">🌍 世界观设定</a>
+                            </li>
+                            <li class="nav-item" data-view="blockchain">
+                                <a href="#blockchain">⛓️ 区块链同步</a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3>⚙️ 系统</h3>
+                        <ul class="nav-list">
+                            <li class="nav-item" data-view="stats">
+                                <a href="#stats">📊 统计信息</a>
+                            </li>
+                            <li class="nav-item" data-view="settings">
+                                <a href="#settings">🔧 设置</a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- 内容区域 -->
+            <section class="content-area">
+                <!-- 欢迎页面 -->
+                <div id="welcome-view" class="view active">
+                    <div class="welcome-content">
+                        <div class="hero-section">
+                            <h1>🚀 欢迎来到 Gestell</h1>
+                            <p class="hero-subtitle">去中心化的科幻小说创作平台</p>
+                            <div class="hero-features">
+                                <div class="feature-card">
+                                    <div class="feature-icon">🔐</div>
+                                    <h3>加密保护</h3>
+                                    <p>您的创作内容通过端到端加密保护</p>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">⛓️</div>
+                                    <h3>区块链验证</h3>
+                                    <p>作品版权通过区块链技术永久记录</p>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">🤝</div>
+                                    <h3>协作创作</h3>
+                                    <p>与其他作者安全地协作创作</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="quick-actions">
+                            <h2>快速开始</h2>
+                            <div class="action-buttons">
+                                <button class="btn btn-primary btn-large" id="create-first-project">
+                                    📝 创建第一个项目
+                                </button>
+                                <button class="btn btn-secondary btn-large" id="import-project">
+                                    📁 导入现有项目
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="system-info">
+                            <h3>📊 系统状态</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">Electron版本:</span>
+                                    <span class="info-value" id="electron-version">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Node.js版本:</span>
+                                    <span class="info-value" id="node-version">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">数据库状态:</span>
+                                    <span class="info-value" id="db-status">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">ULID示例:</span>
+                                    <span class="info-value" id="ulid-example">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 编辑器视图 -->
+                <div id="editor-view" class="view">
+                    <div class="editor-container">
+                        <div class="editor-header">
+                            <input type="text" id="chapter-title" placeholder="章节标题" class="title-input">
+                            <div class="editor-tools">
+                                <button class="btn btn-secondary" id="save-chapter">💾 保存</button>
+                                <button class="btn btn-secondary" id="export-chapter">📤 导出</button>
+                                <span class="word-count">字数: <span id="word-count">0</span></span>
+                            </div>
+                        </div>
+                        <div id="quill-editor" class="editor-content"></div>
+                    </div>
+                </div>
+
+                <!-- 项目创建对话框 -->
+                <div id="new-project-modal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>🌟 创建新项目</h2>
+                            <button class="modal-close">&times;</button>
+                        </div>
+                        <form id="new-project-form">
+                            <div class="form-group">
+                                <label for="project-title">项目标题 *</label>
+                                <input type="text" id="project-title" name="project-title" required placeholder="输入您的科幻小说标题" maxlength="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="project-description">项目描述</label>
+                                <textarea id="project-description" name="project-description" placeholder="简要描述您的作品..." rows="3" maxlength="500"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="project-genre">科幻类型</label>
+                                <select id="project-genre" name="project-genre">
+                                    <option value="hard-sci-fi">硬科幻</option>
+                                    <option value="soft-sci-fi">软科幻</option>
+                                    <option value="space-opera">太空歌剧</option>
+                                    <option value="cyberpunk">赛博朋克</option>
+                                    <option value="dystopian">反乌托邦</option>
+                                    <option value="time-travel">时间旅行</option>
+                                    <option value="alternate-history">架空历史</option>
+                                    <option value="post-apocalyptic">末世</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="collaboration-mode">协作模式</label>
+                                <select id="collaboration-mode" name="collaboration-mode">
+                                    <option value="private">私有项目</option>
+                                    <option value="invite">邀请协作</option>
+                                    <option value="public">公开项目</option>
+                                </select>
+                            </div>
+                            <div class="modal-actions">
+                                <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+                                <button type="submit" class="btn btn-primary">🚀 创建项目</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 状态栏 -->
+        <footer class="status-bar">
+            <div class="status-left">
+                <span id="status-message">就绪</span>
+            </div>
+            <div class="status-right">
+                <span id="blockchain-status">🔗 离线</span>
+                <span id="sync-status">💾 已同步</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 加载Quill编辑器 -->
+    <script src="../node_modules/quill/dist/quill.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html>
