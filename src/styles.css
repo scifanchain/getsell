@@ -46,6 +46,7 @@ body {
     align-items: center;
     gap: 8px;
     padding-left: 8px;
+    flex-shrink: 0;
 }
 
 .logo-icon {
@@ -71,6 +72,7 @@ body {
     pointer-events: auto !important;
     position: relative;
     z-index: 9999;
+    flex-shrink: 0;
 }
 
 .control-btn {
@@ -113,6 +115,132 @@ body {
 #minimize-btn, #maximize-btn, #close-btn {
     -webkit-app-region: no-drag;
     pointer-events: auto;
+}
+
+/* 菜单栏样式 */
+.menu-bar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 8px;
+    -webkit-app-region: no-drag;
+    flex: 1;
+}
+
+.menu-item {
+    position: relative;
+    -webkit-app-region: no-drag;
+}
+
+.menu-label {
+    display: block;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #e0e0e0;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.menu-label:hover,
+.menu-item.active .menu-label {
+    background: rgba(100, 181, 246, 0.15);
+    color: #64b5f6;
+}
+
+/* 下拉菜单 */
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    background: #1e1e2e;
+    border: 1px solid #333;
+    border-radius: 6px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-5px);
+    transition: all 0.2s ease;
+    z-index: 10000;
+    padding: 6px 0;
+}
+
+.menu-item:hover .dropdown-menu,
+.menu-item.active .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.menu-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.menu-option:hover {
+    background: rgba(100, 181, 246, 0.15);
+    color: #64b5f6;
+}
+
+.menu-option .shortcut {
+    font-size: 11px;
+    color: #888;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.menu-divider {
+    height: 1px;
+    background: #333;
+    margin: 4px 8px;
+}
+
+.menu-option[data-action]:hover .shortcut {
+    color: #aaa;
+}
+
+/* 菜单项禁用状态 */
+.menu-option.disabled {
+    color: #666;
+    cursor: not-allowed;
+}
+
+.menu-option.disabled:hover {
+    background: none;
+    color: #666;
+}
+
+/* 菜单子菜单指示器 */
+.menu-option.has-submenu::after {
+    content: '▶';
+    font-size: 10px;
+    color: #888;
+    margin-left: 8px;
+}
+
+/* 专注模式样式 */
+.focus-mode .sidebar {
+    display: none !important;
+}
+
+.focus-mode .status-bar {
+    display: none !important;
+}
+
+.focus-mode .menu-bar {
+    opacity: 0.3;
+    transition: opacity 0.3s;
+}
+
+.focus-mode .menu-bar:hover {
+    opacity: 1;
 }
 
 /* 主内容区域 */

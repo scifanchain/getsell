@@ -358,7 +358,328 @@ function bindEventListeners() {
         }
     });
     
+    // 绑定菜单事件
+    bindMenuEvents();
+    
     console.log('✅ 所有事件监听器绑定完成');
+}
+
+// 绑定菜单事件
+function bindMenuEvents() {
+    console.log('📋 开始绑定菜单事件...');
+    
+    // 菜单悬停效果
+    const menuItems = document.querySelectorAll('.menu-item');
+    menuItems.forEach(item => {
+        const label = item.querySelector('.menu-label');
+        const dropdown = item.querySelector('.dropdown-menu');
+        
+        if (label && dropdown) {
+            // 鼠标进入菜单项
+            item.addEventListener('mouseenter', () => {
+                // 关闭其他打开的菜单
+                menuItems.forEach(otherItem => {
+                    if (otherItem !== item) {
+                        otherItem.classList.remove('active');
+                    }
+                });
+                // 打开当前菜单
+                item.classList.add('active');
+            });
+            
+            // 鼠标离开菜单栏区域
+            item.addEventListener('mouseleave', (e) => {
+                // 延迟关闭，给用户时间移动到下拉菜单
+                setTimeout(() => {
+                    if (!item.matches(':hover')) {
+                        item.classList.remove('active');
+                    }
+                }, 100);
+            });
+        }
+    });
+    
+    // 菜单选项点击事件
+    const menuOptions = document.querySelectorAll('.menu-option[data-action]');
+    menuOptions.forEach(option => {
+        option.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = option.getAttribute('data-action');
+            handleMenuAction(action);
+            
+            // 关闭所有菜单
+            menuItems.forEach(item => {
+                item.classList.remove('active');
+            });
+        });
+    });
+    
+    // 点击其他地方关闭菜单
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.menu-bar')) {
+            menuItems.forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+    });
+    
+    // 快捷键绑定
+    bindKeyboardShortcuts();
+    
+    console.log('✅ 菜单事件绑定完成');
+}
+
+// 处理菜单操作
+function handleMenuAction(action) {
+    console.log(`🎯 执行菜单操作: ${action}`);
+    
+    switch (action) {
+        // 文件菜单
+        case 'new-project':
+            showNewProjectModal();
+            break;
+        case 'open-project':
+            // TODO: 实现打开项目
+            showMessage('打开项目功能开发中...', 'info');
+            break;
+        case 'save':
+            // TODO: 实现保存
+            showMessage('保存功能开发中...', 'info');
+            break;
+        case 'save-as':
+            // TODO: 实现另存为
+            showMessage('另存为功能开发中...', 'info');
+            break;
+        case 'export':
+            // TODO: 实现导出
+            showMessage('导出功能开发中...', 'info');
+            break;
+        case 'import':
+            // TODO: 实现导入
+            showMessage('导入功能开发中...', 'info');
+            break;
+        case 'recent':
+            // TODO: 实现最近项目
+            showMessage('最近项目功能开发中...', 'info');
+            break;
+        case 'exit':
+            gestell.window.close();
+            break;
+            
+        // 编辑菜单
+        case 'undo':
+            if (quillEditor) {
+                quillEditor.history.undo();
+            }
+            break;
+        case 'redo':
+            if (quillEditor) {
+                quillEditor.history.redo();
+            }
+            break;
+        case 'find':
+            // TODO: 实现查找
+            showMessage('查找功能开发中...', 'info');
+            break;
+        case 'replace':
+            // TODO: 实现替换
+            showMessage('替换功能开发中...', 'info');
+            break;
+            
+        // 视图菜单
+        case 'fullscreen':
+            gestell.window.toggleFullscreen();
+            break;
+        case 'focus-mode':
+            toggleFocusMode();
+            break;
+        case 'sidebar':
+            toggleSidebar();
+            break;
+        case 'outline':
+            switchView('outline');
+            break;
+        case 'preview':
+            // TODO: 实现预览模式
+            showMessage('预览模式开发中...', 'info');
+            break;
+        case 'zoom-in':
+            adjustZoom(1.1);
+            break;
+        case 'zoom-out':
+            adjustZoom(0.9);
+            break;
+        case 'zoom-reset':
+            adjustZoom(1.0, true);
+            break;
+            
+        // 工具菜单
+        case 'characters':
+            switchView('characters');
+            break;
+        case 'worldbuilding':
+            switchView('worldbuilding');
+            break;
+        case 'timeline':
+            // TODO: 实现时间线
+            showMessage('时间线功能开发中...', 'info');
+            break;
+        case 'word-count':
+            showWordCountStats();
+            break;
+        case 'spell-check':
+            // TODO: 实现拼写检查
+            showMessage('拼写检查功能开发中...', 'info');
+            break;
+        case 'blockchain':
+            switchView('blockchain');
+            break;
+        case 'backup':
+            // TODO: 实现备份管理
+            showMessage('备份管理功能开发中...', 'info');
+            break;
+            
+        // 帮助菜单
+        case 'welcome':
+            switchView('welcome');
+            break;
+        case 'shortcuts':
+            showShortcutsHelp();
+            break;
+        case 'documentation':
+            // TODO: 打开文档
+            showMessage('使用文档功能开发中...', 'info');
+            break;
+        case 'updates':
+            // TODO: 检查更新
+            showMessage('检查更新功能开发中...', 'info');
+            break;
+        case 'about':
+            showAboutDialog();
+            break;
+            
+        default:
+            console.warn(`未知的菜单操作: ${action}`);
+            showMessage(`功能 "${action}" 开发中...`, 'info');
+    }
+}
+
+// 绑定键盘快捷键
+function bindKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Ctrl + 组合键
+        if (e.ctrlKey) {
+            switch (e.key.toLowerCase()) {
+                case 'n':
+                    e.preventDefault();
+                    handleMenuAction('new-project');
+                    break;
+                case 'o':
+                    e.preventDefault();
+                    handleMenuAction('open-project');
+                    break;
+                case 's':
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        handleMenuAction('save-as');
+                    } else {
+                        handleMenuAction('save');
+                    }
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    handleMenuAction('export');
+                    break;
+                case 'i':
+                    e.preventDefault();
+                    handleMenuAction('import');
+                    break;
+                case 'f':
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        handleMenuAction('focus-mode');
+                    } else {
+                        handleMenuAction('find');
+                    }
+                    break;
+                case 'h':
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        handleMenuAction('welcome');
+                    } else {
+                        handleMenuAction('replace');
+                    }
+                    break;
+                case 'b':
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        handleMenuAction('blockchain');
+                    } else {
+                        handleMenuAction('sidebar');
+                    }
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    handleMenuAction('characters');
+                    break;
+                case 'w':
+                    e.preventDefault();
+                    if (e.shiftKey) {
+                        handleMenuAction('word-count');
+                    } else {
+                        handleMenuAction('worldbuilding');
+                    }
+                    break;
+                case 't':
+                    e.preventDefault();
+                    handleMenuAction('timeline');
+                    break;
+                case 'p':
+                    e.preventDefault();
+                    handleMenuAction('preview');
+                    break;
+                case '/':
+                    e.preventDefault();
+                    handleMenuAction('shortcuts');
+                    break;
+                case '=':
+                case '+':
+                    e.preventDefault();
+                    handleMenuAction('zoom-in');
+                    break;
+                case '-':
+                    e.preventDefault();
+                    handleMenuAction('zoom-out');
+                    break;
+                case '0':
+                    e.preventDefault();
+                    handleMenuAction('zoom-reset');
+                    break;
+            }
+        }
+        
+        // 功能键
+        switch (e.key) {
+            case 'F1':
+                e.preventDefault();
+                handleMenuAction('documentation');
+                break;
+            case 'F7':
+                e.preventDefault();
+                handleMenuAction('spell-check');
+                break;
+            case 'F11':
+                e.preventDefault();
+                handleMenuAction('fullscreen');
+                break;
+        }
+        
+        // Alt + F4
+        if (e.altKey && e.key === 'F4') {
+            e.preventDefault();
+            handleMenuAction('exit');
+        }
+    });
 }
 
 // 显示新项目模态框 - 更新DOM引用版本
@@ -631,3 +952,129 @@ window.addEventListener('unhandledrejection', (e) => {
     console.error('未处理的Promise拒绝:', e.reason);
     showMessage('操作失败，请重试', 'error');
 });
+
+// 菜单辅助函数
+
+// 切换专注模式
+function toggleFocusMode() {
+    const body = document.body;
+    body.classList.toggle('focus-mode');
+    const isFocusMode = body.classList.contains('focus-mode');
+    showMessage(isFocusMode ? '已进入专注模式' : '已退出专注模式', 'info');
+}
+
+// 切换侧边栏
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+        sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+        showMessage(sidebar.style.display === 'none' ? '侧边栏已隐藏' : '侧边栏已显示', 'info');
+    }
+}
+
+// 调整缩放
+function adjustZoom(factor, reset = false) {
+    const currentZoom = reset ? 1.0 : parseFloat(document.body.style.zoom || '1') * factor;
+    document.body.style.zoom = Math.max(0.5, Math.min(2.0, currentZoom));
+    showMessage(`缩放: ${Math.round(currentZoom * 100)}%`, 'info');
+}
+
+// 显示字数统计
+function showWordCountStats() {
+    if (quillEditor) {
+        const text = quillEditor.getText();
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+        const characters = text.length;
+        const charactersNoSpaces = text.replace(/\s/g, '').length;
+        
+        const stats = `字数统计：
+        总字数: ${words}
+        总字符数: ${characters}
+        字符数(不含空格): ${charactersNoSpaces}
+        段落数: ${text.split('\n').filter(p => p.trim().length > 0).length}`;
+        
+        alert(stats);
+    } else {
+        showMessage('请先打开编辑器', 'warning');
+    }
+}
+
+// 显示快捷键帮助
+function showShortcutsHelp() {
+    const shortcuts = `
+Gestell 快捷键参考
+
+文件操作：
+Ctrl+N - 新建项目
+Ctrl+O - 打开项目  
+Ctrl+S - 保存
+Ctrl+Shift+S - 另存为
+Ctrl+E - 导出
+Ctrl+I - 导入
+Alt+F4 - 退出
+
+编辑操作：
+Ctrl+Z - 撤销
+Ctrl+Y - 重做
+Ctrl+X - 剪切
+Ctrl+C - 复制
+Ctrl+V - 粘贴
+Ctrl+F - 查找
+Ctrl+H - 替换
+
+视图操作：
+F11 - 全屏模式
+Ctrl+Shift+F - 专注模式
+Ctrl+B - 切换侧边栏
+Ctrl+Shift+O - 大纲视图
+Ctrl+P - 预览模式
+Ctrl++ - 放大
+Ctrl+- - 缩小
+Ctrl+0 - 重置缩放
+
+工具操作：
+Ctrl+R - 角色管理
+Ctrl+W - 世界观设定
+Ctrl+T - 时间线
+Ctrl+Shift+W - 字数统计
+F7 - 拼写检查
+Ctrl+Shift+B - 区块链同步
+
+帮助：
+Ctrl+Shift+H - 欢迎页面
+Ctrl+/ - 快捷键参考
+F1 - 使用文档
+    `;
+    
+    alert(shortcuts);
+}
+
+// 显示关于对话框
+function showAboutDialog() {
+    const about = `
+🌌 Gestell - 座架
+
+版本: 0.1.0
+去中心化的科幻小说创作平台
+
+核心特性：
+• 🔐 端到端加密保护
+• ⛓️ 区块链版权验证  
+• 🤝 安全协作创作
+• 📝 智能写作辅助
+• 🌍 去中心化存储
+
+技术栈：
+• Electron + SQLite3
+• Quill.js 富文本编辑器
+• 加密算法：AES-256
+• 区块链：支持多链
+
+开发者：Unity
+许可证：MIT License
+
+© 2025 Gestell Project
+    `;
+    
+    alert(about);
+}

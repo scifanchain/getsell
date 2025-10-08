@@ -16,8 +16,187 @@
                 <div class="app-logo">
                     <span class="logo-icon">🌌</span>
                     <span class="app-name">Gestell</span>
-                    <span class="app-subtitle">去中心化科幻写作平台</span>
                 </div>
+                
+                <!-- 菜单栏 -->
+                <nav class="menu-bar">
+                    <div class="menu-item" data-menu="file">
+                        <span class="menu-label">文件(F)</span>
+                        <div class="dropdown-menu">
+                            <div class="menu-option" data-action="new-project">
+                                <span>新建项目</span>
+                                <span class="shortcut">Ctrl+N</span>
+                            </div>
+                            <div class="menu-option" data-action="open-project">
+                                <span>打开项目</span>
+                                <span class="shortcut">Ctrl+O</span>
+                            </div>
+                            <div class="menu-option" data-action="save">
+                                <span>保存</span>
+                                <span class="shortcut">Ctrl+S</span>
+                            </div>
+                            <div class="menu-option" data-action="save-as">
+                                <span>另存为</span>
+                                <span class="shortcut">Ctrl+Shift+S</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="export">
+                                <span>导出</span>
+                                <span class="shortcut">Ctrl+E</span>
+                            </div>
+                            <div class="menu-option" data-action="import">
+                                <span>导入</span>
+                                <span class="shortcut">Ctrl+I</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="recent">
+                                <span>最近项目</span>
+                            </div>
+                            <div class="menu-option" data-action="exit">
+                                <span>退出</span>
+                                <span class="shortcut">Alt+F4</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="menu-item" data-menu="edit">
+                        <span class="menu-label">编辑(E)</span>
+                        <div class="dropdown-menu">
+                            <div class="menu-option" data-action="undo">
+                                <span>撤销</span>
+                                <span class="shortcut">Ctrl+Z</span>
+                            </div>
+                            <div class="menu-option" data-action="redo">
+                                <span>重做</span>
+                                <span class="shortcut">Ctrl+Y</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="cut">
+                                <span>剪切</span>
+                                <span class="shortcut">Ctrl+X</span>
+                            </div>
+                            <div class="menu-option" data-action="copy">
+                                <span>复制</span>
+                                <span class="shortcut">Ctrl+C</span>
+                            </div>
+                            <div class="menu-option" data-action="paste">
+                                <span>粘贴</span>
+                                <span class="shortcut">Ctrl+V</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="find">
+                                <span>查找</span>
+                                <span class="shortcut">Ctrl+F</span>
+                            </div>
+                            <div class="menu-option" data-action="replace">
+                                <span>替换</span>
+                                <span class="shortcut">Ctrl+H</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="menu-item" data-menu="view">
+                        <span class="menu-label">视图(V)</span>
+                        <div class="dropdown-menu">
+                            <div class="menu-option" data-action="fullscreen">
+                                <span>全屏模式</span>
+                                <span class="shortcut">F11</span>
+                            </div>
+                            <div class="menu-option" data-action="focus-mode">
+                                <span>专注模式</span>
+                                <span class="shortcut">Ctrl+Shift+F</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="sidebar">
+                                <span>侧边栏</span>
+                                <span class="shortcut">Ctrl+B</span>
+                            </div>
+                            <div class="menu-option" data-action="outline">
+                                <span>大纲视图</span>
+                                <span class="shortcut">Ctrl+Shift+O</span>
+                            </div>
+                            <div class="menu-option" data-action="preview">
+                                <span>预览模式</span>
+                                <span class="shortcut">Ctrl+P</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="zoom-in">
+                                <span>放大</span>
+                                <span class="shortcut">Ctrl++</span>
+                            </div>
+                            <div class="menu-option" data-action="zoom-out">
+                                <span>缩小</span>
+                                <span class="shortcut">Ctrl+-</span>
+                            </div>
+                            <div class="menu-option" data-action="zoom-reset">
+                                <span>重置缩放</span>
+                                <span class="shortcut">Ctrl+0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="menu-item" data-menu="tools">
+                        <span class="menu-label">工具(T)</span>
+                        <div class="dropdown-menu">
+                            <div class="menu-option" data-action="characters">
+                                <span>👥 角色管理</span>
+                                <span class="shortcut">Ctrl+R</span>
+                            </div>
+                            <div class="menu-option" data-action="worldbuilding">
+                                <span>🌍 世界观设定</span>
+                                <span class="shortcut">Ctrl+W</span>
+                            </div>
+                            <div class="menu-option" data-action="timeline">
+                                <span>📅 时间线</span>
+                                <span class="shortcut">Ctrl+T</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="word-count">
+                                <span>📊 字数统计</span>
+                                <span class="shortcut">Ctrl+Shift+W</span>
+                            </div>
+                            <div class="menu-option" data-action="spell-check">
+                                <span>🔍 拼写检查</span>
+                                <span class="shortcut">F7</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="blockchain">
+                                <span>⛓️ 区块链同步</span>
+                                <span class="shortcut">Ctrl+Shift+B</span>
+                            </div>
+                            <div class="menu-option" data-action="backup">
+                                <span>💾 备份管理</span>
+                                <span class="shortcut">Ctrl+Shift+K</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="menu-item" data-menu="help">
+                        <span class="menu-label">帮助(H)</span>
+                        <div class="dropdown-menu">
+                            <div class="menu-option" data-action="welcome">
+                                <span>欢迎页面</span>
+                                <span class="shortcut">Ctrl+Shift+H</span>
+                            </div>
+                            <div class="menu-option" data-action="shortcuts">
+                                <span>快捷键参考</span>
+                                <span class="shortcut">Ctrl+/</span>
+                            </div>
+                            <div class="menu-option" data-action="documentation">
+                                <span>使用文档</span>
+                                <span class="shortcut">F1</span>
+                            </div>
+                            <div class="menu-divider"></div>
+                            <div class="menu-option" data-action="updates">
+                                <span>检查更新</span>
+                            </div>
+                            <div class="menu-option" data-action="about">
+                                <span>关于 Gestell</span>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+                
                 <div class="window-controls">
                     <button class="control-btn minimize" id="minimize-btn" title="最小化" 
                             onclick="console.log('最小化按钮被点击!'); window.gestell.window.minimize();">─</button>
