@@ -1,10 +1,12 @@
-const { ulid, monotonicFactory } = require('ulid');
+import { ulid, monotonicFactory } from 'ulid';
 
 /**
  * ULID 工具类
  * 提供去中心化友好的唯一标识符生成
  */
-class ULIDGenerator {
+export class ULIDGenerator {
+    private monotonicUlid: () => string;
+
     constructor() {
         // 创建单调递增的ULID生成器，确保同一毫秒内的ULID有序
         this.monotonicUlid = monotonicFactory();
@@ -12,35 +14,35 @@ class ULIDGenerator {
 
     /**
      * 生成标准ULID
-     * @returns {string} 26字符的ULID
+     * @returns 26字符的ULID
      */
-    generate() {
+    generate(): string {
         return ulid();
     }
 
     /**
      * 生成单调递增ULID（推荐用于数据库主键）
-     * @returns {string} 26字符的单调ULID
+     * @returns 26字符的单调ULID
      */
-    generateMonotonic() {
+    generateMonotonic(): string {
         return this.monotonicUlid();
     }
 
     /**
      * 从时间戳生成ULID
-     * @param {number} timestamp - Unix时间戳（毫秒）
-     * @returns {string} ULID
+     * @param timestamp - Unix时间戳（毫秒）
+     * @returns ULID
      */
-    generateFromTime(timestamp) {
+    generateFromTime(timestamp: number): string {
         return ulid(timestamp);
     }
 
     /**
      * 解析ULID获取时间戳
-     * @param {string} id - ULID字符串
-     * @returns {number} Unix时间戳（毫秒）
+     * @param id - ULID字符串
+     * @returns Unix时间戳（毫秒）
      */
-    getTimestamp(id) {
+    getTimestamp(id: string): number {
         if (!this.isValid(id)) {
             throw new Error('无效的ULID格式');
         }
@@ -66,10 +68,10 @@ class ULIDGenerator {
 
     /**
      * 获取ULID的随机部分
-     * @param {string} id - ULID字符串
-     * @returns {string} 随机部分（16字符）
+     * @param id - ULID字符串
+     * @returns 随机部分（16字符）
      */
-    getRandomPart(id) {
+    getRandomPart(id: string): string {
         if (!this.isValid(id)) {
             throw new Error('无效的ULID格式');
         }
@@ -78,10 +80,10 @@ class ULIDGenerator {
 
     /**
      * 验证ULID格式
-     * @param {string} id - 待验证的字符串
-     * @returns {boolean} 是否有效
+     * @param id - 待验证的字符串
+     * @returns 是否有效
      */
-    isValid(id) {
+    isValid(id: string): boolean {
         if (typeof id !== 'string') return false;
         if (id.length !== 26) return false;
         
@@ -92,11 +94,11 @@ class ULIDGenerator {
 
     /**
      * 比较两个ULID的时间先后
-     * @param {string} ulid1 - 第一个ULID
-     * @param {string} ulid2 - 第二个ULID
-     * @returns {number} -1: ulid1早于ulid2, 0: 相同时间, 1: ulid1晚于ulid2
+     * @param ulid1 - 第一个ULID
+     * @param ulid2 - 第二个ULID
+     * @returns -1: ulid1早于ulid2, 0: 相同时间, 1: ulid1晚于ulid2
      */
-    compareTime(ulid1, ulid2) {
+    compareTime(ulid1: string, ulid2: string): number {
         const time1 = this.getTimestamp(ulid1);
         const time2 = this.getTimestamp(ulid2);
         
@@ -107,10 +109,10 @@ class ULIDGenerator {
 
     /**
      * 格式化ULID显示（添加分隔符便于阅读）
-     * @param {string} id - ULID字符串
-     * @returns {string} 格式化的ULID
+     * @param id - ULID字符串
+     * @returns 格式化的ULID
      */
-    format(id) {
+    format(id: string): string {
         if (!this.isValid(id)) {
             return id; // 无效ULID直接返回
         }
@@ -121,19 +123,19 @@ class ULIDGenerator {
 
     /**
      * 移除ULID格式化（去除分隔符）
-     * @param {string} formattedId - 格式化的ULID
-     * @returns {string} 标准ULID
+     * @param formattedId - 格式化的ULID
+     * @returns 标准ULID
      */
-    unformat(formattedId) {
+    unformat(formattedId: string): string {
         return formattedId.replace(/-/g, '');
     }
 
     /**
      * 获取ULID的可读时间
-     * @param {string} id - ULID字符串
-     * @returns {string} 格式化的时间字符串
+     * @param id - ULID字符串
+     * @returns 格式化的时间字符串
      */
-    getReadableTime(id) {
+    getReadableTime(id: string): string {
         try {
             const timestamp = this.getTimestamp(id);
             return new Date(timestamp).toLocaleString('zh-CN', {
@@ -151,13 +153,13 @@ class ULIDGenerator {
 
     /**
      * 生成指定时间范围内的ULID集合（用于测试或批量生成）
-     * @param {number} startTime - 开始时间戳
-     * @param {number} endTime - 结束时间戳
-     * @param {number} count - 生成数量
-     * @returns {string[]} ULID数组
+     * @param startTime - 开始时间戳
+     * @param endTime - 结束时间戳
+     * @param count - 生成数量
+     * @returns ULID数组
      */
-    generateBatch(startTime, endTime, count = 10) {
-        const ulids = [];
+    generateBatch(startTime: number, endTime: number, count: number = 10): string[] {
+        const ulids: string[] = [];
         const timeSpan = endTime - startTime;
         
         for (let i = 0; i < count; i++) {
@@ -173,16 +175,13 @@ class ULIDGenerator {
 // 创建单例实例
 const ulidGenerator = new ULIDGenerator();
 
-module.exports = {
-    ULIDGenerator,
-    default: ulidGenerator,
-    
-    // 便捷方法导出
-    generate: () => ulidGenerator.generate(),
-    generateMonotonic: () => ulidGenerator.generateMonotonic(),
-    generateFromTime: (timestamp) => ulidGenerator.generateFromTime(timestamp),
-    getTimestamp: (id) => ulidGenerator.getTimestamp(id),
-    isValid: (id) => ulidGenerator.isValid(id),
-    format: (id) => ulidGenerator.format(id),
-    getReadableTime: (id) => ulidGenerator.getReadableTime(id)
-};
+export default ulidGenerator;
+
+// 便捷方法导出
+export const generate = (): string => ulidGenerator.generate();
+export const generateMonotonic = (): string => ulidGenerator.generateMonotonic();
+export const generateFromTime = (timestamp: number): string => ulidGenerator.generateFromTime(timestamp);
+export const getTimestamp = (id: string): number => ulidGenerator.getTimestamp(id);
+export const isValid = (id: string): boolean => ulidGenerator.isValid(id);
+export const format = (id: string): string => ulidGenerator.format(id);
+export const getReadableTime = (id: string): string => ulidGenerator.getReadableTime(id);

@@ -3,22 +3,22 @@
  * 用于生成去中心化的唯一标识符
  */
 
-const { ulid } = require('ulid');
+import { ulid } from 'ulid';
 
 /**
  * 生成新的ULID
- * @returns {string} ULID字符串
+ * @returns ULID字符串
  */
-function generateULID() {
+export function generateULID(): string {
     return ulid();
 }
 
 /**
  * 验证ULID格式
- * @param {string} id - 待验证的ID
- * @returns {boolean} 是否为有效的ULID
+ * @param id - 待验证的ID
+ * @returns 是否为有效的ULID
  */
-function isValidULID(id) {
+export function isValidULID(id: string): boolean {
     if (!id || typeof id !== 'string') {
         return false;
     }
@@ -30,10 +30,10 @@ function isValidULID(id) {
 
 /**
  * 从ULID中提取时间戳
- * @param {string} id - ULID
- * @returns {Date|null} 时间戳或null
+ * @param id - ULID
+ * @returns 时间戳或null
  */
-function extractTimestamp(id) {
+export function extractTimestamp(id: string): Date | null {
     try {
         if (!isValidULID(id)) {
             return null;
@@ -50,27 +50,19 @@ function extractTimestamp(id) {
 
 /**
  * 创建带前缀的ULID（用于区分不同类型的实体）
- * @param {string} prefix - 前缀
- * @returns {string} 带前缀的ULID
+ * @param prefix - 前缀
+ * @returns 带前缀的ULID
  */
-function generatePrefixedULID(prefix) {
+export function generatePrefixedULID(prefix: string): string {
     return `${prefix}_${generateULID()}`;
 }
 
 /**
  * 为不同模型生成专用的ULID
  */
-const generators = {
-    author: () => generatePrefixedULID('auth'),
-    work: () => generatePrefixedULID('work'), 
-    chapter: () => generatePrefixedULID('chap'),
-    content: () => generatePrefixedULID('cont')
-};
-
-module.exports = {
-    generateULID,
-    isValidULID,
-    extractTimestamp,
-    generatePrefixedULID,
-    generators
+export const generators = {
+    author: (): string => generatePrefixedULID('auth'),
+    work: (): string => generatePrefixedULID('work'), 
+    chapter: (): string => generatePrefixedULID('chap'),
+    content: (): string => generatePrefixedULID('cont')
 };

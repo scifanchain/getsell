@@ -10,6 +10,14 @@ declare module '*.vue' {
 // 扩展已有的ImportMetaEnv
 interface ImportMetaEnv {
   readonly VITE_APP_TITLE?: string
+  DEV: boolean
+  MODE: string
+  PROD: boolean
+  SSR: boolean
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
 }
 
 // Electron API类型声明

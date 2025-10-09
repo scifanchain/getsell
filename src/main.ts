@@ -1,9 +1,9 @@
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
-// 使用require暂时导入JS模块，使用绝对路径
-const GestallPrismaDatabase = require(path.join(__dirname, '../src/core/prismadb'));
-const ULIDGenerator = require(path.join(__dirname, '../src/core/ulid'));
-const GestallCrypto = require(path.join(__dirname, '../src/crypto/crypto'));
+// 导入TypeScript模块
+import GestallPrismaDatabase from './core/prismadb';
+import ulidGenerator from './core/ulid';
+import GestallCrypto from './crypto/crypto';
 
 // 导入类型定义
 import {
@@ -121,7 +121,7 @@ async function initCore(): Promise<void> {
 // IPC处理程序 - 用户管理
 ipcMain.handle('user:create', async (event: IpcMainInvokeEvent, userData: UserData): Promise<IPCResponse<UserCreateResponse>> => {
   try {
-    const userId = ULIDGenerator.generate();
+    const userId = ulidGenerator.generate();
     
     // 生成用户密钥对
     const keyPair = crypto.generateKeyPair() as KeyPair;
@@ -373,12 +373,12 @@ ipcMain.handle('system:getStats', async (): Promise<IPCResponse<{ stats: any }>>
 });
 
 ipcMain.handle('system:generateId', (): string => {
-  return ULIDGenerator.generate();
+  return ulidGenerator.generate();
 });
 
 ipcMain.handle('system:getTimestamp', (event: IpcMainInvokeEvent, ulid: string): number | null => {
   try {
-    return ULIDGenerator.getTimestamp(ulid);
+    return ulidGenerator.getTimestamp(ulid);
   } catch (error) {
     return null;
   }

@@ -1,23 +1,47 @@
-const CryptoJS = require('crypto-js');
-const crypto = require('crypto');
+import * as CryptoJS from 'crypto-js';
+import * as crypto from 'crypto';
+
+/**
+ * 加密结果接口
+ */
+interface EncryptionResult {
+    salt: string;
+    iv: string;
+    encrypted: string;
+}
+
+/**
+ * 密钥对接口
+ */
+interface KeyPair {
+    publicKey: string;
+    privateKey: string;
+}
+
+/**
+ * 密码强度分析结果接口
+ */
+interface PasswordStrengthAnalysis {
+    score: number;
+    strength: 'weak' | 'medium' | 'strong';
+    feedback: string[];
+}
 
 /**
  * Gestell 加密工具类
  * 为去中心化写作提供内容加密和数字签名功能
  */
-class GestallCrypto {
-    constructor() {
-        this.AES_KEY_SIZE = 256;
-        this.IV_SIZE = 16;
-        this.SALT_SIZE = 32;
-        this.ITERATIONS = 100000; // PBKDF2迭代次数
-    }
+export class GestallCrypto {
+    private readonly AES_KEY_SIZE = 256;
+    private readonly IV_SIZE = 16;
+    private readonly SALT_SIZE = 32;
+    private readonly ITERATIONS = 100000; // PBKDF2迭代次数
 
     /**
      * 生成RSA密钥对（用于数字签名和身份验证）
-     * @returns {Object} { publicKey, privateKey }
+     * @returns 密钥对对象
      */
-    generateKeyPair() {
+    generateKeyPair(): KeyPair {
         const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 2048,
             publicKeyEncoding: {
@@ -35,23 +59,23 @@ class GestallCrypto {
 
     /**
      * 使用密码加密私钥
-     * @param {string} privateKey - 私钥PEM格式
-     * @param {string} password - 加密密码
-     * @returns {string} 加密后的私钥
+     * @param privateKey - 私钥PEM格式
+     * @param password - 加密密码
+     * @returns 加密后的私钥JSON字符串
      */
-    encryptPrivateKey(privateKey, password) {
+    encryptPrivateKey(privateKey: string, password: string): string {
         const salt = crypto.randomBytes(this.SALT_SIZE);
         const key = crypto.pbkdf2Sync(password, salt, this.ITERATIONS, 32, 'sha256');
         const iv = crypto.randomBytes(this.IV_SIZE);
         
-        const cipher = crypto.createCipher('aes-256-cbc', key);
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
         cipher.setAutoPadding(true);
         
         let encrypted = cipher.update(privateKey, 'utf8', 'base64');
         encrypted += cipher.final('base64');
         
         // 将salt、iv和加密数据组合
-        const result = {
+        const result: EncryptionResult = {
             salt: salt.toString('base64'),
             iv: iv.toString('base64'),
             encrypted: encrypted
@@ -62,36 +86,36 @@ class GestallCrypto {
 
     /**
      * 使用密码解密私钥
-     * @param {string} encryptedPrivateKey - 加密的私钥JSON字符串
-     * @param {string} password - 解密密码
-     * @returns {string} 解密后的私钥PEM格式
+     * @param encryptedPrivateKey - 加密的私钥JSON字符串
+     * @param password - 解密密码
+     * @returns 解密后的私钥PEM格式
      */
-    decryptPrivateKey(encryptedPrivateKey, password) {
+    decryptPrivateKey(encryptedPrivateKey: string, password: string): string {
         try {
-            const data = JSON.parse(encryptedPrivateKey);
+            const data: EncryptionResult = JSON.parse(encryptedPrivateKey);
             const salt = Buffer.from(data.salt, 'base64');
             const iv = Buffer.from(data.iv, 'base64');
             const encrypted = data.encrypted;
             
             const key = crypto.pbkdf2Sync(password, salt, this.ITERATIONS, 32, 'sha256');
             
-            const decipher = crypto.createDecipher('aes-256-cbc', key);
+            const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
             let decrypted = decipher.update(encrypted, 'base64', 'utf8');
             decrypted += decipher.final('utf8');
             
             return decrypted;
         } catch (error) {
-            throw new Error('私钥解密失败: ' + error.message);
+            throw new Error('私钥解密失败: ' + (error as Error).message);
         }
     }
 
     /**
      * 对内容进行数字签名
-     * @param {string} content - 要签名的内容
-     * @param {string} privateKey - 私钥PEM格式
-     * @returns {string} Base64编码的签名
+     * @param content - 要签名的内容
+     * @param privateKey - 私钥PEM格式
+     * @returns Base64编码的签名
      */
-    signContent(content, privateKey) {
+    signContent(content: string, privateKey: string): string {
         const sign = crypto.createSign('RSA-SHA256');
         sign.update(content, 'utf8');
         const signature = sign.sign(privateKey, 'base64');
@@ -100,12 +124,12 @@ class GestallCrypto {
 
     /**
      * 验证数字签名
-     * @param {string} content - 原始内容
-     * @param {string} signature - Base64编码的签名
-     * @param {string} publicKey - 公钥PEM格式
-     * @returns {boolean} 签名是否有效
+     * @param content - 原始内容
+     * @param signature - Base64编码的签名
+     * @param publicKey - 公钥PEM格式
+     * @returns 签名是否有效
      */
-    verifySignature(content, signature, publicKey) {
+    verifySignature(content: string, signature: string, publicKey: string): boolean {
         try {
             const verify = crypto.createVerify('RSA-SHA256');
             verify.update(content, 'utf8');
@@ -117,11 +141,11 @@ class GestallCrypto {
 
     /**
      * AES加密内容（对称加密，用于大量内容）
-     * @param {string} content - 要加密的内容
-     * @param {string} password - 加密密码
-     * @returns {string} 加密结果JSON字符串
+     * @param content - 要加密的内容
+     * @param password - 加密密码
+     * @returns 加密结果JSON字符串
      */
-    encryptContent(content, password) {
+    encryptContent(content: string, password: string): string {
         const salt = CryptoJS.lib.WordArray.random(this.SALT_SIZE / 4);
         const key = CryptoJS.PBKDF2(password, salt, {
             keySize: this.AES_KEY_SIZE / 32,
@@ -144,11 +168,11 @@ class GestallCrypto {
 
     /**
      * AES解密内容
-     * @param {string} encryptedData - 加密数据JSON字符串
-     * @param {string} password - 解密密码
-     * @returns {string} 解密后的内容
+     * @param encryptedData - 加密数据JSON字符串
+     * @param password - 解密密码
+     * @returns 解密后的内容
      */
-    decryptContent(encryptedData, password) {
+    decryptContent(encryptedData: string, password: string): string {
         try {
             const data = JSON.parse(encryptedData);
             const salt = CryptoJS.enc.Hex.parse(data.salt);
@@ -167,17 +191,17 @@ class GestallCrypto {
             
             return decrypted.toString(CryptoJS.enc.Utf8);
         } catch (error) {
-            throw new Error('内容解密失败: ' + error.message);
+            throw new Error('内容解密失败: ' + (error as Error).message);
         }
     }
 
     /**
      * 计算内容哈希（用于区块链存储）
-     * @param {string} content - 内容
-     * @param {string} algorithm - 哈希算法 (sha256, sha3, etc.)
-     * @returns {string} 十六进制哈希值
+     * @param content - 内容
+     * @param algorithm - 哈希算法 (sha256, sha3, etc.)
+     * @returns 十六进制哈希值
      */
-    hashContent(content, algorithm = 'sha256') {
+    hashContent(content: string, algorithm: string = 'sha256'): string {
         switch (algorithm.toLowerCase()) {
             case 'sha256':
                 return CryptoJS.SHA256(content).toString();
@@ -192,11 +216,11 @@ class GestallCrypto {
 
     /**
      * 生成安全随机密码
-     * @param {number} length - 密码长度
-     * @param {boolean} includeSymbols - 是否包含特殊字符
-     * @returns {string} 随机密码
+     * @param length - 密码长度
+     * @param includeSymbols - 是否包含特殊字符
+     * @returns 随机密码
      */
-    generatePassword(length = 16, includeSymbols = true) {
+    generatePassword(length: number = 16, includeSymbols: boolean = true): string {
         const lowercase = 'abcdefghijklmnopqrstuvwxyz';
         const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         const numbers = '0123456789';
@@ -218,11 +242,11 @@ class GestallCrypto {
 
     /**
      * 验证密码强度
-     * @param {string} password - 密码
-     * @returns {Object} 强度分析结果
+     * @param password - 密码
+     * @returns 强度分析结果
      */
-    analyzePasswordStrength(password) {
-        const analysis = {
+    analyzePasswordStrength(password: string): PasswordStrengthAnalysis {
+        const analysis: PasswordStrengthAnalysis = {
             score: 0,
             strength: 'weak',
             feedback: []
@@ -258,14 +282,14 @@ class GestallCrypto {
 
     /**
      * 创建内容指纹（用于版本控制和去重）
-     * @param {Object} contentData - 内容数据对象
-     * @returns {string} 内容指纹
+     * @param contentData - 内容数据对象
+     * @returns 内容指纹
      */
-    createContentFingerprint(contentData) {
+    createContentFingerprint(contentData: Record<string, any>): string {
         // 规范化内容数据
         const normalized = JSON.stringify(contentData, Object.keys(contentData).sort());
         return this.hashContent(normalized, 'sha256');
     }
 }
 
-module.exports = GestallCrypto;
+export default GestallCrypto;

@@ -12,7 +12,8 @@
     "src/main.ts",
     "src/core/**/*",
     "src/crypto/**/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "src/generated/**/*"
   ],
   "exclude": [
     "src/ui/**/*",
