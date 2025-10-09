@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
-    "lib": ["ES2020"],
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -23,15 +23,22 @@
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["node"],
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    "types": ["node", "vite/client"],
+    "typeRoots": ["./node_modules/@types", "./src/shared"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/ui/*"],
+      "@shared/*": ["src/shared/*"]
+    }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "vite.config.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    "dist-web",
     "**/*.spec.ts",
     "**/*.test.ts"
   ],

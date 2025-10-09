@@ -9,8 +9,8 @@ const GestallCrypto = require(path.join(__dirname, '../src/crypto/crypto'));
 import {
   UserData,
   UserCreateResponse,
-  ProjectData,
-  Project,
+  WorkData,
+  Work,
   ChapterData,
   Chapter,
   ContentData,
@@ -19,7 +19,7 @@ import {
   WindowResponse,
   IPCResponse,
   KeyPair
-} from './types/interfaces';
+} from './shared/types';
 
 // 版本信息
 console.log('🚀 Gestell启动中...');
@@ -59,8 +59,14 @@ function createWindow(): void {
     mainWindow.loadFile(path.join(__dirname, '../test/database-performance.html'));
     console.log('🧪 启动数据库性能测试模式');
   } else {
-    // 正常模式：加载主页面
-    mainWindow.loadFile(path.join(__dirname, '../src/index.html'));
+    // 正常模式：加载Vue应用
+    if (process.env.NODE_ENV === 'development') {
+      // 开发模式：连接Vite开发服务器
+      mainWindow.loadURL('http://localhost:3000');
+    } else {
+      // 生产模式：加载构建后的文件
+      mainWindow.loadFile(path.join(__dirname, '../dist-web/src/ui/index.html'));
+    }
   }
 
   // 窗口准备好后显示
@@ -147,45 +153,43 @@ ipcMain.handle('user:create', async (event: IpcMainInvokeEvent, userData: UserDa
   }
 });
 
-// IPC处理程序 - 项目管理
-ipcMain.handle('project:create', async (event: IpcMainInvokeEvent, projectData: ProjectData): Promise<IPCResponse<{ projectId: string; work: any }>> => {
+// IPC处理程序 - 作品管理
+ipcMain.handle('work:create', async (event: IpcMainInvokeEvent, workData: WorkData): Promise<IPCResponse<{ workId: string; work: any }>> => {
   try {
-    // 使用Prisma创建项目
+    // 使用Prisma创建作品
     const work = await db.createWork({
-      title: projectData.title,
-      description: projectData.description,
-      genre: projectData.genre,
-      authorId: projectData.authorId || 'user_mock_001',
-      collaborationMode: projectData.collaborationMode || 'solo'
+      title: workData.title,
+      description: workData.description,
+      genre: workData.genre,
+      authorId: workData.authorId || 'user_mock_001',
+      collaborationMode: workData.collaborationMode || 'solo'
     });
     
-    return { success: true, data: { projectId: work.id, work } };
+    return { success: true, data: { workId: work.id, work } };
   } catch (error: any) {
-    console.error('创建项目失败:', error);
+    console.error('创建作品失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('project:list', async (event: IpcMainInvokeEvent, authorId?: string): Promise<IPCResponse<{ projects: Project[] }>> => {
+ipcMain.handle('work:list', async (event: IpcMainInvokeEvent, authorId?: string): Promise<IPCResponse<{ works: Work[] }>> => {
   try {
     // 使用Prisma查询
-    const works = await db.getWorksList(authorId || 'user_mock_001');
-    const projects: Project[] = works.map((work: any) => ({
+    const workList = await db.getWorksList(authorId || 'user_mock_001');
+    const works: Work[] = workList.map((work: any) => ({
       id: work.id,
       title: work.title,
       description: work.description,
       genre: work.genre,
-      author_id: work.authorId,
-      collaboration_mode: work.collaborationMode,
-      status: work.status,
-      created_at: Number(work.createdAt),
-      updated_at: Number(work.updatedAt),
-      chapter_count: work._count?.chapters || 0,
-      content_count: work._count?.contents || 0
+      authorId: work.authorId,
+      collaborationMode: work.collaborationMode,
+      createdAt: work.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: work.updatedAt?.toISOString() || new Date().toISOString(),
+      chapters: [] // 暂时不加载章节数据
     }));
-    return { success: true, data: { projects } };
+    return { success: true, data: { works } };
   } catch (error: any) {
-    console.error('获取项目列表失败:', error);
+    console.error('获取作品列表失败:', error);
     return { success: false, error: error.message };
   }
 });
@@ -195,7 +199,7 @@ ipcMain.handle('chapter:create', async (event: IpcMainInvokeEvent, chapterData: 
   try {
     // 使用Prisma创建章节
     const chapter = await db.createChapter({
-      workId: chapterData.projectId,
+      workId: chapterData.workId,
       title: chapterData.title,
       parentId: chapterData.parentId,
       orderIndex: chapterData.orderIndex || 0,
@@ -212,23 +216,22 @@ ipcMain.handle('chapter:create', async (event: IpcMainInvokeEvent, chapterData: 
   }
 });
 
-ipcMain.handle('chapter:list', async (event: IpcMainInvokeEvent, projectId: string): Promise<IPCResponse<{ chapters: Chapter[] }>> => {
+ipcMain.handle('chapter:list', async (event: IpcMainInvokeEvent, workId: string): Promise<IPCResponse<{ chapters: Chapter[] }>> => {
   try {
     // 使用Prisma查询章节列表
-    const chapters = await db.getChaptersList(projectId);
+    const chapters = await db.getChaptersList(workId);
     const formattedChapters: Chapter[] = chapters.map((chapter: any) => ({
       id: chapter.id,
-      project_id: chapter.workId,
-      work_id: chapter.workId,
-      parent_id: chapter.parentId,
-      level: chapter.level,
-      order_index: chapter.orderIndex,
       title: chapter.title,
+      content: chapter.content,
+      workId: chapter.workId,
+      order: chapter.orderIndex || 0,
+      parentId: chapter.parentId,
+      orderIndex: chapter.orderIndex,
       subtitle: chapter.subtitle,
       description: chapter.description,
       type: chapter.type,
-      status: chapter.status,
-      word_count: chapter.wordCount,
+      authorId: chapter.authorId,
       character_count: chapter.characterCount,
       content_count: chapter._count?.contents || 0,
       child_chapter_count: chapter._count?.children || 0,
@@ -264,11 +267,11 @@ ipcMain.handle('content:create', async (event: IpcMainInvokeEvent, contentData: 
   try {
     // 使用Prisma创建内容
     const content = await db.createContent({
-      workId: contentData.projectId || contentData.workId!,
+      workId: contentData.workId,
       chapterId: contentData.chapterId,
       title: contentData.title,
       type: contentData.type || 'text',
-      contentDelta: contentData.contentDelta || '',
+      contentDelta: contentData.contentJson || '',  // 改为 contentJson
       contentHtml: contentData.contentHtml || '',
       orderIndex: contentData.orderIndex || 0,
       authorId: contentData.authorId || 'user_mock_001'

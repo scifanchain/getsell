@@ -8,17 +8,17 @@ contextBridge.exposeInMainWorld('gestell', {
     // TODO: 添加登录、认证等功能
   },
 
-  // 项目管理API
-  project: {
-    create: (projectData) => ipcRenderer.invoke('project:create', projectData),
-    list: (authorId) => ipcRenderer.invoke('project:list', authorId),
+  // 作品管理API
+  work: {
+    create: (workData) => ipcRenderer.invoke('work:create', workData),
+    list: (authorId) => ipcRenderer.invoke('work:list', authorId),
     // TODO: 添加更新、删除等功能
   },
 
   // 章节管理API
   chapter: {
     create: (chapterData) => ipcRenderer.invoke('chapter:create', chapterData),
-    list: (projectId) => ipcRenderer.invoke('chapter:list', projectId),
+    list: (workId) => ipcRenderer.invoke('chapter:list', workId),
     update: (chapterId, chapterData) => ipcRenderer.invoke('chapter:update', chapterId, chapterData),
     // TODO: 添加删除、排序等功能
   },
