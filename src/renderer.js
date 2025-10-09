@@ -104,7 +104,7 @@ async function loadSystemInfo() {
         // 数据库状态
         const statsResult = await gestell.system.getStats();
         if (statsResult.success) {
-            dbStatusEl.textContent = `正常 (${statsResult.stats.projects || 0} 项目)`;
+            dbStatusEl.textContent = `正常 (${statsResult.stats.works || 0} 作品)`;
         } else {
             dbStatusEl.textContent = '连接失败';
         }

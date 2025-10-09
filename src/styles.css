@@ -123,7 +123,7 @@ body {
     align-items: center;
     gap: 2px;
     margin-left: 8px;
-    -webkit-app-region: no-drag;
+    -webkit-app-region: drag;
     flex: 1;
 }
 

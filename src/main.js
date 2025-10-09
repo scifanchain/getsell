@@ -4,6 +4,12 @@ const GestallDatabase = require('./core/database');
 const ULIDGenerator = require('./core/ulid');
 const GestallCrypto = require('./crypto/crypto');
 
+// 版本信息
+console.log('🚀 Gestell启动中...');
+console.log('📦 Electron版本:', process.versions.electron);
+console.log('🟢 Node.js版本:', process.versions.node);
+console.log('🔧 Chrome版本:', process.versions.chrome);
+
 // 核心实例
 let db;
 let crypto;
@@ -29,7 +35,17 @@ function createWindow() {
   });
 
   // 加载应用的index.html
-  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+    // 检查是否是测试模式
+  const isTestMode = process.argv.includes('--test');
+  
+  if (isTestMode) {
+    // 测试模式：加载测试页面
+    mainWindow.loadFile('test/integration.html');
+    console.log('🧪 启动测试模式');
+  } else {
+    // 正常模式：加载主页面
+    mainWindow.loadFile('src/index.html');
+  }
 
   // 窗口准备好后显示
   mainWindow.once('ready-to-show', () => {
@@ -114,7 +130,7 @@ ipcMain.handle('project:create', async (event, projectData) => {
     const timestamp = Date.now();
     
     const stmt = db.prepare(`
-      INSERT INTO projects (id, title, description, genre, author_id, collaboration_mode, status, created_at, updated_at)
+      INSERT INTO works (id, title, description, genre, author_id, collaboration_mode, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
@@ -139,7 +155,7 @@ ipcMain.handle('project:create', async (event, projectData) => {
 
 ipcMain.handle('project:list', async (event, authorId) => {
   try {
-    const stmt = db.prepare('SELECT * FROM projects WHERE author_id = ? ORDER BY updated_at DESC');
+    const stmt = db.prepare('SELECT * FROM works WHERE author_id = ? ORDER BY updated_at DESC');
     const projects = stmt.all(authorId);
     return { success: true, projects };
   } catch (error) {
@@ -151,25 +167,11 @@ ipcMain.handle('project:list', async (event, authorId) => {
 // IPC处理程序 - 章节管理
 ipcMain.handle('chapter:create', async (event, chapterData) => {
   try {
-    const chapterId = ULIDGenerator.generate();
-    const timestamp = Date.now();
-    
-    const stmt = db.prepare(`
-      INSERT INTO chapters (id, project_id, title, content_delta, content_html, word_count, character_count, order_index, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      chapterId,
-      chapterData.projectId,
-      chapterData.title,
-      chapterData.contentDelta,
-      chapterData.contentHtml,
-      chapterData.wordCount || 0,
-      chapterData.characterCount || 0,
-      chapterData.orderIndex,
-      timestamp,
-      timestamp
+    const chapterId = db.createChapter(
+      chapterData.projectId, 
+      chapterData.title, 
+      chapterData.parentId, 
+      chapterData.orderIndex || 0
     );
     
     return { success: true, chapterId };
@@ -181,7 +183,7 @@ ipcMain.handle('chapter:create', async (event, chapterData) => {
 
 ipcMain.handle('chapter:list', async (event, projectId) => {
   try {
-    const stmt = db.prepare('SELECT * FROM chapters WHERE project_id = ? ORDER BY order_index ASC');
+    const stmt = db.prepare('SELECT * FROM chapters WHERE work_id = ? ORDER BY order_index ASC');
     const chapters = stmt.all(projectId);
     return { success: true, chapters };
   } catch (error) {
@@ -196,16 +198,13 @@ ipcMain.handle('chapter:update', async (event, chapterId, chapterData) => {
     
     const stmt = db.prepare(`
       UPDATE chapters 
-      SET title = ?, content_delta = ?, content_html = ?, word_count = ?, character_count = ?, updated_at = ?
+      SET title = ?, description = ?, updated_at = ?
       WHERE id = ?
     `);
     
     const result = stmt.run(
       chapterData.title,
-      chapterData.contentDelta,
-      chapterData.contentHtml,
-      chapterData.wordCount,
-      chapterData.characterCount,
+      chapterData.description || null,
       timestamp,
       chapterId
     );

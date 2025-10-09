@@ -5,6 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
+    "test": "electron . --test",
     "dev": "electron . --dev",
     "build": "electron-builder",
     "rebuild": "electron-rebuild",
@@ -18,20 +19,21 @@
   "author": "unity",
   "license": "MIT",
   "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
     "electron": "^32.0.0",
     "electron-builder": "^24.13.3",
-    "@electron/rebuild": "^3.6.0"
+    "node-gyp": "^11.4.2"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
+    "better-sqlite3": "^12.4.1",
     "crypto-js": "^4.2.0",
-    "ulid": "^2.3.0",
-    "marked": "^14.1.2",
+    "electron-store": "^10.0.0",
     "highlight.js": "^11.10.0",
+    "jszip": "^3.10.1",
+    "marked": "^14.1.2",
     "quill": "^2.0.2",
     "quill-delta": "^5.1.0",
-    "jszip": "^3.10.1",
-    "electron-store": "^10.0.0"
+    "ulid": "^2.3.0"
   },
   "build": {
     "appId": "com.scifan.gestell",
