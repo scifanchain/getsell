@@ -63,7 +63,6 @@ interface Stats {
     chapters: number;
     contents: number;
     characters: number;
-    worldbuilding: number;
     chapter_levels: Record<string, number>;
     content_stats: {
         total_words: number;
@@ -503,14 +502,12 @@ export class GestallPrismaDatabase {
             chaptersCount,
             contentsCount,
             charactersCount,
-            worldbuildingCount
         ] = await Promise.all([
             this.prisma.author.count(),
             this.prisma.work.count(),
             this.prisma.chapter.count(),
             this.prisma.content.count(),
             this.prisma.character.count(),
-            this.prisma.worldbuilding.count()
         ]);
 
         // 获取章节层级统计
@@ -541,7 +538,6 @@ export class GestallPrismaDatabase {
             chapters: chaptersCount,
             contents: contentsCount,
             characters: charactersCount,
-            worldbuilding: worldbuildingCount,
             chapter_levels,
             content_stats: {
                 total_words: contentStats._sum.wordCount || 0,

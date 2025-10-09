@@ -68,7 +68,6 @@ model Work {
   collaborationLogs    CollaborationLog[]
   contents             Content[]
   author               Author             @relation(fields: [authorId], references: [id])
-  worldbuilding        Worldbuilding[]
 
   @@map("works")
 }
@@ -192,21 +191,6 @@ model Character {
   @@map("characters")
 }
 
-model Worldbuilding {
-  id             String  @id
-  workId         String  @map("work_id")
-  category       String
-  title          String
-  description    String?
-  details        String?
-  referencesData String? @map("references_data")
-  tags           String?
-  createdAt      BigInt  @map("created_at")
-  updatedAt      BigInt  @map("updated_at")
-  work           Work    @relation(fields: [workId], references: [id])
-
-  @@map("worldbuilding")
-}
 
 model BlockchainSync {
   id              String  @id
