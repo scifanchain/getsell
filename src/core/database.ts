@@ -1,6 +1,7 @@
 import { PrismaClient } from '../generated/prisma';
 import { IDatabaseManager } from '../data/interfaces';
 import ulidGenerator from './ulid';
+import path from 'path';
 
 /**
  * 数据库管理器
@@ -10,7 +11,10 @@ export class DatabaseManager implements IDatabaseManager {
     private prisma: PrismaClient;
 
     constructor() {
-        const databaseUrl = process.env.DATABASE_URL || 'file:./gestell.db';
+        // 获取应用根目录的绝对路径
+        const appRoot = process.cwd();
+        const defaultDbPath = path.join(appRoot, 'data', 'gestell.db');
+        const databaseUrl = process.env.DATABASE_URL || `file:${defaultDbPath}`;
         
         // 初始化Prisma客户端
         this.prisma = new PrismaClient({

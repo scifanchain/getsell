@@ -10,7 +10,7 @@ export default defineConfig({
   base: './',
   
   build: {
-    outDir: 'dist-web',
+    outDir: 'dist/renderer',
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'src/ui/index.html')

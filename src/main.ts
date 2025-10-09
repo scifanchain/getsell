@@ -1,3 +1,6 @@
+// 加载环境变量
+import 'dotenv/config';
+
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 // 导入TypeScript模块
@@ -71,7 +74,7 @@ function createWindow(): void {
       mainWindow.loadURL('http://localhost:3000');
     } else {
       // 生产模式：加载构建后的文件
-      mainWindow.loadFile(path.join(__dirname, '../dist-web/src/ui/index.html'));
+      mainWindow.loadFile(path.join(__dirname, '../dist/renderer/src/ui/index.html'));
     }
   }
 
