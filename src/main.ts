@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 // 导入TypeScript模块
 import GestallPrismaDatabase from './core/prismadb';
+import { DatabaseManager } from './core/database';
+import { RepositoryContainer } from './data/RepositoryContainer';
 import ulidGenerator from './core/ulid';
 import GestallCrypto from './crypto/crypto';
 
@@ -28,9 +30,13 @@ console.log('🟢 Node.js版本:', process.versions.node);
 console.log('🔧 Chrome版本:', process.versions.chrome);
 
 // 核心实例
-let db: any;
+let db: any; // 保持旧实例向后兼容
 let crypto: any;
 let mainWindow: BrowserWindow | null = null;
+
+// 新架构实例
+let databaseManager: DatabaseManager;
+let repositories: RepositoryContainer;
 
 function createWindow(): void {
   // 创建浏览器窗口
@@ -104,7 +110,17 @@ function createWindow(): void {
 
 async function initCore(): Promise<void> {
   try {
-    // 使用Prisma数据库
+    // 初始化新架构
+    console.log('🔍 初始化新的Repository架构');
+    databaseManager = new DatabaseManager();
+    await databaseManager.connect();
+    
+    repositories = new RepositoryContainer(databaseManager);
+    
+    // 确保默认用户存在
+    await repositories.userRepository.ensureDefaultUser();
+    
+    // 保持旧架构向后兼容
     console.log('🔍 使用Prisma数据库模式');
     db = new GestallPrismaDatabase();
     await db.connect();

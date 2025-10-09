@@ -79,17 +79,20 @@ export class GestallPrismaDatabase {
     private prisma: PrismaClient;
 
     constructor() {
+        const databaseUrl = process.env.DATABASE_URL || 'file:./gestell.db';
+        
         // 初始化Prisma客户端
         this.prisma = new PrismaClient({
             log: ['query', 'info', 'warn', 'error'],
             datasources: {
                 db: {
-                    url: process.env.DATABASE_URL || 'file:./data/gestell.db'
+                    url: databaseUrl
                 }
             }
         });
 
         console.log('🗄️ Gestell Prisma数据库初始化成功');
+        console.log('📍 旧数据库路径:', databaseUrl);
     }
 
     /**

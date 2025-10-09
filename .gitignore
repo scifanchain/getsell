@@ -44,10 +44,13 @@ app-builds/
 *.db-shm
 *.db-wal
 
-# 数据目录（包含用户数据）
-data/
+# 用户数据目录（包含用户数据）
+/data/
 database/
 *.db-journal
+
+# 开发数据库（保留在版本控制中但忽略变更）
+# dev.db
 
 # ===== 操作系统 =====
 # Windows
