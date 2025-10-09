@@ -43,7 +43,7 @@ src/
 │   ├── preload.js                # ✅ 预加载脚本 (IPC 桥接)
 │   ├── core/                     # ✅ 核心业务逻辑
 │   │   ├── prismadb.js          # ✅ Prisma 数据库配置
-│   │   └── database.js          # ✅ 数据库操作接口
+│   │   └── ulid.js              # ✅ ULID 生成器
 │   ├── crypto/                   # ✅ 加密相关
 │   │   └── crypto.js            # ✅ 加密工具函数
 │   ├── generated/                # ✅ Prisma 生成文件
