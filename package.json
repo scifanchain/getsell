@@ -2,12 +2,16 @@
   "name": "gestell",
   "version": "0.1.0",
   "description": "座架-科幻小说写作工具",
-  "main": "src/main.js",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "electron .",
-    "test": "electron . --test",
-    "dev": "electron . --dev",
-    "build": "electron-builder",
+    "start": "npm run build && electron dist/main.js",
+    "start:dev": "npm run build:dev && electron dist/main.js --dev",
+    "test": "npm run build && electron dist/main.js --test",
+    "dev": "npm run build:watch",
+    "build": "tsc",
+    "build:dev": "tsc --sourceMap",
+    "build:watch": "tsc --watch",
+    "clean": "rimraf dist",
     "rebuild": "electron-rebuild",
     "postinstall": "electron-rebuild"
   },
@@ -20,9 +24,19 @@
   "license": "MIT",
   "devDependencies": {
     "@electron/rebuild": "^3.6.0",
+    "@prisma/client": "^6.17.0",
+    "@types/crypto-js": "^4.2.2",
+    "@types/highlight.js": "^9.12.4",
+    "@types/jszip": "^3.4.0",
+    "@types/marked": "^5.0.2",
+    "@types/node": "^24.7.0",
     "electron": "^32.0.0",
     "electron-builder": "^24.13.3",
-    "node-gyp": "^11.4.2"
+    "node-gyp": "^11.4.2",
+    "prisma": "^6.17.0",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "better-sqlite3": "^12.4.1",

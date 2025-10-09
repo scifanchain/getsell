@@ -1,0 +1,276 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 作者表（对应原来的users）
+model Author {
+  id                   String  @id
+  username             String  @unique
+  displayName          String? @map("display_name")
+  email                String? @unique
+  bio                  String?
+  avatarUrl            String? @map("avatar_url")
+  walletAddress        String? @map("wallet_address")
+  publicKey            String? @map("public_key")
+  privateKeyEncrypted  String? @map("private_key_encrypted")
+  totalWorks           Int     @default(0) @map("total_works")
+  totalWords           Int     @default(0) @map("total_words")
+  status               String  @default("active")
+  preferences          String? // JSON格式用户偏好
+  lastActiveAt         BigInt? @map("last_active_at")
+  createdAt            BigInt  @map("created_at")
+  updatedAt            BigInt  @map("updated_at")
+
+  // 关系
+  works               Work[]
+  chapters            Chapter[]
+  contents            Content[]
+  editedContents      Content[] @relation("ContentEditor")
+  contentVersions     ContentVersion[]
+  collaborationLogs   CollaborationLog[]
+
+  @@map("authors")
+}
+
+// 作品表（对应原来的projects）
+model Work {
+  id                    String   @id
+  title                 String
+  subtitle              String?
+  description           String?
+  coverImageUrl         String?  @map("cover_image_url")
+  genre                 String?  // 科幻子类型
+  tags                  String?  // JSON格式标签数组
+  authorId              String   @map("author_id")
+  collaborationMode     String   @default("solo") @map("collaboration_mode") // solo, invite_only, open, dao
+  collaborators         String?  // JSON格式协作者列表
+  status                String   @default("draft") // draft, writing, review, completed, published, archived
+  progressPercentage    Float    @default(0.0) @map("progress_percentage")
+  totalWords            Int      @default(0) @map("total_words")
+  totalCharacters       Int      @default(0) @map("total_characters")
+  chapterCount          Int      @default(0) @map("chapter_count")
+  targetWords           Int?     @map("target_words")
+  targetCompletionDate  BigInt?  @map("target_completion_date")
+  blockchainHash        String?  @map("blockchain_hash")
+  nftTokenId            String?  @map("nft_token_id")
+  nftContractAddress    String?  @map("nft_contract_address")
+  copyrightHash         String?  @map("copyright_hash")
+  isPublic              Boolean  @default(false) @map("is_public")
+  licenseType           String   @default("all_rights_reserved") @map("license_type")
+  publishedAt           BigInt?  @map("published_at")
+  metadata              String?  // JSON格式元数据
+  createdAt             BigInt   @map("created_at")
+  updatedAt             BigInt   @map("updated_at")
+
+  // 关系
+  author               Author    @relation(fields: [authorId], references: [id])
+  chapters             Chapter[]
+  contents             Content[]
+  characters           Character[]
+  worldbuilding        Worldbuilding[]
+  collaborationLogs    CollaborationLog[]
+
+  @@map("works")
+}
+
+// 章节表
+model Chapter {
+  id                    String   @id
+  workId                String   @map("work_id")
+  parentId              String?  @map("parent_id")
+  level                 Int      @default(1) // 1-3层级
+  orderIndex            Int      @map("order_index")
+  title                 String
+  subtitle              String?
+  description           String?
+  type                  String   @default("chapter") // part, chapter, section, scene, epilogue, prologue, appendix
+  status                String   @default("draft") // draft, writing, review, completed, published
+  wordCount             Int      @default(0) @map("word_count")
+  characterCount        Int      @default(0) @map("character_count")
+  contentCount          Int      @default(0) @map("content_count")
+  childChapterCount     Int      @default(0) @map("child_chapter_count")
+  progressPercentage    Float    @default(0.0) @map("progress_percentage")
+  targetWords           Int?     @map("target_words")
+  authorId              String   @map("author_id")
+  storyTimelineStart    String?  @map("story_timeline_start")
+  storyTimelineEnd      String?  @map("story_timeline_end")
+  tags                  String?  // JSON格式标签
+  blockchainHash        String?  @map("blockchain_hash")
+  isPublic              Boolean  @default(false) @map("is_public")
+  publishedAt           BigInt?  @map("published_at")
+  metadata              String?  // JSON格式元数据
+  createdAt             BigInt   @map("created_at")
+  updatedAt             BigInt   @map("updated_at")
+
+  // 关系
+  work                 Work      @relation(fields: [workId], references: [id])
+  author               Author    @relation(fields: [authorId], references: [id])
+  parent               Chapter?  @relation("ChapterHierarchy", fields: [parentId], references: [id])
+  children             Chapter[] @relation("ChapterHierarchy")
+  contents             Content[]
+
+  @@map("chapters")
+}
+
+// 内容表
+model Content {
+  id                   String   @id
+  workId               String   @map("work_id")
+  chapterId            String?  @map("chapter_id")
+  orderIndex           Int      @map("order_index")
+  title                String?
+  type                 String   @default("text") // text, dialogue, description, action, thought, narration, note, outline, sketch
+  contentDelta         String?  @map("content_delta") // Quill Delta格式内容
+  contentHtml          String?  @map("content_html") // 渲染后的HTML
+  contentText          String?  @map("content_text") // 纯文本内容（用于搜索）
+  wordCount            Int      @default(0) @map("word_count")
+  characterCount       Int      @default(0) @map("character_count")
+  paragraphCount       Int      @default(0) @map("paragraph_count")
+  status               String   @default("draft") // draft, writing, review, completed, published
+  version              Int      @default(1)
+  authorId             String   @map("author_id")
+  isCollaborative      Boolean  @default(false) @map("is_collaborative")
+  contributors         String?  // JSON格式贡献者列表
+  storyTimeline        String?  @map("story_timeline")
+  charactersInvolved   String?  @map("characters_involved") // JSON格式涉及角色
+  location             String?
+  sceneDescription     String?  @map("scene_description")
+  tags                 String?  // JSON格式标签
+  emotionTone          String?  @map("emotion_tone")
+  importanceLevel      Int      @default(3) @map("importance_level") // 1-5
+  contentHash          String?  @map("content_hash")
+  blockchainTimestamp  BigInt?  @map("blockchain_timestamp")
+  copyrightStatus      String   @default("draft") @map("copyright_status")
+  isPublic             Boolean  @default(false) @map("is_public")
+  publishedAt          BigInt?  @map("published_at")
+  writingDuration      Int      @default(0) @map("writing_duration") // 秒
+  lastEditedAt         BigInt   @map("last_edited_at")
+  lastEditorId         String   @map("last_editor_id")
+  notes                String?
+  metadata             String?  // JSON格式元数据
+  createdAt            BigInt   @map("created_at")
+  updatedAt            BigInt   @map("updated_at")
+
+  // 关系
+  work                Work             @relation(fields: [workId], references: [id])
+  chapter             Chapter?         @relation(fields: [chapterId], references: [id])
+  author              Author           @relation(fields: [authorId], references: [id])
+  lastEditor          Author           @relation("ContentEditor", fields: [lastEditorId], references: [id])
+  versions            ContentVersion[]
+
+  @@map("contents")
+}
+
+// 内容版本历史表
+model ContentVersion {
+  id               String  @id
+  contentId        String  @map("content_id")
+  contentDelta     String  @map("content_delta")
+  contentHtml      String? @map("content_html")
+  contentText      String? @map("content_text")
+  wordCount        Int     @default(0) @map("word_count")
+  characterCount   Int     @default(0) @map("character_count")
+  versionNumber    Int     @map("version_number")
+  changeSummary    String? @map("change_summary")
+  authorId         String  @map("author_id")
+  blockchainHash   String? @map("blockchain_hash")
+  createdAt        BigInt  @map("created_at")
+
+  // 关系
+  content          Content @relation(fields: [contentId], references: [id])
+  author           Author  @relation(fields: [authorId], references: [id])
+
+  @@map("content_versions")
+}
+
+// 角色表
+model Character {
+  id            String  @id
+  workId        String  @map("work_id")
+  name          String
+  description   String?
+  appearance    String?
+  personality   String?
+  background    String?
+  relationships String?
+  imageUrl      String? @map("image_url")
+  tags          String?
+  createdAt     BigInt  @map("created_at")
+  updatedAt     BigInt  @map("updated_at")
+
+  // 关系
+  work          Work    @relation(fields: [workId], references: [id])
+
+  @@map("characters")
+}
+
+// 世界观设定表
+model Worldbuilding {
+  id             String  @id
+  workId         String  @map("work_id")
+  category       String
+  title          String
+  description    String?
+  details        String?
+  referencesData String? @map("references_data")
+  tags           String?
+  createdAt      BigInt  @map("created_at")
+  updatedAt      BigInt  @map("updated_at")
+
+  // 关系
+  work           Work    @relation(fields: [workId], references: [id])
+
+  @@map("worldbuilding")
+}
+
+// 区块链同步记录表
+model BlockchainSync {
+  id             String  @id
+  contentId      String  @map("content_id")
+  contentType    String  @map("content_type") // project, chapter, character, etc.
+  blockchainHash String  @map("blockchain_hash")
+  transactionHash String? @map("transaction_hash")
+  blockNumber    Int?    @map("block_number")
+  syncStatus     String  @default("pending") @map("sync_status") // pending, confirmed, failed
+  syncData       String? @map("sync_data") // JSON格式同步数据
+  createdAt      BigInt  @map("created_at")
+  updatedAt      BigInt  @map("updated_at")
+
+  @@map("blockchain_sync")
+}
+
+// 协作日志表
+model CollaborationLog {
+  id         String  @id
+  workId     String  @map("work_id")
+  authorId   String  @map("author_id")
+  action     String  // create, edit, delete, comment, etc.
+  targetType String  @map("target_type") // chapter, character, worldbuilding
+  targetId   String  @map("target_id")
+  changes    String? // JSON格式变更详情
+  message    String?
+  createdAt  BigInt  @map("created_at")
+
+  // 关系
+  work       Work    @relation(fields: [workId], references: [id])
+  author     Author  @relation(fields: [authorId], references: [id])
+
+  @@map("collaboration_logs")
+}
+
+// 版本管理表
+model SchemaVersion {
+  version    Int    @id
+  appliedAt  BigInt @map("applied_at")
+
+  @@map("schema_version")
+}

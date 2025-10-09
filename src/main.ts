@@ -1,9 +1,25 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-// 使用Prisma数据库实现
-const GestallPrismaDatabase = require('./core/prismadb');
-const ULIDGenerator = require('./core/ulid');
-const GestallCrypto = require('./crypto/crypto');
+import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
+import * as path from 'path';
+// 使用require暂时导入JS模块，使用绝对路径
+const GestallPrismaDatabase = require(path.join(__dirname, '../src/core/prismadb'));
+const ULIDGenerator = require(path.join(__dirname, '../src/core/ulid'));
+const GestallCrypto = require(path.join(__dirname, '../src/crypto/crypto'));
+
+// 导入类型定义
+import {
+  UserData,
+  UserCreateResponse,
+  ProjectData,
+  Project,
+  ChapterData,
+  Chapter,
+  ContentData,
+  Content,
+  SystemStats,
+  WindowResponse,
+  IPCResponse,
+  KeyPair
+} from './types/interfaces';
 
 // 版本信息
 console.log('🚀 Gestell启动中...');
@@ -12,11 +28,11 @@ console.log('🟢 Node.js版本:', process.versions.node);
 console.log('🔧 Chrome版本:', process.versions.chrome);
 
 // 核心实例
-let db;
-let crypto;
-let mainWindow;
+let db: any;
+let crypto: any;
+let mainWindow: BrowserWindow | null = null;
 
-function createWindow() {
+function createWindow(): void {
   // 创建浏览器窗口
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -29,46 +45,47 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, '../src/preload.js')
     },
     show: false // 等待ready-to-show事件
   });
 
   // 加载应用的index.html
-    // 检查是否是测试模式
+  // 检查是否是测试模式
   const isTestMode = process.argv.includes('--test');
   
   if (isTestMode) {
     // 测试模式：加载测试页面
-    mainWindow.loadFile('test/database-performance.html');
+    mainWindow.loadFile(path.join(__dirname, '../test/database-performance.html'));
     console.log('🧪 启动数据库性能测试模式');
   } else {
     // 正常模式：加载主页面
-    mainWindow.loadFile('src/index.html');
+    mainWindow.loadFile(path.join(__dirname, '../src/index.html'));
   }
 
   // 窗口准备好后显示
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-    
-    // 开发时打开开发者工具
-    mainWindow.webContents.openDevTools();
-    
-    // 设置窗口标题
-    mainWindow.setTitle('Gestell - 去中心化科幻写作平台');
-    
-    // 在 Windows 上自定义标题栏颜色
-    if (process.platform === 'win32') {
-      try {
-        // 设置标题栏颜色 (适用于 Windows 10/11)
-        mainWindow.setTitleBarOverlay({
-          color: '#1a1a2e',      // 标题栏背景色
-          symbolColor: '#ffffff', // 按钮颜色
-          height: 30             // 标题栏高度
-        });
-      } catch (error) {
-        console.log('设置标题栏颜色:', error.message);
+    if (mainWindow) {
+      mainWindow.show();
+      
+      // 开发时打开开发者工具
+      mainWindow.webContents.openDevTools();
+      
+      // 设置窗口标题
+      mainWindow.setTitle('Gestell - 去中心化科幻写作平台');
+      
+      // 在 Windows 上自定义标题栏颜色
+      if (process.platform === 'win32') {
+        try {
+          // 设置标题栏颜色 (适用于 Windows 10/11)
+          mainWindow.setTitleBarOverlay({
+            color: '#1a1a2e',      // 标题栏背景色
+            symbolColor: '#ffffff', // 按钮颜色
+            height: 30             // 标题栏高度
+          });
+        } catch (error: any) {
+          console.log('设置标题栏颜色:', error.message);
+        }
       }
     }
   });
@@ -79,7 +96,7 @@ function createWindow() {
   }
 }
 
-async function initCore() {
+async function initCore(): Promise<void> {
   try {
     // 使用Prisma数据库
     console.log('🔍 使用Prisma数据库模式');
@@ -96,12 +113,12 @@ async function initCore() {
 }
 
 // IPC处理程序 - 用户管理
-ipcMain.handle('user:create', async (event, userData) => {
+ipcMain.handle('user:create', async (event: IpcMainInvokeEvent, userData: UserData): Promise<IPCResponse<UserCreateResponse>> => {
   try {
     const userId = ULIDGenerator.generate();
     
     // 生成用户密钥对
-    const keyPair = crypto.generateKeyPair();
+    const keyPair = crypto.generateKeyPair() as KeyPair;
     const encryptedPrivateKey = crypto.encryptPrivateKey(keyPair.privateKey, userData.password);
     
     // 密码哈希
@@ -119,17 +136,19 @@ ipcMain.handle('user:create', async (event, userData) => {
     
     return { 
       success: true, 
-      userId: user.id,
-      publicKey: keyPair.publicKey 
+      data: {
+        userId: user.id,
+        publicKey: keyPair.publicKey 
+      }
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('创建用户失败:', error);
     return { success: false, error: error.message };
   }
 });
 
 // IPC处理程序 - 项目管理
-ipcMain.handle('project:create', async (event, projectData) => {
+ipcMain.handle('project:create', async (event: IpcMainInvokeEvent, projectData: ProjectData): Promise<IPCResponse<{ projectId: string; work: any }>> => {
   try {
     // 使用Prisma创建项目
     const work = await db.createWork({
@@ -140,18 +159,18 @@ ipcMain.handle('project:create', async (event, projectData) => {
       collaborationMode: projectData.collaborationMode || 'solo'
     });
     
-    return { success: true, projectId: work.id, work };
-  } catch (error) {
+    return { success: true, data: { projectId: work.id, work } };
+  } catch (error: any) {
     console.error('创建项目失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('project:list', async (event, authorId) => {
+ipcMain.handle('project:list', async (event: IpcMainInvokeEvent, authorId?: string): Promise<IPCResponse<{ projects: Project[] }>> => {
   try {
     // 使用Prisma查询
     const works = await db.getWorksList(authorId || 'user_mock_001');
-    const projects = works.map(work => ({
+    const projects: Project[] = works.map((work: any) => ({
       id: work.id,
       title: work.title,
       description: work.description,
@@ -164,15 +183,15 @@ ipcMain.handle('project:list', async (event, authorId) => {
       chapter_count: work._count?.chapters || 0,
       content_count: work._count?.contents || 0
     }));
-    return { success: true, projects };
-  } catch (error) {
+    return { success: true, data: { projects } };
+  } catch (error: any) {
     console.error('获取项目列表失败:', error);
     return { success: false, error: error.message };
   }
 });
 
 // IPC处理程序 - 章节管理
-ipcMain.handle('chapter:create', async (event, chapterData) => {
+ipcMain.handle('chapter:create', async (event: IpcMainInvokeEvent, chapterData: ChapterData): Promise<IPCResponse<{ chapterId: string; chapter: any }>> => {
   try {
     // 使用Prisma创建章节
     const chapter = await db.createChapter({
@@ -186,18 +205,18 @@ ipcMain.handle('chapter:create', async (event, chapterData) => {
       authorId: chapterData.authorId || 'user_mock_001'
     });
     
-    return { success: true, chapterId: chapter.id, chapter };
-  } catch (error) {
+    return { success: true, data: { chapterId: chapter.id, chapter } };
+  } catch (error: any) {
     console.error('创建章节失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('chapter:list', async (event, projectId) => {
+ipcMain.handle('chapter:list', async (event: IpcMainInvokeEvent, projectId: string): Promise<IPCResponse<{ chapters: Chapter[] }>> => {
   try {
     // 使用Prisma查询章节列表
     const chapters = await db.getChaptersList(projectId);
-    const formattedChapters = chapters.map(chapter => ({
+    const formattedChapters: Chapter[] = chapters.map((chapter: any) => ({
       id: chapter.id,
       project_id: chapter.workId,
       work_id: chapter.workId,
@@ -217,35 +236,35 @@ ipcMain.handle('chapter:list', async (event, projectId) => {
       created_at: Number(chapter.createdAt),
       updated_at: Number(chapter.updatedAt)
     }));
-    return { success: true, chapters: formattedChapters };
-  } catch (error) {
+    return { success: true, data: { chapters: formattedChapters } };
+  } catch (error: any) {
     console.error('获取章节列表失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('chapter:update', async (event, chapterId, chapterData) => {
+ipcMain.handle('chapter:update', async (event: IpcMainInvokeEvent, chapterId: string, chapterData: Partial<ChapterData>): Promise<IPCResponse<{ chapter: any }>> => {
   try {
     // 使用Prisma更新章节
     const chapter = await db.updateChapter(chapterId, {
       title: chapterData.title,
       subtitle: chapterData.subtitle,
       description: chapterData.description,
-      status: chapterData.status
+      // status: chapterData.status
     });
-    return { success: true, chapter };
-  } catch (error) {
+    return { success: true, data: { chapter } };
+  } catch (error: any) {
     console.error('更新章节失败:', error);
     return { success: false, error: error.message };
   }
 });
 
 // IPC处理程序 - 内容管理
-ipcMain.handle('content:create', async (event, contentData) => {
+ipcMain.handle('content:create', async (event: IpcMainInvokeEvent, contentData: ContentData): Promise<IPCResponse<{ contentId: string; content: any }>> => {
   try {
     // 使用Prisma创建内容
     const content = await db.createContent({
-      workId: contentData.projectId || contentData.workId,
+      workId: contentData.projectId || contentData.workId!,
       chapterId: contentData.chapterId,
       title: contentData.title,
       type: contentData.type || 'text',
@@ -255,37 +274,37 @@ ipcMain.handle('content:create', async (event, contentData) => {
       authorId: contentData.authorId || 'user_mock_001'
     });
     
-    return { success: true, contentId: content.id, content };
-  } catch (error) {
+    return { success: true, data: { contentId: content.id, content } };
+  } catch (error: any) {
     console.error('创建内容失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('content:list', async (event, workId, chapterId = null) => {
+ipcMain.handle('content:list', async (event: IpcMainInvokeEvent, workId: string, chapterId?: any): Promise<IPCResponse<{ contents: any[] }>> => {
   try {
     // 使用Prisma查询内容列表
     const contents = await db.getContentsList(workId, chapterId);
-    return { success: true, contents };
-  } catch (error) {
+    return { success: true, data: { contents } };
+  } catch (error: any) {
     console.error('获取内容列表失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('content:update', async (event, contentId, contentData) => {
+ipcMain.handle('content:update', async (event: IpcMainInvokeEvent, contentId: string, contentData: Partial<ContentData>): Promise<IPCResponse<{ content: any }>> => {
   try {
     // 使用Prisma更新内容
     const content = await db.updateContent(contentId, contentData);
-    return { success: true, content };
-  } catch (error) {
+    return { success: true, data: { content } };
+  } catch (error: any) {
     console.error('更新内容失败:', error);
     return { success: false, error: error.message };
   }
 });
 
 // IPC处理程序 - 窗口控制
-ipcMain.handle('window:minimize', () => {
+ipcMain.handle('window:minimize', (): WindowResponse => {
   console.log('🔵 收到最小化请求');
   if (mainWindow) {
     mainWindow.minimize();
@@ -297,7 +316,7 @@ ipcMain.handle('window:minimize', () => {
   }
 });
 
-ipcMain.handle('window:maximize', () => {
+ipcMain.handle('window:maximize', (): WindowResponse => {
   console.log('🟡 收到最大化请求');
   if (mainWindow) {
     mainWindow.maximize();
@@ -309,7 +328,7 @@ ipcMain.handle('window:maximize', () => {
   }
 });
 
-ipcMain.handle('window:toggleMaximize', () => {
+ipcMain.handle('window:toggleMaximize', (): WindowResponse => {
   console.log('🟡 收到切换最大化请求');
   if (mainWindow) {
     if (mainWindow.isMaximized()) {
@@ -326,7 +345,7 @@ ipcMain.handle('window:toggleMaximize', () => {
   }
 });
 
-ipcMain.handle('window:close', () => {
+ipcMain.handle('window:close', (): WindowResponse => {
   console.log('🔴 收到关闭请求');
   if (mainWindow) {
     mainWindow.close();
@@ -339,22 +358,22 @@ ipcMain.handle('window:close', () => {
 });
 
 // IPC处理程序 - 系统信息
-ipcMain.handle('system:getStats', async () => {
+ipcMain.handle('system:getStats', async (): Promise<IPCResponse<{ stats: any }>> => {
   try {
     // 使用Prisma获取统计信息
     const stats = await db.getStats();
-    return { success: true, stats };
-  } catch (error) {
+    return { success: true, data: { stats } };
+  } catch (error: any) {
     console.error('获取系统统计失败:', error);
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('system:generateId', () => {
+ipcMain.handle('system:generateId', (): string => {
   return ULIDGenerator.generate();
 });
 
-ipcMain.handle('system:getTimestamp', (event, ulid) => {
+ipcMain.handle('system:getTimestamp', (event: IpcMainInvokeEvent, ulid: string): number | null => {
   try {
     return ULIDGenerator.getTimestamp(ulid);
   } catch (error) {
