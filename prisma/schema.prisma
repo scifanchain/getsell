@@ -22,9 +22,9 @@ model Author {
   totalWords          Int                @default(0) @map("total_words")
   status              String             @default("active")
   preferences         String?
-  lastActiveAt        BigInt?            @map("last_active_at")
-  createdAt           BigInt             @map("created_at")
-  updatedAt           BigInt             @map("updated_at")
+  lastActiveAt        DateTime?          @map("last_active_at")
+  createdAt           DateTime           @map("created_at")
+  updatedAt           DateTime           @map("updated_at")
   chapters            Chapter[]
   collaborationLogs   CollaborationLog[]
   contentVersions     ContentVersion[]
@@ -52,17 +52,17 @@ model Work {
   totalCharacters      Int                @default(0) @map("total_characters")
   chapterCount         Int                @default(0) @map("chapter_count")
   targetWords          Int?               @map("target_words")
-  targetCompletionDate BigInt?            @map("target_completion_date")
+  targetCompletionDate DateTime?          @map("target_completion_date")
   blockchainHash       String?            @map("blockchain_hash")
   nftTokenId           String?            @map("nft_token_id")
   nftContractAddress   String?            @map("nft_contract_address")
   copyrightHash        String?            @map("copyright_hash")
   isPublic             Boolean            @default(false) @map("is_public")
   licenseType          String             @default("all_rights_reserved") @map("license_type")
-  publishedAt          BigInt?            @map("published_at")
+  publishedAt          DateTime?          @map("published_at")
   metadata             String?
-  createdAt            BigInt             @map("created_at")
-  updatedAt            BigInt             @map("updated_at")
+  createdAt            DateTime           @map("created_at")
+  updatedAt            DateTime           @map("updated_at")
   chapters             Chapter[]
   characters           Character[]
   collaborationLogs    CollaborationLog[]
@@ -95,10 +95,10 @@ model Chapter {
   tags               String?
   blockchainHash     String?   @map("blockchain_hash")
   isPublic           Boolean   @default(false) @map("is_public")
-  publishedAt        BigInt?   @map("published_at")
+  publishedAt        DateTime? @map("published_at")
   metadata           String?
-  createdAt          BigInt    @map("created_at")
-  updatedAt          BigInt    @map("updated_at")
+  createdAt          DateTime  @map("created_at")
+  updatedAt          DateTime  @map("updated_at")
   parent             Chapter?  @relation("ChapterHierarchy", fields: [parentId], references: [id])
   children           Chapter[] @relation("ChapterHierarchy")
   author             Author    @relation(fields: [authorId], references: [id])
@@ -134,17 +134,17 @@ model Content {
   emotionTone         String?          @map("emotion_tone")
   importanceLevel     Int              @default(3) @map("importance_level")
   contentHash         String?          @map("content_hash")
-  blockchainTimestamp BigInt?          @map("blockchain_timestamp")
+  blockchainTimestamp DateTime?        @map("blockchain_timestamp")
   copyrightStatus     String           @default("draft") @map("copyright_status")
   isPublic            Boolean          @default(false) @map("is_public")
-  publishedAt         BigInt?          @map("published_at")
+  publishedAt         DateTime?        @map("published_at")
   writingDuration     Int              @default(0) @map("writing_duration")
-  lastEditedAt        BigInt           @map("last_edited_at")
+  lastEditedAt        DateTime         @map("last_edited_at")
   lastEditorId        String           @map("last_editor_id")
   notes               String?
   metadata            String?
-  createdAt           BigInt           @map("created_at")
-  updatedAt           BigInt           @map("updated_at")
+  createdAt           DateTime         @map("created_at")
+  updatedAt           DateTime         @map("updated_at")
   versions            ContentVersion[]
   lastEditor          Author           @relation("ContentEditor", fields: [lastEditorId], references: [id])
   author              Author           @relation(fields: [authorId], references: [id])
@@ -166,7 +166,7 @@ model ContentVersion {
   changeSummary  String? @map("change_summary")
   authorId       String  @map("author_id")
   blockchainHash String? @map("blockchain_hash")
-  createdAt      BigInt  @map("created_at")
+  createdAt      DateTime @map("created_at")
   author         Author  @relation(fields: [authorId], references: [id])
   content        Content @relation(fields: [contentId], references: [id])
 
@@ -184,8 +184,8 @@ model Character {
   relationships String?
   imageUrl      String? @map("image_url")
   tags          String?
-  createdAt     BigInt  @map("created_at")
-  updatedAt     BigInt  @map("updated_at")
+  createdAt     DateTime @map("created_at")
+  updatedAt     DateTime @map("updated_at")
   work          Work    @relation(fields: [workId], references: [id])
 
   @@map("characters")
@@ -201,8 +201,8 @@ model BlockchainSync {
   blockNumber     Int?    @map("block_number")
   syncStatus      String  @default("pending") @map("sync_status")
   syncData        String? @map("sync_data")
-  createdAt       BigInt  @map("created_at")
-  updatedAt       BigInt  @map("updated_at")
+  createdAt       DateTime @map("created_at")
+  updatedAt       DateTime @map("updated_at")
 
   @@map("blockchain_sync")
 }
@@ -216,7 +216,7 @@ model CollaborationLog {
   targetId   String  @map("target_id")
   changes    String?
   message    String?
-  createdAt  BigInt  @map("created_at")
+  createdAt  DateTime @map("created_at")
   author     Author  @relation(fields: [authorId], references: [id])
   work       Work    @relation(fields: [workId], references: [id])
 
@@ -224,8 +224,8 @@ model CollaborationLog {
 }
 
 model SchemaVersion {
-  version   Int    @id @default(autoincrement())
-  appliedAt BigInt @map("applied_at")
+  version   Int      @id @default(autoincrement())
+  appliedAt DateTime @map("applied_at")
 
   @@map("schema_version")
 }

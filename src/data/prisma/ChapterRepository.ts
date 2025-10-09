@@ -1,6 +1,7 @@
 import { PrismaClient } from '../../generated/prisma';
 import { IChapterRepository, ChapterData, PaginationOptions } from '../interfaces';
 import { ulid } from 'ulid';
+import { getCurrentTimestamp } from '../../utils/timestamp';
 
 /**
  * Prisma 章节仓储实现
@@ -13,7 +14,7 @@ export class PrismaChapterRepository implements IChapterRepository {
      * 创建新章节
      */
     async create(chapterData: ChapterData): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
         const chapterId = ulid();
 
         // 如果没有提供 orderIndex，计算下一个可用的索引
@@ -189,7 +190,7 @@ export class PrismaChapterRepository implements IChapterRepository {
      * 更新章节信息
      */
     async update(id: string, updateData: Partial<ChapterData>): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         return await this.prisma.chapter.update({
             where: { id },
@@ -241,7 +242,7 @@ export class PrismaChapterRepository implements IChapterRepository {
      * 重新排序章节
      */
     async reorder(workId: string, chapterOrders: Array<{ id: string; orderIndex: number }>): Promise<void> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         // 使用事务来确保原子性
         await this.prisma.$transaction(
@@ -261,7 +262,7 @@ export class PrismaChapterRepository implements IChapterRepository {
      * 移动章节到新的父章节下
      */
     async move(chapterId: string, newParentId: string | null, newOrderIndex: number): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         return await this.prisma.chapter.update({
             where: { id: chapterId },

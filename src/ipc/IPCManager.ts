@@ -3,6 +3,7 @@ import { UserIPCHandler } from './UserIPCHandler';
 import { WorkIPCHandler } from './WorkIPCHandler';
 import { SystemIPCHandler } from './SystemIPCHandler';
 import { ChapterIPCHandler } from '../services/ChapterIPCHandler';
+import { ContentIPCHandler } from './ContentIPCHandler';
 
 /**
  * IPC 处理器管理器
@@ -13,12 +14,14 @@ export class IPCManager {
     private workHandler: WorkIPCHandler;
     private systemHandler: SystemIPCHandler;
     private chapterHandler: ChapterIPCHandler;
+    private contentHandler: ContentIPCHandler;
 
     constructor(services: ServiceContainer, mainWindow: any) {
         this.userHandler = new UserIPCHandler(services);
         this.workHandler = new WorkIPCHandler(services);
         this.systemHandler = new SystemIPCHandler(services, mainWindow);
         this.chapterHandler = new ChapterIPCHandler(services);
+        this.contentHandler = new ContentIPCHandler(services);
     }
 
     /**
@@ -31,6 +34,7 @@ export class IPCManager {
         this.userHandler.initialize();
         this.workHandler.initialize();
         this.chapterHandler.initialize();
+        this.contentHandler.initialize();
         this.systemHandler.initialize();
     }
 

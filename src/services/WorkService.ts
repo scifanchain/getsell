@@ -1,4 +1,5 @@
 import { IWorkService, CreateWorkData, WorkInfo, WorkQueryOptions, UpdateWorkData, WorkStats, PublishResult } from './interfaces';
+import { getCurrentTimestamp } from '../utils/timestamp';
 import { RepositoryContainer } from '../data/RepositoryContainer';
 import { ulid } from 'ulid';
 
@@ -171,7 +172,7 @@ export class WorkService implements IWorkService {
         await this.repositories.workRepository.update(workId, {
             status: 'published',
             isPublic: true,
-            publishedAt: BigInt(Date.now())
+            publishedAt: getCurrentTimestamp()
         } as any);
 
         return {

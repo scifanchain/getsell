@@ -50,5 +50,5 @@ export interface IDatabaseManager {
     /**
      * 获取当前时间戳
      */
-    getTimestamp(): bigint;
+    getTimestamp(): Date;
 }

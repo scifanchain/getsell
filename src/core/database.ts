@@ -1,4 +1,5 @@
 import { PrismaClient } from '../generated/prisma';
+import { getCurrentTimestamp } from '../utils/timestamp';
 import { IDatabaseManager } from '../data/interfaces';
 import ulidGenerator from './ulid';
 import path from 'path';
@@ -86,8 +87,8 @@ export class DatabaseManager implements IDatabaseManager {
     /**
      * 获取当前时间戳
      */
-    getTimestamp(): bigint {
-        return BigInt(Date.now());
+    getTimestamp(): Date {
+        return getCurrentTimestamp();
     }
 }
 

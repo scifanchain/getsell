@@ -41,6 +41,24 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/writing/:workId?',
+    name: 'writing',
+    component: () => import('../views/WritingView.vue'),
+    meta: {
+      title: '写作台',
+      icon: 'write'
+    }
+  },
+  {
+    path: '/writing-demo',
+    name: 'writing-demo',
+    component: () => import('../views/WritingDemoView.vue'),
+    meta: {
+      title: '写作台演示',
+      icon: 'demo'
+    }
+  },
+  {
     path: '/editor-test',
     name: 'editor-test',
     component: EditorTestView,

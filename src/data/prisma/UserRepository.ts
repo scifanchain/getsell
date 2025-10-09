@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../generated/prisma';
+import { getCurrentTimestamp } from '../../utils/timestamp';
 import { IUserRepository, UserData } from '../interfaces';
 
 /**
@@ -12,7 +13,7 @@ export class PrismaUserRepository implements IUserRepository {
      * 创建新用户
      */
     async create(userData: UserData): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         return await this.prisma.author.create({
             data: {
@@ -78,7 +79,7 @@ export class PrismaUserRepository implements IUserRepository {
      * 更新用户信息
      */
     async update(id: string, updateData: Partial<UserData>): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         return await this.prisma.author.update({
             where: { id },
@@ -108,7 +109,7 @@ export class PrismaUserRepository implements IUserRepository {
             });
 
             if (!existingUser) {
-                const timestamp = BigInt(Date.now());
+                const timestamp = getCurrentTimestamp();
                 await this.prisma.author.create({
                     data: {
                         id: 'user_mock_001',

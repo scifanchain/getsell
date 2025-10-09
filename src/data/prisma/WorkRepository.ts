@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../generated/prisma';
+import { getCurrentTimestamp } from '../../utils/timestamp';
 import { IWorkRepository, WorkData, PaginationOptions, SortOptions } from '../interfaces';
 import { ulid } from 'ulid';
 
@@ -13,7 +14,7 @@ export class PrismaWorkRepository implements IWorkRepository {
      * 创建新作品
      */
     async create(workData: WorkData): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
         const workId = ulid();
 
         return await this.prisma.work.create({
@@ -133,7 +134,7 @@ export class PrismaWorkRepository implements IWorkRepository {
      * 更新作品信息
      */
     async update(id: string, updateData: Partial<WorkData>): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         return await this.prisma.work.update({
             where: { id },

@@ -1,4 +1,5 @@
 import { PrismaClient } from '../generated/prisma';
+import { getCurrentTimestamp } from '../utils/timestamp';
 import { ulid } from 'ulid';
 import path from 'path';
 
@@ -136,8 +137,8 @@ export class GestallPrismaDatabase {
     /**
      * 获取当前时间戳（BigInt格式）
      */
-    getTimestamp(): bigint {
-        return BigInt(Date.now());
+    getTimestamp(): Date {
+        return getCurrentTimestamp();
     }
 
     /**

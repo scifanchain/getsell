@@ -3,6 +3,7 @@ import { GestallCrypto } from '../crypto/crypto';
 import { UserService } from './UserService';
 import { WorkService } from './WorkService';
 import { ChapterService, IChapterService } from './ChapterService';
+import { ContentService, IContentService } from './ContentService';
 import { IUserService, IWorkService } from './interfaces';
 
 /**
@@ -18,6 +19,7 @@ export class ServiceContainer {
     private _userService?: IUserService;
     private _workService?: IWorkService;
     private _chapterService?: IChapterService;
+    private _contentService?: IContentService;
 
     constructor(repositories: RepositoryContainer) {
         this.repositories = repositories;
@@ -52,6 +54,16 @@ export class ServiceContainer {
             this._chapterService = new ChapterService(this.repositories);
         }
         return this._chapterService;
+    }
+
+    /**
+     * 获取内容服务
+     */
+    get contentService(): IContentService {
+        if (!this._contentService) {
+            this._contentService = new ContentService(this.repositories);
+        }
+        return this._contentService;
     }
 
     /**

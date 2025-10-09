@@ -128,7 +128,7 @@ export const workApi = {
   },
 
   // 获取作品统计
-  async getStats(workId: string) {
+  async getStats(workId: string, userId?: string) {
     return await window.electronAPI.invoke('work:getStats', workId)
   },
 
@@ -151,27 +151,106 @@ export const chapterApi = {
       authorId: authorId
     };
     
-    return await window.electronAPI.invoke('chapter:create', authorId, createData)
+    const result = await window.electronAPI.invoke('chapter:create', authorId, createData)
+    if (result.success) {
+      return result.data
+    } else {
+      throw new Error(result.error || 'Failed to create chapter')
+    }
   },
 
   async list(projectId: string): Promise<Chapter[]> {
-    return await window.electronAPI.invoke('chapter:list', projectId)
+    const result = await window.electronAPI.invoke('chapter:list', projectId)
+    if (result.success) {
+      return result.data || []
+    } else {
+      throw new Error(result.error || 'Failed to list chapters')
+    }
   },
 
   async find(id: string): Promise<Chapter | null> {
-    return await window.electronAPI.invoke('chapter:get', id)
+    const result = await window.electronAPI.invoke('chapter:get', id)
+    if (result.success) {
+      return result.data
+    } else {
+      throw new Error(result.error || 'Failed to find chapter')
+    }
   },
 
   async update(id: string, chapterData: UpdateChapterData): Promise<Chapter> {
-    return await window.electronAPI.invoke('chapter:update', id, 'user_mock_001', chapterData)
+    const result = await window.electronAPI.invoke('chapter:update', id, 'user_mock_001', chapterData)
+    if (result.success) {
+      return result.data
+    } else {
+      throw new Error(result.error || 'Failed to update chapter')
+    }
   },
 
   async delete(id: string): Promise<void> {
-    return await window.electronAPI.invoke('chapter:delete', id)
+    const result = await window.electronAPI.invoke('chapter:delete', id)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete chapter')
+    }
+  },
+
+  async getByWork(workId: string, userId: string): Promise<Chapter[]> {
+    const result = await window.electronAPI.invoke('chapter:list', workId, userId)
+    if (result.success) {
+      return result.data || []
+    } else {
+      throw new Error(result.error || 'Failed to get chapters')
+    }
   }
 }
 
-// 系统相关API
+// 内容管理API
+export const contentApi = {
+  // 创建内容
+  async create(authorId: string, contentData: {
+    chapterId: string;
+    content: string;
+    format: 'prosemirror' | 'markdown' | 'plain';
+    title?: string;
+  }) {
+    return await window.electronAPI.invoke('content:create', authorId, contentData)
+  },
+
+  // 获取内容
+  async get(contentId: string, userId: string) {
+    return await window.electronAPI.invoke('content:get', contentId, userId)
+  },
+
+  // 获取章节的所有内容
+  async getByChapter(chapterId: string, userId: string) {
+    return await window.electronAPI.invoke('content:getByChapter', chapterId, userId)
+  },
+
+  // 更新内容
+  async update(contentId: string, userId: string, updateData: {
+    content?: string;
+    format?: 'prosemirror' | 'markdown' | 'plain';
+    title?: string;
+  }) {
+    return await window.electronAPI.invoke('content:update', contentId, userId, updateData)
+  },
+
+  // 自动保存内容
+  async autoSave(contentId: string, userId: string, content: string) {
+    return await window.electronAPI.invoke('content:autoSave', contentId, userId, content)
+  },
+
+  // 删除内容
+  async delete(contentId: string, userId: string) {
+    return await window.electronAPI.invoke('content:delete', contentId, userId)
+  },
+
+  // 获取内容历史
+  async getHistory(contentId: string, userId: string) {
+    return await window.electronAPI.invoke('content:getHistory', contentId, userId)
+  }
+}
+
+// 系统功能API
 export const systemApi = {
   async getStats(): Promise<SystemStats> {
     return await window.electronAPI.invoke('system:getStats')

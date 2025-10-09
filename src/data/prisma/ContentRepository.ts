@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../generated/prisma';
+import { getCurrentTimestamp } from '../../utils/timestamp';
 import { IContentRepository, ContentData, PaginationOptions } from '../interfaces';
 import { ulid } from 'ulid';
 
@@ -13,7 +14,7 @@ export class PrismaContentRepository implements IContentRepository {
      * 创建新内容
      */
     async create(contentData: ContentData): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
         const contentId = ulid();
 
         // 如果没有提供 orderIndex，计算下一个可用的索引
@@ -208,7 +209,7 @@ export class PrismaContentRepository implements IContentRepository {
      * 更新内容
      */
     async update(id: string, updateData: Partial<ContentData>): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         // 如果更新了内容，重新计算字数和字符数
         let additionalData: any = {};
@@ -273,7 +274,7 @@ export class PrismaContentRepository implements IContentRepository {
         chapterId: string | null,
         contentOrders: Array<{ id: string; orderIndex: number }>
     ): Promise<void> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         // 使用事务来确保原子性
         await this.prisma.$transaction(
@@ -355,7 +356,7 @@ export class PrismaContentRepository implements IContentRepository {
      * 创建内容版本
      */
     async createVersion(contentId: string, versionData: any): Promise<any> {
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
         const versionId = ulid();
 
         return await this.prisma.contentVersion.create({

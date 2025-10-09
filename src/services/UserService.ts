@@ -1,4 +1,5 @@
 import { IUserService, LoginCredentials, LoginResult, RegisterUserData, UserInfo, UpdateUserData, UserStats } from './interfaces';
+import { getCurrentTimestamp } from '../utils/timestamp';
 import { RepositoryContainer } from '../data/RepositoryContainer';
 import { GestallCrypto } from '../crypto/crypto';
 import { ulid } from 'ulid';
@@ -34,7 +35,7 @@ export class UserService implements IUserService {
             
             // 更新最后活跃时间
             await this.repositories.userRepository.update(user.id, {
-                lastActiveAt: BigInt(Date.now())
+                lastActiveAt: getCurrentTimestamp()
             } as any);
 
             const userInfo = this.mapToUserInfo(user);

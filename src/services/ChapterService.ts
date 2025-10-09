@@ -226,6 +226,14 @@ export class ChapterService implements IChapterService {
      * 映射数据库章节对象到 ChapterInfo
      */
     private mapToChapterInfo(chapter: any): ChapterInfo {
+        const formatDate = (date: any): string => {
+            if (!date) return new Date().toISOString();
+            if (date instanceof Date) return date.toISOString();
+            if (typeof date === 'string') return new Date(date).toISOString();
+            if (typeof date === 'number') return new Date(date).toISOString();
+            return new Date().toISOString();
+        };
+
         return {
             id: chapter.id,
             title: chapter.title,
@@ -239,8 +247,8 @@ export class ChapterService implements IChapterService {
             characterCount: chapter.characterCount || 0,
             contentCount: chapter.contentCount || 0,
             childChapterCount: chapter.childChapterCount || 0,
-            createdAt: chapter.createdAt?.toISOString() || new Date().toISOString(),
-            updatedAt: chapter.updatedAt?.toISOString() || new Date().toISOString()
+            createdAt: formatDate(chapter.createdAt),
+            updatedAt: formatDate(chapter.updatedAt)
         };
     }
 }

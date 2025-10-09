@@ -1,4 +1,5 @@
 import { PrismaClient } from '../../generated/prisma';
+import { getCurrentTimestamp } from '../../utils/timestamp';
 import { IStatsRepository, Stats } from '../interfaces';
 
 /**
@@ -130,7 +131,7 @@ export class PrismaStatsRepository implements IStatsRepository {
      */
     async refreshWorkStats(workId: string): Promise<void> {
         const stats = await this.getWorkStats(workId);
-        const timestamp = BigInt(Date.now());
+        const timestamp = getCurrentTimestamp();
 
         // 更新作品表中的统计字段
         await this.prisma.work.update({
@@ -152,16 +153,13 @@ export class PrismaStatsRepository implements IStatsRepository {
         totalWords: number;
         activeDays: number;
     }> {
-        const startTimestamp = BigInt(startDate.getTime());
-        const endTimestamp = BigInt(endDate.getTime());
-
-        // 获取指定时间范围内的内容更新记录
+        // 直接使用 Date 对象进行查询
         const contentUpdates = await this.prisma.content.findMany({
             where: {
                 authorId: userId,
                 updatedAt: {
-                    gte: startTimestamp,
-                    lte: endTimestamp
+                    gte: startDate,
+                    lte: endDate
                 }
             },
             select: {
