@@ -271,7 +271,7 @@ ipcMain.handle('content:create', async (event: IpcMainInvokeEvent, contentData: 
       chapterId: contentData.chapterId,
       title: contentData.title,
       type: contentData.type || 'text',
-      contentDelta: contentData.contentJson || '',  // 改为 contentJson
+      contentJson: contentData.contentJson || '',  // 使用 ProseMirror JSON 格式
       contentHtml: contentData.contentHtml || '',
       orderIndex: contentData.orderIndex || 0,
       authorId: contentData.authorId || 'user_mock_001'
