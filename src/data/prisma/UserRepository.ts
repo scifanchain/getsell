@@ -56,6 +56,10 @@ export class PrismaUserRepository implements IUserRepository {
      * 根据用户名查找用户
      */
     async findByUsername(username: string): Promise<any | null> {
+        if (!username) {
+            throw new Error('用户名参数不能为空');
+        }
+        
         return await this.prisma.author.findUnique({
             where: { username }
         });

@@ -24,8 +24,18 @@ export interface Chapter {
   id: string
   title: string
   content?: string
-  projectId: string
-  order: number
+  projectId: string     // 兼容旧接口
+  workId?: string       // 新接口
+  order: number         // 兼容旧接口
+  orderIndex?: number   // 新接口
+  parentId?: string     // 父章节ID
+  subtitle?: string     // 副标题
+  description?: string  // 描述
+  type?: 'chapter' | 'volume' | 'section'  // 章节类型
+  authorId?: string     // 作者ID
+  characterCount?: number    // 字符数
+  contentCount?: number      // 内容块数量
+  childChapterCount?: number // 子章节数量
   createdAt: string
   updatedAt: string
 }
@@ -62,8 +72,15 @@ export interface CreateProjectData {
 export interface CreateChapterData {
   title: string
   content?: string
-  projectId: string
+  projectId: string  // 兼容旧接口
+  workId?: string    // 新接口使用 workId
   order?: number
+  orderIndex?: number  // 新接口使用 orderIndex
+  authorId?: string    // 作者ID
+  parentId?: string    // 父章节ID
+  subtitle?: string    // 副标题
+  description?: string // 描述
+  type?: 'chapter' | 'volume' | 'section'  // 章节类型
 }
 
 // 更新类型
@@ -76,4 +93,8 @@ export interface UpdateChapterData {
   title?: string
   content?: string
   order?: number
+  orderIndex?: number  // 新接口使用 orderIndex
+  subtitle?: string    // 副标题
+  description?: string // 描述
+  type?: 'chapter' | 'volume' | 'section'  // 章节类型
 }

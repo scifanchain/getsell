@@ -7,6 +7,8 @@ import * as path from 'path';
 import GestallPrismaDatabase from './core/prismadb';
 import { DatabaseManager } from './core/database';
 import { RepositoryContainer } from './data/RepositoryContainer';
+import { ServiceContainer } from './services/ServiceContainer';
+import { IPCManager } from './ipc/IPCManager';
 import ulidGenerator from './core/ulid';
 import GestallCrypto from './crypto/crypto';
 
@@ -40,6 +42,8 @@ let mainWindow: BrowserWindow | null = null;
 // 新架构实例
 let databaseManager: DatabaseManager;
 let repositories: RepositoryContainer;
+let services: ServiceContainer;
+let ipcManager: IPCManager;
 
 function createWindow(): void {
   // 创建浏览器窗口
@@ -120,6 +124,15 @@ async function initCore(): Promise<void> {
     
     repositories = new RepositoryContainer(databaseManager);
     
+    // 初始化服务层
+    console.log('🔧 初始化服务层');
+    services = new ServiceContainer(repositories);
+    
+    // 初始化IPC处理器
+    console.log('📡 初始化IPC处理器');
+    ipcManager = new IPCManager(services, mainWindow);
+    ipcManager.initialize();
+    
     // 确保默认用户存在
     await repositories.userRepository.ensureDefaultUser();
     
@@ -137,6 +150,10 @@ async function initCore(): Promise<void> {
   }
 }
 
+// ========================================
+// 旧版 IPC 处理器 (已禁用，使用新的Service层架构)
+// ========================================
+/*
 // IPC处理程序 - 用户管理
 ipcMain.handle('user:create', async (event: IpcMainInvokeEvent, userData: UserData): Promise<IPCResponse<UserCreateResponse>> => {
   try {
@@ -402,11 +419,15 @@ ipcMain.handle('system:getTimestamp', (event: IpcMainInvokeEvent, ulid: string):
     return null;
   }
 });
+*/
+// ========================================
+// 新架构 IPC 处理器已在 IPCManager 中注册
+// ========================================
 
 // 应用准备就绪
 app.whenReady().then(async () => {
-  await initCore();
   createWindow();
+  await initCore();
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

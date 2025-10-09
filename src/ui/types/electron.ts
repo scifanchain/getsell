@@ -3,10 +3,15 @@
  */
 
 export interface ElectronAPI {
+  // 通用IPC调用方法
+  invoke: (channel: string, ...args: any[]) => Promise<any>
+
   user: {
     create: (userData: { name: string; email: string }) => Promise<any>
     find: (id: string) => Promise<any>
     findByEmail: (email: string) => Promise<any>
+    update: (id: string, userData: any) => Promise<any>
+    delete: (id: string) => Promise<void>
   }
   
   project: {
@@ -23,6 +28,13 @@ export interface ElectronAPI {
     find: (id: string) => Promise<any>
     update: (id: string, chapterData: Partial<{ title: string; content?: string; order?: number }>) => Promise<any>
     delete: (id: string) => Promise<void>
+  }
+
+  content: {
+    create: (contentData: any) => Promise<any>
+    list: (chapterId: string) => Promise<any[]>
+    update: (contentId: string, contentData: any) => Promise<any>
+    delete: (contentId: string) => Promise<void>
   }
   
   system: {
@@ -43,4 +55,7 @@ declare global {
   interface Window {
     electronAPI: ElectronAPI
   }
+  
+  // 兼容旧API
+  var gestell: any
 }

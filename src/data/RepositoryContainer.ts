@@ -8,6 +8,10 @@ import {
     IStatsRepository 
 } from './interfaces';
 import { PrismaUserRepository } from './prisma/UserRepository';
+import { PrismaWorkRepository } from './prisma/WorkRepository';
+import { PrismaChapterRepository } from './prisma/ChapterRepository';
+import { PrismaContentRepository } from './prisma/ContentRepository';
+import { PrismaStatsRepository } from './prisma/StatsRepository';
 
 /**
  * Repository 容器
@@ -44,8 +48,7 @@ export class RepositoryContainer {
      */
     get workRepository(): IWorkRepository {
         if (!this._workRepository) {
-            // TODO: 实现 PrismaWorkRepository
-            throw new Error('WorkRepository 尚未实现');
+            this._workRepository = new PrismaWorkRepository(this.prisma);
         }
         return this._workRepository;
     }
@@ -55,8 +58,7 @@ export class RepositoryContainer {
      */
     get chapterRepository(): IChapterRepository {
         if (!this._chapterRepository) {
-            // TODO: 实现 PrismaChapterRepository
-            throw new Error('ChapterRepository 尚未实现');
+            this._chapterRepository = new PrismaChapterRepository(this.prisma);
         }
         return this._chapterRepository;
     }
@@ -66,8 +68,7 @@ export class RepositoryContainer {
      */
     get contentRepository(): IContentRepository {
         if (!this._contentRepository) {
-            // TODO: 实现 PrismaContentRepository
-            throw new Error('ContentRepository 尚未实现');
+            this._contentRepository = new PrismaContentRepository(this.prisma);
         }
         return this._contentRepository;
     }
@@ -77,8 +78,7 @@ export class RepositoryContainer {
      */
     get statsRepository(): IStatsRepository {
         if (!this._statsRepository) {
-            // TODO: 实现 PrismaStatsRepository
-            throw new Error('StatsRepository 尚未实现');
+            this._statsRepository = new PrismaStatsRepository(this.prisma);
         }
         return this._statsRepository;
     }
