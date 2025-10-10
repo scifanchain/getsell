@@ -20,6 +20,12 @@
       </div>
     </div>
     
+    <!-- 拖拽错误提示 -->
+    <div v-if="dragErrorMessage" class="drag-error-toast">
+      <span class="error-icon">⚠️</span>
+      <span class="error-text">{{ dragErrorMessage }}</span>
+    </div>
+    
     <div class="tree-content">
       <!-- 根目录内容 -->
       <div v-if="rootContents.length > 0" class="root-contents">
@@ -68,6 +74,7 @@
       <draggable
         v-model="sortedChapters"
         :group="{ name: 'chapters', pull: true, put: true }"
+        :move="validateMoveDepth"
         @change="handleDragChange"
         @start="handleDragStart"
         @end="handleDragEnd"
@@ -99,6 +106,7 @@
             @content-delete="$emit('content-delete', $event)"
             @contents-reorder="$emit('contents-reorder', $event)"
             @chapters-reorder="$emit('chapters-reorder', $event)"
+            @drag-error="showDragError"
           />
         </template>
       </draggable>
@@ -130,26 +138,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import draggable from 'vuedraggable'
-import ChapterTreeNode from './ChapterTreeNode.vue'
-import ContentCreateModal from './ContentCreateModal.vue'
-import type { Chapter, Content } from '../types/models'
-
-// 定义本地章节类型，与WritingView保持一致
-interface ChapterLocal {
-  id: string
-  title: string
-  parentId?: string
-  orderIndex: number
-  type?: 'chapter' | 'volume' | 'section'
-  characterCount?: number
-  contentCount?: number
-  childChapterCount?: number
-  createdAt: string
-  updatedAt: string
-  workId: string
-  authorId?: string
-  level: number
-}
+import ChapterTreeNode from './Node.vue'
+import ContentCreateModal from '../ContentCreateModal.vue'
+import type { ChapterLocal, Content } from './types'
 
 interface Props {
   chapters: ChapterLocal[]
@@ -178,6 +169,62 @@ const isDragging = ref(false)
 const showCreateContentModal = ref(false)
 const createContentWorkId = ref<string | undefined>()
 const createContentChapterId = ref<string | undefined>()
+const dragErrorMessage = ref<string>('')
+const lastInvalidMove = ref<{chapterId: string, reason: string} | null>(null)
+
+// 显示拖拽错误消息
+const showDragError = (message: string) => {
+  dragErrorMessage.value = message
+  setTimeout(() => {
+    dragErrorMessage.value = ''
+  }, 3000) // 3秒后自动清除
+}
+
+// 计算章节子树的最大深度（相对深度，从0开始）
+// 返回值：0表示无子章节，1表示有一层子章节，2表示有两层子章节
+const getSubTreeDepth = (chapterId: string): number => {
+  const childChapters = props.chapters.filter(ch => ch.parentId === chapterId)
+  if (childChapters.length === 0) {
+    return 0 // 没有子章节，深度为0
+  }
+  
+  let maxChildDepth = 0
+  for (const child of childChapters) {
+    const childDepth = getSubTreeDepth(child.id)
+    maxChildDepth = Math.max(maxChildDepth, childDepth + 1) // +1表示当前这一层
+  }
+  
+  return maxChildDepth
+}
+
+// 验证拖到根级别的移动是否违反层级限制
+const validateMoveDepth = (evt: any): boolean => {
+  if (!evt.draggedContext) {
+    return true // 没有拖拽上下文，允许
+  }
+  
+  const draggedChapter = evt.draggedContext.element as ChapterLocal
+  const targetLevel = 1 // 拖到根级别，将成为 level 1
+  const subTreeDepth = getSubTreeDepth(draggedChapter.id)
+  const finalMaxLevel = targetLevel + subTreeDepth
+  
+  console.log(`[根级拖拽] "${draggedChapter.title}" (当前level=${draggedChapter.level}, 子树深度=${subTreeDepth}) → 根目录`)
+  console.log(`  目标level=${targetLevel}, 最终最大level=${finalMaxLevel}`)
+  
+  // 三层结构: Level 1(卷), Level 2(章), Level 3(节)
+  // 移到根目录后，该章节及其所有子章节的 level 都不能超过 3
+  if (finalMaxLevel > 3) {
+    if (subTreeDepth === 2) {
+      // 该章节有2层子章节（自己是卷，下面有章和节）
+      showDragError(`无法移动 "${draggedChapter.title}" 到根目录：它包含${subTreeDepth}层子章节，最多只能包含2层`)
+    } else {
+      showDragError(`无法移动 "${draggedChapter.title}" 到根目录：会超过3层目录限制`)
+    }
+    return false
+  }
+  
+  return true
+}
 
 // 根目录内容（没有 chapterId 的内容）
 const rootContents = computed({
@@ -224,8 +271,25 @@ const sortedChapters = computed({
       .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   },
   set: (value) => {
-    console.log('ChapterTree: 根级章节拖拽发生')
+    console.log('=== ChapterTree: 根级章节拖拽发生 ===')
     console.log('拖拽后的根级章节:', value.map(c => ({ id: c.id, title: c.title, parentId: c.parentId })))
+    console.log('当前 lastInvalidMove:', lastInvalidMove.value)
+    
+    // 检查是否有无效移动需要撤销
+    if (lastInvalidMove.value) {
+      const invalidChapter = value.find(ch => ch.id === lastInvalidMove.value?.chapterId)
+      if (invalidChapter) {
+        console.warn('🚫 撤销无效移动:', lastInvalidMove.value)
+        showDragError(`无法移动章节 "${invalidChapter.title}"：${lastInvalidMove.value.reason}`)
+        
+        // 清除无效移动记录
+        lastInvalidMove.value = null
+        
+        // 不执行移动，直接返回
+        console.log('阻止了无效移动，直接返回')
+        return
+      }
+    }
     
     // 获取当前所有章节的映射
     const allChaptersMap = new Map(props.chapters.map(ch => [ch.id, ch]))
@@ -341,56 +405,75 @@ const handleCreateContent = (data: { title: string; type: string; workId?: strin
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fafafa;
-  border-radius: 8px;
+  background: #ffffff;
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
 }
 
 .tree-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: white;
-  border-bottom: 1px solid #e1e5e9;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tree-header h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.add-chapter-btn {
-  width: 28px;
-  height: 28px;
+.header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.add-chapter-btn,
+.add-content-btn {
+  width: 24px;
+  height: 24px;
   border: none;
-  background: #007bff;
-  color: white;
-  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #667eea;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: bold;
-  transition: all 0.2s;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
 }
 
-.add-chapter-btn:hover {
-  background: #0056b3;
+.add-chapter-btn:hover,
+.add-content-btn:hover {
+  background: white;
+  color: #4f46e5;
   transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .tree-content {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 4px 8px 8px 8px;
+  background: #fafbfc;
+}
+
+.root-contents {
+  margin-bottom: 8px;
 }
 
 .draggable-list {
-  min-height: 100px;
+  min-height: 60px;
 }
 
 .empty-state {
@@ -398,48 +481,189 @@ const handleCreateContent = (data: { title: string; type: string; workId?: strin
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 200px;
-  color: #666;
+  height: 160px;
+  color: #6b7280;
+  text-align: center;
 }
 
 .empty-state p {
-  margin: 0 0 16px 0;
-  font-size: 14px;
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #9ca3af;
 }
 
-.create-first-btn {
-  padding: 8px 16px;
-  background: #007bff;
+.empty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.create-btn {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.2s;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
 
-.create-first-btn:hover {
-  background: #0056b3;
+.create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+}
+
+/* 内容项样式 */
+.content-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.content-item:hover {
+  background: #f8fafc;
+  border-color: #d1d5db;
+  transform: translateX(2px);
+}
+
+.content-item.selected {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2);
+}
+
+.content-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.content-icon {
+  margin-right: 6px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.content-title {
+  font-size: 11px;
+  color: #4b5563;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.content-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.content-item:hover .content-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.delete-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* 拖拽错误提示样式 */
+.drag-error-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  animation: slideInRight 0.3s ease-out;
+  max-width: 300px;
+}
+
+.error-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* 拖拽样式 */
 .chapter-ghost {
-  opacity: 0.5;
-  background: #e3f2fd;
+  opacity: 0.4;
+  background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%) !important;
+  border: 2px dashed #a5b4fc !important;
 }
 
 .chapter-chosen {
-  opacity: 0.8;
+  background: #e0e7ff !important;
+  border-color: #6366f1 !important;
+  transform: scale(1.02);
 }
 
 .chapter-drag {
-  transform: rotate(5deg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  opacity: 0.9;
+  transform: rotate(2deg) scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
 }
 
 /* 滚动条样式 */
 .tree-content::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 .tree-content::-webkit-scrollbar-track {
@@ -448,7 +672,7 @@ const handleCreateContent = (data: { title: string; type: string; workId?: strin
 
 .tree-content::-webkit-scrollbar-thumb {
   background: #d1d5db;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .tree-content::-webkit-scrollbar-thumb:hover {

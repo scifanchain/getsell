@@ -32,6 +32,7 @@
           @add-chapter="handleAddChapter"
           @add-sub-chapter="handleAddSubChapter"
           @chapters-reorder="handleChaptersReorder"
+          @contents-reorder="handleContentsReorder"
         />
       </div>
     </div>
@@ -159,12 +160,12 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import ChapterTree from '../components/ChapterTree.vue'
+import ChapterTree from '../components/ChapterTree/index.vue'
 import EnhancedEditor from '../components/EnhancedEditor.vue'
 import ChapterEditModal from '../components/ChapterEditModal.vue'
 import WorkCreateModal from '../components/WorkCreateModal.vue'
 import { workApi, chapterApi, contentApi } from '../services/api'
-import type { Chapter } from '../types/models'
+import type { Chapter, Content } from '../types/models'
 
 // 章节数据类型定义
 interface ChapterLocal {
@@ -382,16 +383,26 @@ const handleChapterDelete = async (chapterId: string) => {
   if (!confirm('确定要删除这个章节吗？这个操作不可恢复。')) return
 
   try {
-    await chapterApi.delete(chapterId)
+    if (!currentUser.value) {
+      alert('用户未登录，无法删除章节')
+      return
+    }
+    await chapterApi.delete(chapterId, currentUser.value.id)
     if (currentWork.value) {
       await loadWork(currentWork.value.id)
     }
     showNotification('章节已删除', 'success')
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete chapter failed:', error)
-    showNotification('删除章节失败', 'error')
+    // 使用弹框提示业务逻辑错误
+    if (error.message) {
+      alert(error.message)
+    } else {
+      alert('删除章节失败: 未知错误')
+    }
   }
 }
+
 
 const handleAddChapter = () => {
   if (!currentWork.value) {
@@ -428,7 +439,7 @@ const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
   try {
     console.log('章节重排序事件接收到:', reorderedChapters.length, '个章节')
     console.log('原有章节数量:', chapters.value.length)
-    console.log('重排序后的章节:', reorderedChapters.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level })))
+    console.log('重排序后的章节:', reorderedChapters.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level, orderIndex: c.orderIndex })))
     
     // 检查数据完整性
     const originalIds = new Set(chapters.value.map(c => c.id))
@@ -450,23 +461,26 @@ const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
       console.log('新增的章节ID:', addedIds)
     }
     
-    // 安全地更新章节数组
+    // 先更新本地状态
     chapters.value.splice(0, chapters.value.length, ...reorderedChapters)
     
     console.log('更新后的章节状态:', chapters.value.length, '个章节')
-    console.log('章节层级结构:', chapters.value.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level })))
+    console.log('章节层级结构:', chapters.value.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level, orderIndex: c.orderIndex })))
     
-    // TODO: 实现章节重排序API
-    // if (currentWork.value && reorderedChapters.length > 0) {
-    //   const chapterOrders = reorderedChapters.map((chapter, index) => ({
-    //     chapterId: chapter.id,
-    //     orderIndex: index
-    //   }))
-    //   
-    //   await chapterApi.reorderChapters(currentWork.value.id, chapterOrders)
-    //   showNotification('章节顺序已更新', 'success')
-    // }
-    showNotification('章节顺序已更新', 'success')
+    // 保存到数据库
+    if (reorderedChapters.length > 0) {
+      const chapterOrders = reorderedChapters.map(chapter => ({
+        id: chapter.id,
+        parentId: chapter.parentId,
+        orderIndex: chapter.orderIndex,
+        level: chapter.level
+      }))
+      
+      console.log('开始保存章节顺序到数据库...')
+      await chapterApi.reorderChapters(currentUser.value!.id, chapterOrders)
+      console.log('✅ 章节顺序已保存到数据库')
+      showNotification('章节顺序已更新', 'success')
+    }
   } catch (error) {
     console.error('Reorder chapters failed:', error)
     showNotification('更新章节顺序失败', 'error')
@@ -474,6 +488,32 @@ const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
     if (currentWork.value) {
       await loadWork(currentWork.value.id)
     }
+  }
+}
+
+// 处理内容重排序
+const handleContentsReorder = async (data: { chapterId?: string; contents: Content[] }) => {
+  try {
+    console.log('内容重排序事件接收到:', data.contents.length, '个内容')
+    console.log('章节ID:', data.chapterId || '根目录')
+    console.log('重排序后的内容:', data.contents.map(c => ({ id: c.id, title: c.title, chapterId: c.chapterId, orderIndex: c.orderIndex })))
+    
+    // 保存到数据库
+    if (data.contents.length > 0) {
+      const contentOrders = data.contents.map(content => ({
+        id: content.id,
+        chapterId: content.chapterId,
+        orderIndex: content.orderIndex
+      }))
+      
+      console.log('开始保存内容顺序到数据库...')
+      await contentApi.reorderContents(currentUser.value!.id, contentOrders)
+      console.log('✅ 内容顺序已保存到数据库')
+      showNotification('内容顺序已更新', 'success')
+    }
+  } catch (error) {
+    console.error('Reorder contents failed:', error)
+    showNotification('更新内容顺序失败', 'error')
   }
 }
 

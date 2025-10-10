@@ -184,8 +184,8 @@ export const chapterApi = {
     }
   },
 
-  async delete(id: string): Promise<void> {
-    const result = await window.electronAPI.invoke('chapter:delete', id)
+  async delete(id: string, userId: string): Promise<void> {
+    const result = await window.electronAPI.invoke('chapter:delete', id, userId)
     if (!result.success) {
       throw new Error(result.error || 'Failed to delete chapter')
     }
@@ -198,6 +198,92 @@ export const chapterApi = {
     } else {
       throw new Error(result.error || 'Failed to get chapters')
     }
+  },
+
+  // 批量更新章节顺序
+  async reorderChapters(userId: string, chapters: Array<{ id: string; parentId?: string; orderIndex: number; level: number }>): Promise<void> {
+    console.log('📋 批量更新章节顺序:', chapters.length, '个章节')
+    
+    // 验证所有 parentId 都存在或为 null
+    const chapterIds = new Set(chapters.map(c => c.id))
+    const invalidParents = chapters.filter(c => 
+      c.parentId && !chapterIds.has(c.parentId)
+    )
+    
+    if (invalidParents.length > 0) {
+      console.error('❌ 发现无效的 parentId:', invalidParents.map(c => ({
+        id: c.id,
+        invalidParentId: c.parentId
+      })))
+      throw new Error(`章节包含无效的父章节引用: ${invalidParents.length} 个`)
+    }
+    
+    // 拓扑排序: 父章节必须先于子章节更新
+    const sorted: typeof chapters = []
+    const visited = new Set<string>()
+    const visiting = new Set<string>()
+    
+    const visit = (chapterId: string) => {
+      if (visited.has(chapterId)) return
+      if (visiting.has(chapterId)) {
+        console.warn('⚠️ 检测到循环引用:', chapterId)
+        return
+      }
+      
+      visiting.add(chapterId)
+      
+      const chapter = chapters.find(c => c.id === chapterId)
+      if (!chapter) return
+      
+      // 先处理父章节
+      if (chapter.parentId) {
+        visit(chapter.parentId)
+      }
+      
+      visiting.delete(chapterId)
+      visited.add(chapterId)
+      sorted.push(chapter)
+    }
+    
+    // 从所有根章节(没有父章节的)开始遍历,避免重复访问
+    const rootChapters = chapters.filter(c => !c.parentId)
+    const nonRootChapters = chapters.filter(c => c.parentId)
+    
+    // 先访问所有根章节
+    rootChapters.forEach(c => visit(c.id))
+    
+    // 再访问剩余的非根章节(以防有孤立的子树)
+    nonRootChapters.forEach(c => visit(c.id))
+    
+    console.log('📊 排序后的更新顺序:', sorted.map(c => ({
+      id: c.id.substring(0, 8),
+      parentId: c.parentId?.substring(0, 8) || 'null',
+      level: c.level,
+      orderIndex: c.orderIndex
+    })))
+    
+    // 按排序后的顺序更新
+    for (const chapter of sorted) {
+      try {
+        const result = await window.electronAPI.invoke('chapter:update', chapter.id, userId, {
+          parentId: chapter.parentId || null, // 确保 undefined 转为 null
+          orderIndex: chapter.orderIndex,
+          level: chapter.level
+        })
+        
+        if (!result.success) {
+          console.error(`❌ 更新章节失败:`, chapter.id, result.error)
+          throw new Error(result.error)
+        } else {
+          console.log(`✅ 更新章节成功:`, chapter.id.substring(0, 8))
+        }
+      } catch (error) {
+        console.error(`❌ 更新章节异常:`, chapter.id, error)
+        throw error
+      }
+    }
+    
+    console.log('✅ 所有章节更新完成')
   }
 }
 
@@ -245,6 +331,27 @@ export const contentApi = {
   // 获取内容历史
   async getHistory(contentId: string, userId: string) {
     return await window.electronAPI.invoke('content:getHistory', contentId, userId)
+  },
+
+  // 批量更新内容顺序
+  async reorderContents(userId: string, contents: Array<{ id: string; chapterId?: string; orderIndex: number }>): Promise<void> {
+    console.log('批量更新内容顺序:', contents.length, '个内容')
+    
+    // 逐个更新内容
+    for (const content of contents) {
+      try {
+        const result = await window.electronAPI.invoke('content:update', content.id, userId, {
+          chapterId: content.chapterId,
+          orderIndex: content.orderIndex
+        })
+        
+        if (!result.success) {
+          console.error(`更新内容 ${content.id} 失败:`, result.error)
+        }
+      } catch (error) {
+        console.error(`更新内容 ${content.id} 异常:`, error)
+      }
+    }
   }
 }
 

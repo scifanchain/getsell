@@ -284,7 +284,7 @@ ipcMain.handle('chapter:list', async (event: IpcMainInvokeEvent, workId: string)
   }
 });
 
-ipcMain.handle('chapter:update', async (event: IpcMainInvokeEvent, chapterId: string, chapterData: Partial<ChapterData>): Promise<IPCResponse<{ chapter: any }>> => {
+ipcMain.handle('chapter:update', async (event: IpcMainInvokeEvent, chapterId: string, userId: string, chapterData: Partial<ChapterData>): Promise<IPCResponse<{ chapter: any }>> => {
   try {
     // 使用Prisma更新章节
     const chapter = await db.updateChapter(chapterId, {
@@ -296,6 +296,17 @@ ipcMain.handle('chapter:update', async (event: IpcMainInvokeEvent, chapterId: st
     return { success: true, data: { chapter } };
   } catch (error: any) {
     console.error('更新章节失败:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('chapter:delete', async (event: IpcMainInvokeEvent, chapterId: string, userId: string): Promise<IPCResponse<void>> => {
+  try {
+    // 使用ChapterService删除章节(包含权限验证)
+    await services.chapterService.deleteChapter(chapterId, userId);
+    return { success: true, data: undefined };
+  } catch (error: any) {
+    console.error('删除章节失败:', error);
     return { success: false, error: error.message };
   }
 });

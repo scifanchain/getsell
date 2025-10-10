@@ -212,7 +212,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkStore } from '../stores/work'
-import ChapterTree from '../components/ChapterTree.vue'
+import ChapterTree from '../components/ChapterTree/index.vue'
 import type { Work, Chapter, ChapterData } from '../../shared/types'
 
 const route = useRoute()
