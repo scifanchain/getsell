@@ -112,7 +112,33 @@ const initEditor = () => {
   // 将菜单移动到指定容器
   const menuElement = editorContainer.value.querySelector('.ProseMirror-menubar')
   if (menuElement && menuContainer.value) {
+    // 清空目标容器
+    menuContainer.value.innerHTML = ''
+    // 移动菜单
     menuContainer.value.appendChild(menuElement)
+    
+    // 确保菜单样式正确应用
+    const menuBar = menuElement as HTMLElement
+    menuBar.style.display = 'flex'
+    menuBar.style.flexWrap = 'wrap'
+    menuBar.style.alignItems = 'center'
+    menuBar.style.gap = '4px'
+    menuBar.style.padding = '8px'
+    menuBar.style.border = 'none'
+    menuBar.style.background = 'transparent'
+    
+    // 确保菜单项正确布局
+    const menuItems = menuElement.querySelectorAll('.ProseMirror-menuitem')
+    menuItems.forEach((item) => {
+      const menuItem = item as HTMLElement
+      menuItem.style.display = 'inline-flex'
+      menuItem.style.alignItems = 'center'
+      menuItem.style.justifyContent = 'center'
+      menuItem.style.flexShrink = '0'
+      menuItem.style.minWidth = '32px'
+      menuItem.style.height = '32px'
+      menuItem.style.whiteSpace = 'nowrap'
+    })
   }
 }
 
@@ -281,15 +307,23 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   padding: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
 :deep(.ProseMirror-menu) {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
 }
 
 :deep(.ProseMirror-menuitem) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px 8px;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -297,7 +331,11 @@ onUnmounted(() => {
   background: white;
   color: #4a5568;
   font-size: 14px;
+  min-width: 32px;
+  height: 32px;
+  white-space: nowrap;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 :deep(.ProseMirror-menuitem:hover) {
@@ -315,11 +353,20 @@ onUnmounted(() => {
   position: relative;
 }
 
+/* 菜单分组 */
+:deep(.ProseMirror-menubar > *) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
 /* 分隔符 */
 :deep(.ProseMirror-menuseparator) {
   width: 1px;
   height: 20px;
   background: #e2e8f0;
-  margin: 0 4px;
+  margin: 0 8px;
+  flex-shrink: 0;
 }
 </style>
