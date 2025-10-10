@@ -47,6 +47,17 @@ export class ContentIPCHandler {
             }
         });
 
+        // 获取作品的所有内容
+        ipcMain.handle('content:getByWork', async (event, workId) => {
+            try {
+                const contents = await this.services.contentService.getContentByWork(workId);
+                return { contents };
+            } catch (error) {
+                console.error('Get content by work error:', error);
+                throw error;
+            }
+        });
+
         // 更新内容
         ipcMain.handle('content:update', async (event, contentId, userId, updateData) => {
             try {

@@ -31,7 +31,7 @@
       <div v-if="rootContents.length > 0" class="root-contents">
         <draggable
           v-model="rootContents"
-          :group="{ name: 'chapters', pull: true, put: true }"
+          :group="{ name: 'contents', pull: true, put: ['contents', 'chapter-contents'] }"
           @change="handleContentDragChange"
           animation="150"
           :force-fallback="false"
@@ -146,6 +146,7 @@ import type { ChapterLocal, Content } from './types'
 interface Props {
   chapters: ChapterLocal[]
   contents?: Content[]
+  workId?: string  // 添加 workId prop
 }
 
 const props = defineProps<Props>()
@@ -157,7 +158,7 @@ const emit = defineEmits<{
   'chapter-delete': [chapterId: string]
   'add-chapter': []
   'add-sub-chapter': [parentId: string]
-  'add-content': [data: { workId?: string, chapterId?: string }]
+  'add-content': [data: { title?: string, type?: string, workId?: string, chapterId?: string }]
   'content-select': [contentId: string]
   'content-edit': [content: Content]
   'content-delete': [contentId: string]
@@ -406,9 +407,11 @@ const handleContentDragChange = (evt: any) => {
 }
 
 const handleAddRootContent = () => {
-  createContentWorkId.value = undefined
+  console.log('ChapterTree: handleAddRootContent 被调用, workId =', props.workId)
+  createContentWorkId.value = props.workId
   createContentChapterId.value = undefined
   showCreateContentModal.value = true
+  console.log('ChapterTree: 模态框应该显示了，showCreateContentModal =', showCreateContentModal.value)
 }
 
 const handleCloseCreateModal = () => {
@@ -418,7 +421,9 @@ const handleCloseCreateModal = () => {
 }
 
 const handleCreateContent = (data: { title: string; type: string; workId?: string; chapterId?: string }) => {
+  console.log('ChapterTree: handleCreateContent 被调用', data)
   emit('add-content', data)
+  console.log('ChapterTree: 已发送 add-content 事件')
   handleCloseCreateModal()
 }
 </script>

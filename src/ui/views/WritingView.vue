@@ -25,12 +25,15 @@
       <div class="chapter-section">
         <ChapterTree
           :chapters="chapters"
+          :contents="contents"
+          :work-id="currentWork?.id"
           :selected-chapter-id="selectedChapterId"
           @chapter-toggle="handleChapterSelect"
           @chapter-edit="handleChapterEdit"
           @chapter-delete="handleChapterDelete"
           @add-chapter="handleAddChapter"
           @add-sub-chapter="handleAddSubChapter"
+          @add-content="handleAddContent"
           @chapters-reorder="handleChaptersReorder"
           @contents-reorder="handleContentsReorder"
         />
@@ -222,6 +225,7 @@ const userStore = useUserStore()
 // Reactive data
 const currentWork = ref<Work | null>(null)
 const chapters = ref<ChapterLocal[]>([])
+const contents = ref<any[]>([])  // 添加 contents 数据
 const selectedChapterId = ref('')
 const currentContent = ref<any>(null)
 const workStats = ref<WorkStats>({ totalWords: 0, totalChapters: 0 })
@@ -322,6 +326,10 @@ const loadWork = async (workId: string) => {
 
     const workChapters = await chapterApi.getByWork(workId, currentUser.value.id)
     chapters.value = workChapters.map(convertToLocalChapter)
+    
+    // 加载内容数据
+    const contentsResponse = await (window as any).gestell.content.getByWork(workId)
+    contents.value = contentsResponse?.contents || []
 
     const stats = await workApi.getStats(workId, currentUser.value.id)
     workStats.value = stats
@@ -329,6 +337,12 @@ const loadWork = async (workId: string) => {
     if (chapters.value.length > 0) {
       selectedChapterId.value = chapters.value[0].id
     }
+    
+    console.log('加载作品完成:', {
+      work: work.title,
+      chapters: chapters.value.length,
+      contents: contents.value.length
+    })
   } catch (error) {
     console.error('Load work failed:', error)
     showNotification('加载作品失败', 'error')
@@ -435,6 +449,45 @@ const handleAddSubChapter = (parentId: string) => {
   showChapterModal.value = true
 }
 
+const handleAddContent = async (data: { title?: string, type?: string, workId?: string, chapterId?: string }) => {
+  console.log('WritingView: handleAddContent 被调用', data)
+  
+  // 如果有 title，说明是从 ContentCreateModal 来的，直接创建内容
+  if (data.title) {
+    try {
+      const userId = currentUser.value?.id || '01K74VN2BS7BY4QXYJNYZNMMRR'
+      
+      console.log('准备创建内容:', {
+        userId,
+        workId: currentWork.value?.id,
+        chapterId: data.chapterId,
+        title: data.title
+      })
+      
+      const response = await (window as any).gestell.content.create(userId, {
+        workId: currentWork.value?.id,
+        chapterId: data.chapterId,
+        title: data.title,
+        content: JSON.stringify({ type: 'doc', content: [] }),
+        format: 'prosemirror' as const
+      })
+      
+      console.log('内容创建成功:', response)
+      
+      // 刷新章节数据
+      if (currentWork.value) {
+        await loadWork(currentWork.value.id)
+      }
+      
+      showNotification('内容创建成功', 'success')
+      
+    } catch (err: any) {
+      console.error('创建内容失败:', err)
+      showNotification('创建内容失败: ' + (err.message || '未知错误'), 'error')
+    }
+  }
+}
+
 const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
   try {
     console.log('章节重排序事件接收到:', reorderedChapters.length, '个章节')
@@ -509,6 +562,25 @@ const handleContentsReorder = async (data: { chapterId?: string; contents: Conte
       console.log('开始保存内容顺序到数据库...')
       await contentApi.reorderContents(currentUser.value!.id, contentOrders)
       console.log('✅ 内容顺序已保存到数据库')
+      
+      // 更新本地状态
+      const updatedContents = contents.value.map(content => {
+        const newOrder = contentOrders.find(c => c.id === content.id)
+        if (newOrder) {
+          return {
+            ...content,
+            chapterId: newOrder.chapterId,
+            orderIndex: newOrder.orderIndex
+          }
+        }
+        return content
+      })
+      
+      // 按 orderIndex 排序
+      updatedContents.sort((a, b) => a.orderIndex - b.orderIndex)
+      contents.value = updatedContents
+      
+      console.log('✅ 本地状态已更新')
       showNotification('内容顺序已更新', 'success')
     }
   } catch (error) {

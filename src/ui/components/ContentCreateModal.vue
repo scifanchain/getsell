@@ -81,14 +81,27 @@ const closeModal = () => {
 }
 
 const handleSubmit = () => {
-  if (!contentTitle.value.trim()) return
+  console.log('ContentCreateModal: handleSubmit 被调用')
+  console.log('  contentTitle:', contentTitle.value)
+  console.log('  contentType:', contentType.value)
+  console.log('  props.workId:', props.workId)
+  console.log('  props.chapterId:', props.chapterId)
   
-  emit('create', {
+  if (!contentTitle.value.trim()) {
+    console.warn('ContentCreateModal: 标题为空，取消提交')
+    return
+  }
+  
+  const data = {
     title: contentTitle.value.trim(),
     type: contentType.value,
     workId: props.workId,
     chapterId: props.chapterId
-  })
+  }
+  
+  console.log('ContentCreateModal: 准备发送 create 事件', data)
+  emit('create', data)
+  console.log('ContentCreateModal: 已发送 create 事件')
   
   closeModal()
 }

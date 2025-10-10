@@ -6,7 +6,8 @@ import { ulid } from 'ulid';
  * 内容数据传输接口
  */
 export interface CreateContentData {
-  chapterId: string;
+  chapterId?: string;  // 可选：根目录内容没有 chapterId
+  workId: string;      // 必需：所有内容都属于某个作品
   authorId: string;
   content: string;
   format: 'prosemirror' | 'markdown' | 'plain';
@@ -17,11 +18,13 @@ export interface UpdateContentData {
   content?: string;
   format?: 'prosemirror' | 'markdown' | 'plain';
   title?: string;
+  chapterId?: string;
+  orderIndex?: number;
 }
 
 export interface ContentInfo {
   id: string;
-  chapterId: string;
+  chapterId?: string;  // 可选：根目录内容没有 chapterId
   title?: string;
   content: string;
   format: 'prosemirror' | 'markdown' | 'plain';
@@ -48,6 +51,7 @@ export interface IContentService {
   createContent(authorId: string, contentData: CreateContentData): Promise<ContentInfo>;
   getContent(contentId: string, userId: string): Promise<ContentInfo | null>;
   getContentByChapter(chapterId: string, userId: string): Promise<ContentInfo[]>;
+  getContentByWork(workId: string): Promise<ContentInfo[]>;
   updateContent(contentId: string, userId: string, updateData: UpdateContentData): Promise<ContentInfo>;
   autoSaveContent(contentId: string, userId: string, content: string): Promise<AutoSaveResult>;
   deleteContent(contentId: string, userId: string): Promise<boolean>;
@@ -64,15 +68,27 @@ export class ContentService implements IContentService {
    * 创建新内容
    */
   async createContent(authorId: string, contentData: CreateContentData): Promise<ContentInfo> {
-    // 验证章节是否存在
-    const chapter = await this.repositories.chapterRepository.findById(contentData.chapterId);
-    if (!chapter) {
-      throw new Error('章节不存在');
-    }
+    let workId = contentData.workId;
+    
+    // 如果提供了章节ID，验证章节是否存在
+    if (contentData.chapterId) {
+      const chapter = await this.repositories.chapterRepository.findById(contentData.chapterId);
+      if (!chapter) {
+        throw new Error('章节不存在');
+      }
 
-    // 验证用户权限
-    if (chapter.authorId !== authorId) {
-      throw new Error('没有权限在此章节创建内容');
+      // 验证用户权限
+      if (chapter.authorId !== authorId) {
+        throw new Error('没有权限在此章节创建内容');
+      }
+      
+      // 从章节获取 workId（优先级高于传入的 workId）
+      workId = chapter.workId;
+    }
+    
+    // 确保有 workId
+    if (!workId) {
+      throw new Error('必须提供 workId 或 chapterId');
     }
 
     // 计算字数和字符数
@@ -80,8 +96,8 @@ export class ContentService implements IContentService {
 
     // 创建内容数据 - 匹配 ContentData 接口
     const createData = {
-      workId: chapter.workId, // 从章节获取 workId
-      chapterId: contentData.chapterId,
+      workId,
+      chapterId: contentData.chapterId || undefined, // 根目录内容的 chapterId 为 undefined
       title: contentData.title,
       contentJson: contentData.format === 'prosemirror' ? contentData.content : '',
       contentHtml: contentData.format === 'markdown' ? contentData.content : '',
@@ -105,10 +121,19 @@ export class ContentService implements IContentService {
       return null;
     }
 
-    // 验证权限 - 获取章节信息
-    const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
-    if (!chapter || !this.checkChapterAccess(chapter, userId)) {
-      throw new Error('没有访问此内容的权限');
+    // 验证权限
+    if (content.chapterId) {
+      // 如果内容属于某个章节，验证章节权限
+      const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
+      if (!chapter || !this.checkChapterAccess(chapter, userId)) {
+        throw new Error('没有访问此内容的权限');
+      }
+    } else {
+      // 如果是根级别内容，验证作品权限
+      const work = await this.repositories.workRepository.findById(content.workId);
+      if (!work || work.authorId !== userId) {
+        throw new Error('没有访问此内容的权限');
+      }
     }
 
     return this.mapToContentInfo(content);
@@ -129,6 +154,14 @@ export class ContentService implements IContentService {
   }
 
   /**
+   * 获取作品的所有内容
+   */
+  async getContentByWork(workId: string): Promise<ContentInfo[]> {
+    const contents = await this.repositories.contentRepository.findByWork(workId);
+    return contents.map(content => this.mapToContentInfo(content));
+  }
+
+  /**
    * 更新内容
    */
   async updateContent(contentId: string, userId: string, updateData: UpdateContentData): Promise<ContentInfo> {
@@ -138,9 +171,18 @@ export class ContentService implements IContentService {
     }
 
     // 验证权限
-    const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
-    if (!chapter || !this.checkChapterAccess(chapter, userId)) {
-      throw new Error('没有权限编辑此内容');
+    if (content.chapterId) {
+      // 如果内容属于某个章节，验证章节权限
+      const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
+      if (!chapter || !this.checkChapterAccess(chapter, userId)) {
+        throw new Error('没有权限编辑此内容');
+      }
+    } else {
+      // 如果是根级别内容，验证作品权限
+      const work = await this.repositories.workRepository.findById(content.workId);
+      if (!work || work.authorId !== userId) {
+        throw new Error('没有权限编辑此内容');
+      }
     }
 
     // 如果更新了内容文本，重新计算统计信息
@@ -165,6 +207,14 @@ export class ContentService implements IContentService {
     
     if (updateData.title !== undefined) {
       repositoryUpdateData.title = updateData.title;
+    }
+    
+    if (updateData.chapterId !== undefined) {
+      repositoryUpdateData.chapterId = updateData.chapterId;
+    }
+    
+    if (updateData.orderIndex !== undefined) {
+      repositoryUpdateData.orderIndex = updateData.orderIndex;
     }
 
     const updateDataWithStats = {
@@ -221,9 +271,18 @@ export class ContentService implements IContentService {
     }
 
     // 验证权限
-    const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
-    if (!chapter || !this.checkChapterAccess(chapter, userId)) {
-      throw new Error('没有权限删除此内容');
+    if (content.chapterId) {
+      // 如果内容属于某个章节，验证章节权限
+      const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
+      if (!chapter || !this.checkChapterAccess(chapter, userId)) {
+        throw new Error('没有权限删除此内容');
+      }
+    } else {
+      // 如果是根级别内容，验证作品权限
+      const work = await this.repositories.workRepository.findById(content.workId);
+      if (!work || work.authorId !== userId) {
+        throw new Error('没有权限删除此内容');
+      }
     }
 
     try {

@@ -62,13 +62,12 @@
     </div>
     
     <!-- 章节内容 -->
-    <div v-if="isExpanded && chapterContents.length > 0" class="contents-section">
+    <div v-if="isExpanded" class="contents-section">
       <draggable
         v-model="sortedChapterContents"
-        :group="{ name: 'chapters', pull: true, put: true }"
+        :group="{ name: 'chapter-contents', pull: true, put: ['contents', 'chapter-contents'] }"
         @change="handleContentDragChange"
         animation="150"
-        item-key="id"
       >
         <template #item="{ element: content }">
           <div 
@@ -100,7 +99,7 @@
     </div>
     
     <!-- 子章节 - Level < 3 的章节可以包含子章节 -->
-    <div v-if="chapter.level < 3" class="children-section" :class="{ 'collapsed': !isExpanded }">
+    <div v-if="isExpanded && chapter.level < 3" class="children-section">
       <draggable
         v-model="sortedChildChapters"
         :group="{ name: 'chapters', pull: true, put: true }"
@@ -412,8 +411,8 @@ const handleContentDragChange = (evt: any) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 8px;
-  margin: 1px 0;
+  padding: 2px 8px;
+  margin: 0;
   cursor: pointer;
   border-radius: 3px;
   transition: background-color 0.15s ease;
@@ -545,16 +544,16 @@ const handleContentDragChange = (evt: any) => {
 }
 
 .contents-section {
-  margin-left: 20px;
-  margin-top: 2px;
+  margin-left: 16px;
+  margin-top: 1px;
 }
 
 .content-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 6px;
-  margin: 1px 0;
+  padding: 2px 6px;
+  margin: 0;
   background-color: #fafafa;
   border-radius: 3px;
   cursor: pointer;
@@ -597,7 +596,8 @@ const handleContentDragChange = (evt: any) => {
 }
 
 .children-section {
-  margin-left: 20px;
+  margin-left: 16px;
+  margin-top: 1px;
 }
 
 .children-section.collapsed {
@@ -612,6 +612,15 @@ const handleContentDragChange = (evt: any) => {
 }
 
 .children-drop-zone {
-  min-height: 10px; /* 确保有足够的区域接收拖放 */
+  min-height: 5px; /* 确保有足够的区域接收拖放 */
+}
+
+.content-drop-zone {
+  min-height: 20px;
+  padding: 2px 0;
+}
+
+.content-drop-zone.empty {
+  min-height: 20px;
 }
 </style>

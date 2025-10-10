@@ -1,116 +1,130 @@
 <!--
-  作品详情视图
+  作品详情视图 - 三栏布局
 -->
 <template>
   <div class="work-view">
-    <!-- 作品头部 -->
+    <!-- 顶部工具栏 -->
     <div class="work-header">
-      <div class="header-content">
-        <button 
-          @click="$router.back()" 
-          class="back-button"
-          title="返回"
-        >
-          ← 返回
+      <button 
+        @click="$router.back()" 
+        class="back-button"
+        title="返回"
+      >
+        ← 返回
+      </button>
+      
+      <div class="work-title" v-if="currentWork">
+        <h1>{{ currentWork.title }}</h1>
+      </div>
+      
+      <div class="header-actions">
+        <button @click="showCreateChapter = true" class="btn btn-primary">
+          + 新建章节
         </button>
-        
-        <div class="work-info" v-if="currentWork">
-          <h1 class="work-title">{{ currentWork.title }}</h1>
-          <p class="work-description" v-if="currentWork.description">
-            {{ currentWork.description }}
-          </p>
-          <div class="work-meta">
-            <span class="chapter-count">{{ chapterCount }} 章节</span>
-            <span class="updated-time">
-              更新于 {{ formatDate(currentWork.updatedAt) }}
-            </span>
-          </div>
-        </div>
-        
-        <div class="header-actions">
-          <button @click="showCreateChapter = true" class="btn btn-primary">
-            + 新建章节
-          </button>
-          <button @click="showWorkSettings = true" class="btn btn-secondary">
-            作品设置
-          </button>
-        </div>
+        <button @click="showWorkSettings = true" class="btn btn-secondary">
+          设置
+        </button>
       </div>
     </div>
 
-    <!-- 章节列表 -->
-    <div class="chapters-section">
-      <div class="section-header">
-        <h2>章节结构</h2>
-        <div class="view-controls">
-          <button 
-            :class="['view-btn', { active: viewMode === 'list' }]"
-            @click="viewMode = 'list'"
-          >
-            列表视图
-          </button>
-          <button 
-            :class="['view-btn', { active: viewMode === 'tree' }]"
-            @click="viewMode = 'tree'"
-          >
-            树形视图
-          </button>
-        </div>
-      </div>
-
-      <!-- 章节内容 -->
-      <div class="chapters-content">
-        <div v-if="loading" class="loading">加载中...</div>
-        <div v-else-if="error" class="error">{{ error }}</div>
-        <div v-else-if="chapters.length === 0" class="empty-state">
-          <div class="empty-icon">📄</div>
-          <h3>还没有章节</h3>
-          <p>开始创建你的第一个章节吧</p>
-          <button @click="showCreateChapter = true" class="btn btn-primary">
-            创建章节
-          </button>
-        </div>
-        <div v-else>
-          <!-- 列表视图 -->
-          <div v-if="viewMode === 'list'" class="chapters-list">
-            <div
-              v-for="chapter in sortedChapters"
-              :key="chapter.id"
-              class="chapter-item"
-              @click="openEditor(chapter.id)"
+    <!-- 三栏主体 -->
+    <div class="work-main">
+      <!-- 左侧：章节树 -->
+      <div class="sidebar-left">
+        <div class="sidebar-header">
+          <h3>章节目录</h3>
+          <div class="view-toggle">
+            <button 
+              :class="{ active: viewMode === 'tree' }"
+              @click="viewMode = 'tree'"
+              title="树形视图"
             >
-              <div class="chapter-icon">📖</div>
-              <div class="chapter-content">
-                <h3 class="chapter-title">{{ chapter.title }}</h3>
-                <p class="chapter-subtitle" v-if="chapter.subtitle">
-                  {{ chapter.subtitle }}
-                </p>
-                <div class="chapter-stats">
-                  <span>字数: {{ (chapter as any).wordCount || 0 }}</span>
-                  <span>更新: {{ formatDate(chapter.updatedAt) }}</span>
+              🌳
+            </button>
+            <button 
+              :class="{ active: viewMode === 'list' }"
+              @click="viewMode = 'list'"
+              title="列表视图"
+            >
+              📄
+            </button>
+          </div>
+        </div>
+        
+        <div class="sidebar-content">
+          <div v-if="loading" class="loading">加载中...</div>
+          <div v-else-if="error" class="error">{{ error }}</div>
+          <div v-else-if="chapters.length === 0" class="empty-state">
+            <div class="empty-icon">📄</div>
+            <p>还没有章节</p>
+            <button @click="showCreateChapter = true" class="btn-small">
+              创建章节
+            </button>
+          </div>
+          <div v-else>
+            <!-- 树形视图 -->
+            <ChapterTree 
+              v-if="viewMode === 'tree'"
+              :chapters="chapters"
+              :contents="contents as any"
+              :work-id="workId"
+              @chapter-click="handleChapterClick"
+              @chapter-edit="editChapter"
+              @chapter-delete="deleteChapter"
+              @add-content="handleAddContent"
+              @content-select="handleContentSelect"
+            />
+            
+            <!-- 列表视图 -->
+            <div v-else class="chapters-list">
+              <div
+                v-for="chapter in sortedChapters"
+                :key="chapter.id"
+                class="chapter-item"
+                @click="handleChapterClick(chapter.id)"
+              >
+                <div class="chapter-info">
+                  <div class="chapter-title">{{ chapter.title }}</div>
+                  <div class="chapter-stats">
+                    {{ (chapter as any).wordCount || 0 }} 字
+                  </div>
                 </div>
-              </div>
-              <div class="chapter-actions" @click.stop>
-                <button @click="editChapter(chapter)" class="action-btn" title="编辑">
-                  ✏️
-                </button>
-                <button @click="deleteChapter(chapter.id)" class="action-btn" title="删除">
-                  🗑️
-                </button>
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- 树形视图 -->
-          <div v-else class="chapters-tree">
-            <ChapterTree 
-              :chapters="chapters"
-              @chapter-edit="editChapter"
-              @chapter-delete="deleteChapter"
+      <!-- 中间：内容编辑区 -->
+      <div class="content-main">
+        <!-- 欢迎界面 -->
+        <WelcomePanel v-if="!currentContentId" />
+        
+        <!-- 内容编辑器 -->
+        <div v-else class="editor-container">
+          <div class="editor-header">
+            <input 
+              v-model="currentContentTitle" 
+              type="text" 
+              class="content-title-input"
+              placeholder="内容标题"
+              @blur="updateContentTitle"
+            />
+            <button @click="closeEditor" class="btn-close">✕</button>
+          </div>
+          <div class="editor-wrapper">
+            <ProseMirrorEditor 
+              :content="currentContentData"
+              @update="handleContentUpdate"
             />
           </div>
         </div>
       </div>
+
+      <!-- 右侧：可选的工具栏或信息面板 -->
+      <!-- <div class="sidebar-right">
+        右侧可以放大纲、统计信息等
+      </div> -->
     </div>
 
     <!-- 创建章节对话框 -->
@@ -166,6 +180,40 @@
       </div>
     </div>
 
+    <!-- 添加内容对话框 -->
+    <div v-if="showAddContentModal" class="modal-overlay" @click="showAddContentModal = false">
+      <div class="modal-content modal-small" @click.stop>
+        <div class="modal-header">
+          <h3>添加内容</h3>
+          <button @click="showAddContentModal = false" class="close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="createAndOpenContent">
+            <div class="form-group">
+              <label for="content-title">内容标题 *</label>
+              <input
+                id="content-title"
+                v-model="newContentTitle"
+                type="text"
+                required
+                placeholder="输入内容标题"
+                class="form-input"
+                autofocus
+              />
+            </div>
+            <div class="form-actions">
+              <button type="button" @click="showAddContentModal = false" class="btn btn-cancel">
+                取消
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="!newContentTitle.trim()">
+                创建并编辑
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <!-- 作品设置对话框 -->
     <div v-if="showWorkSettings" class="modal-overlay" @click="showWorkSettings = false">
       <div class="modal-content" @click.stop>
@@ -213,7 +261,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useWorkStore } from '../stores/work'
 import { useChapterStore } from '../stores/chapter'
 import ChapterTree from '../components/ChapterTree/index.vue'
-import type { Work, Chapter, ChapterData } from '../../shared/types'
+import WelcomePanel from '../components/WelcomePanel.vue'
+import ProseMirrorEditor from '../components/ProseMirrorEditor.vue'
+import type { Work, Chapter, ChapterData, Content } from '../../shared/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -224,9 +274,18 @@ const chapterStore = useChapterStore()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const chapters = ref<Chapter[]>([])
+const contents = ref<Content[]>([])  // 添加 contents 数据
 const viewMode = ref<'list' | 'tree'>('tree')
 const showCreateChapter = ref(false)
 const showWorkSettings = ref(false)
+
+// 内容编辑相关状态
+const currentContentId = ref<string | null>(null)
+const currentContentTitle = ref('')
+const currentContentData = ref<any>(null)
+const showAddContentModal = ref(false)
+const newContentTitle = ref('')
+const pendingChapterId = ref<string | null>(null)
 
 // 新章节表单
 const newChapter = ref<Partial<ChapterData>>({
@@ -294,10 +353,20 @@ const loadChapters = async () => {
   if (!workId.value) return
   
   try {
-    const response = await (window as any).gestell.chapter.list(workId.value)
-    chapters.value = response.chapters || []
+    // 加载章节
+    const chaptersResponse = await (window as any).gestell.chapter.list(workId.value)
+    chapters.value = chaptersResponse.chapters || []
+    
+    // 加载内容
+    const contentsResponse = await (window as any).gestell.content.getByWork(workId.value)
+    contents.value = contentsResponse?.contents || []
+    
+    console.log('加载完成:', {
+      chapters: chapters.value.length,
+      contents: contents.value.length
+    })
   } catch (err: any) {
-    console.error('加载章节失败:', err)
+    console.error('加载章节和内容失败:', err)
   }
 }
 
@@ -320,17 +389,157 @@ const createChapter = async () => {
     newChapter.value = { title: '', subtitle: '', description: '', workId: '', orderIndex: 0 }
     showCreateChapter.value = false
     
-    // 直接打开编辑器
-    openEditor(response.chapter.id)
   } catch (err: any) {
     error.value = err.message || '创建章节失败'
   }
 }
 
-const openEditor = (chapterId: string) => {
-  chapterStore.selectChapter(chapterId)
-  console.log('WorkView: 选中后 selectedChapterId:', chapterStore.selectedChapterId)
-  router.push(`/editor/${workId.value}/${chapterId}`)
+// 点击章节 - 只选中，不打开编辑器
+const handleChapterClick = (chapterId: string) => {
+  console.log('章节被点击:', chapterId)
+  // 只选中章节，不做其他操作
+}
+
+// 添加内容
+const handleAddContent = async (data: { title?: string, type?: string, workId?: string, chapterId?: string }) => {
+  console.log('WorkView: handleAddContent 被调用', data)
+  
+  // 如果只有 chapterId（来自章节树按钮），打开旧的模态框
+  if (!data.title && data.chapterId) {
+    pendingChapterId.value = data.chapterId
+    showAddContentModal.value = true
+    newContentTitle.value = ''
+    return
+  }
+  
+  // 如果有 title（来自 ContentCreateModal），直接创建内容
+  if (data.title) {
+    try {
+      const userId = '01K74VN2BS7BY4QXYJNYZNMMRR' // TODO: 从 userStore 获取
+      
+      console.log('准备创建内容，参数:', {
+        userId,
+        contentData: {
+          workId: workId.value,
+          chapterId: data.chapterId,
+          title: data.title,
+          content: JSON.stringify({ type: 'doc', content: [] }),
+          format: 'prosemirror'
+        }
+      })
+      
+      const response = await (window as any).gestell.content.create(userId, {
+        workId: workId.value,
+        chapterId: data.chapterId, // 可以是 undefined（根目录）
+        title: data.title,
+        content: JSON.stringify({ type: 'doc', content: [] }),
+        format: 'prosemirror' as const
+      })
+      
+      console.log('内容创建成功:', response)
+      
+      // 打开编辑器
+      // response 直接就是 ContentInfo 对象
+      currentContentId.value = response.id
+      currentContentTitle.value = response.title
+      currentContentData.value = JSON.parse(response.content)
+      
+      // 刷新章节树数据
+      await loadChapters()
+      
+    } catch (err: any) {
+      console.error('创建内容失败:', err)
+      error.value = err.message || '创建内容失败'
+    }
+  }
+}
+
+// 创建内容并打开编辑器
+const createAndOpenContent = async () => {
+  if (!newContentTitle.value.trim() || !pendingChapterId.value) return
+  
+  try {
+    // 获取当前用户ID（假设从userStore获取）
+    const userId = '01K74VN2BS7BY4QXYJNYZNMMRR' // TODO: 从 userStore 获取
+    
+    const response = await (window as any).gestell.content.create(userId, {
+      title: newContentTitle.value.trim(),
+      chapterId: pendingChapterId.value,
+      workId: workId.value,
+      contentJson: { type: 'doc', content: [] },
+      orderIndex: 0
+    })
+    
+    console.log('内容创建成功:', response)
+    
+    // 打开编辑器
+    // response 直接就是 ContentInfo 对象
+    currentContentId.value = response.id
+    currentContentTitle.value = response.title
+    currentContentData.value = response.contentJson || { type: 'doc', content: [] }
+    
+    // 关闭模态框
+    showAddContentModal.value = false
+    newContentTitle.value = ''
+    pendingChapterId.value = null
+    
+  } catch (err: any) {
+    console.error('创建内容失败:', err)
+    error.value = err.message || '创建内容失败'
+  }
+}
+
+// 选择内容
+const handleContentSelect = async (contentId: string) => {
+  try {
+    const response = await (window as any).gestell.content.getById(contentId)
+    console.log('加载内容:', response)
+    // response 直接就是 ContentInfo 对象
+    currentContentId.value = response.id
+    currentContentTitle.value = response.title
+    currentContentData.value = response.contentJson || { type: 'doc', content: [] }
+  } catch (err: any) {
+    console.error('加载内容失败:', err)
+    error.value = err.message || '加载内容失败'
+  }
+}
+
+// 更新内容标题
+const updateContentTitle = async () => {
+  if (!currentContentId.value || !currentContentTitle.value.trim()) return
+  
+  try {
+    const userId = '01K74VN2BS7BY4QXYJNYZNMMRR' // TODO: 从 userStore 获取
+    await (window as any).gestell.content.update(currentContentId.value, userId, {
+      title: currentContentTitle.value.trim()
+    })
+  } catch (err: any) {
+    console.error('更新标题失败:', err)
+    error.value = err.message || '更新标题失败'
+  }
+}
+
+// 更新内容
+const handleContentUpdate = async (content: any) => {
+  if (!currentContentId.value) return
+  
+  try {
+    const userId = '01K74VN2BS7BY4QXYJNYZNMMRR' // TODO: 从 userStore 获取
+    await (window as any).gestell.content.update(currentContentId.value, userId, {
+      contentJson: content
+    })
+    currentContentData.value = content
+  } catch (err: any) {
+    console.error('保存内容失败:', err)
+    error.value = err.message || '保存内容失败'
+  }
+}
+
+// 关闭编辑器
+const closeEditor = () => {
+  currentContentId.value = null
+  currentContentTitle.value = ''
+  currentContentData.value = null
 }
 
 const editChapter = (chapter: Chapter) => {
@@ -368,6 +577,8 @@ watch(() => route.params.id, () => {
 
 // 生命周期
 onMounted(() => {
+  console.log('WorkView onMounted, route.params:', route.params)
+  console.log('WorkView onMounted, workId:', workId.value)
   loadWork()
 })
 </script>
@@ -378,280 +589,302 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: #ffffff;
+  overflow: hidden;
 }
 
+/* 顶部工具栏 */
 .work-header {
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-  padding: 16px 24px;
-}
-
-.header-content {
+  height: 56px;
+  min-height: 56px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 0 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e1e4e8;
+  gap: 16px;
 }
 
 .back-button {
-  padding: 8px 12px;
+  padding: 6px 12px;
   background: none;
-  border: 1px solid #dee2e6;
+  border: 1px solid #d1d5da;
   border-radius: 6px;
-  color: #6c757d;
+  color: #24292e;
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .back-button:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
-}
-
-.work-info {
-  flex: 1;
+  background: #e1e4e8;
 }
 
 .work-title {
-  margin: 0 0 8px 0;
-  color: #212529;
-  font-size: 24px;
+  flex: 1;
+  min-width: 0;
+}
+
+.work-title h1 {
+  font-size: 18px;
   font-weight: 600;
-}
-
-.work-description {
-  margin: 0 0 12px 0;
-  color: #6c757d;
-  font-size: 16px;
-  line-height: 1.5;
-}
-
-.work-meta {
-  display: flex;
-  gap: 16px;
-  color: #6c757d;
-  font-size: 14px;
+  color: #24292e;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
-.chapters-section {
+/* 三栏主体 */
+.work-main {
   flex: 1;
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-  overflow-y: auto;
-}
-
-.section-header {
   display: flex;
-  justify-content: space-between;
+  overflow: hidden;
+}
+
+/* 左侧边栏 */
+.sidebar-left {
+  width: 300px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  background: #fafbfc;
+  border-right: 1px solid #e1e4e8;
+}
+
+.sidebar-header {
+  height: 48px;
+  min-height: 48px;
+  display: flex;
   align-items: center;
-  margin-bottom: 24px;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #e1e4e8;
 }
 
-.section-header h2 {
-  margin: 0;
-  color: #212529;
-  font-size: 20px;
+.sidebar-header h3 {
+  font-size: 14px;
   font-weight: 600;
+  color: #24292e;
+  margin: 0;
 }
 
-.view-controls {
+.view-toggle {
   display: flex;
   gap: 4px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  padding: 2px;
 }
 
-.view-btn {
-  padding: 6px 12px;
-  border: none;
-  background: none;
-  color: #6c757d;
-  font-size: 14px;
+.view-toggle button {
+  padding: 4px 8px;
+  border: 1px solid #d1d5da;
+  background: white;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 14px;
   transition: all 0.2s;
 }
 
-.view-btn:hover {
-  color: #495057;
+.view-toggle button.active {
+  background: #0366d6;
+  border-color: #0366d6;
+  color: white;
 }
 
-.view-btn.active {
-  background: #ffffff;
-  color: #0d6efd;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
 }
 
-.loading, .error {
-  text-align: center;
-  padding: 40px 20px;
-  color: #6c757d;
+/* 中间内容区 */
+.content-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  overflow: hidden;
 }
 
-.error {
-  color: #dc3545;
+.editor-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
+.editor-header {
+  height: 60px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid #e1e4e8;
+  gap: 16px;
+}
+
+.content-title-input {
+  flex: 1;
+  font-size: 24px;
+  font-weight: 600;
+  border: none;
+  outline: none;
+  padding: 8px 0;
+  background: transparent;
+}
+
+.content-title-input::placeholder {
+  color: #959da5;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 20px;
+  color: #586069;
+  transition: all 0.2s;
+}
+
+.btn-close:hover {
+  background: #e1e4e8;
+}
+
+.editor-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* 章节列表 */
+.chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chapter-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.chapter-item:hover {
+  background: #f3f4f6;
+}
+
+.chapter-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chapter-title {
+  font-size: 14px;
+  color: #24292e;
+  font-weight: 500;
+}
+
+.chapter-stats {
+  font-size: 12px;
+  color: #586069;
+}
+
+/* 空状态 */
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
   text-align: center;
-  padding: 60px 20px;
 }
 
 .empty-icon {
   font-size: 48px;
   margin-bottom: 16px;
-}
-
-.empty-state h3 {
-  margin: 0 0 8px 0;
-  color: #495057;
-  font-size: 20px;
+  opacity: 0.5;
 }
 
 .empty-state p {
-  margin: 0 0 24px 0;
-  color: #6c757d;
+  color: #586069;
+  margin: 8px 0 16px;
 }
 
-.chapters-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chapter-item {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.chapter-item:hover {
-  border-color: #0d6efd;
-  box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
-}
-
-.chapter-icon {
-  font-size: 24px;
-  margin-right: 16px;
-}
-
-.chapter-content {
-  flex: 1;
-}
-
-.chapter-title {
-  margin: 0 0 4px 0;
-  color: #212529;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.chapter-subtitle {
-  margin: 0 0 8px 0;
-  color: #6c757d;
-  font-size: 14px;
-}
-
-.chapter-stats {
-  display: flex;
-  gap: 16px;
-  color: #6c757d;
-  font-size: 12px;
-}
-
-.chapter-actions {
-  display: flex;
-  gap: 8px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.chapter-item:hover .chapter-actions {
-  opacity: 1;
-}
-
-.action-btn {
-  padding: 4px 8px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.action-btn:hover {
-  background: #f8f9fa;
-}
-
+/* 按钮样式 */
 .btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: 1px solid transparent;
   border-radius: 6px;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  white-space: nowrap;
 }
 
 .btn-primary {
-  background: #0d6efd;
-  border-color: #0d6efd;
+  background: #0366d6;
   color: white;
+  border-color: #0366d6;
 }
 
 .btn-primary:hover {
-  background: #0b5ed7;
-  border-color: #0a58ca;
+  background: #0256c7;
 }
 
 .btn-primary:disabled {
-  background: #6c757d;
-  border-color: #6c757d;
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background: #6c757d;
-  border-color: #6c757d;
-  color: white;
+  background: white;
+  color: #24292e;
+  border-color: #d1d5da;
 }
 
 .btn-secondary:hover {
-  background: #5c636a;
-  border-color: #565e64;
+  background: #f3f4f6;
 }
 
 .btn-cancel {
-  background: #f8f9fa;
-  border-color: #dee2e6;
-  color: #6c757d;
+  background: white;
+  color: #586069;
+  border-color: #d1d5da;
 }
 
 .btn-cancel:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
+  background: #f3f4f6;
 }
 
-/* 模态框样式 */
+.btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* 加载和错误状态 */
+.loading, .error {
+  text-align: center;
+  padding: 24px;
+  color: #586069;
+}
+
+.error {
+  color: #d73a49;
+}
+
+/* 模态框 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -668,132 +901,110 @@ onMounted(() => {
 .modal-content {
   background: white;
   border-radius: 8px;
-  max-width: 500px;
   width: 90%;
+  max-width: 600px;
   max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  overflow: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.modal-small {
+  max-width: 400px;
 }
 
 .modal-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e9ecef;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e1e4e8;
 }
 
 .modal-header h3 {
-  margin: 0;
-  color: #212529;
   font-size: 18px;
   font-weight: 600;
+  margin: 0;
+  color: #24292e;
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #6c757d;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 24px;
+  color: #586069;
+  line-height: 1;
+  transition: all 0.2s;
 }
 
 .close-btn:hover {
-  color: #495057;
+  background: #f3f4f6;
 }
 
 .modal-body {
   padding: 24px;
 }
 
+/* 表单样式 */
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 6px;
-  color: #495057;
   font-size: 14px;
   font-weight: 500;
+  color: #24292e;
+  margin-bottom: 8px;
 }
 
-.form-input, .form-textarea, .form-select {
+.form-input,
+.form-textarea,
+.form-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
+  border: 1px solid #d1d5da;
+  border-radius: 6px;
   font-size: 14px;
-  transition: border-color 0.2s;
+  font-family: inherit;
+  transition: all 0.2s;
 }
 
-.form-input:focus, .form-textarea:focus, .form-select:focus {
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
   outline: none;
-  border-color: #0d6efd;
-  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.1);
+  border-color: #0366d6;
+  box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
 }
 
 .form-textarea {
   resize: vertical;
-  min-height: 60px;
+  min-height: 80px;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
   margin-top: 24px;
 }
 
-.settings-section {
-  margin-bottom: 24px;
-}
-
-.settings-section h4 {
-  margin: 0 0 16px 0;
-  color: #495057;
-  font-size: 16px;
-  font-weight: 500;
-}
-
+/* 响应式 */
 @media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .sidebar-left {
+    width: 250px;
+    min-width: 250px;
   }
-
-  .header-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .chapters-section {
-    padding: 16px;
-  }
-
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
-  .chapter-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .chapter-actions {
-    opacity: 1;
-    width: 100%;
-    justify-content: flex-end;
-    margin-top: 12px;
+  
+  .work-title h1 {
+    font-size: 16px;
   }
 }
 </style>

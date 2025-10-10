@@ -182,10 +182,56 @@
       </div>
     </aside>
     </div>
+    
+    <!-- 创建作品模态框 -->
+    <div v-if="showCreateWorkModal" class="modal-overlay" @click="showCreateWorkModal = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>创建新作品</h3>
+          <button class="close-btn" @click="showCreateWorkModal = false">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>作品标题 *</label>
+            <input 
+              v-model="newWorkTitle" 
+              type="text" 
+              placeholder="请输入作品标题"
+              @keyup.enter="handleCreateWork"
+            />
+          </div>
+          <div class="form-group">
+            <label>作品简介</label>
+            <textarea 
+              v-model="newWorkDescription" 
+              placeholder="请输入作品简介（可选）"
+              rows="4"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label>作品类型</label>
+            <select v-model="newWorkGenre">
+              <option value="novel">小说</option>
+              <option value="essay">散文</option>
+              <option value="poetry">诗歌</option>
+              <option value="script">剧本</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showCreateWorkModal = false">取消</button>
+          <button class="btn-confirm" @click="handleCreateWork" :disabled="!newWorkTitle.trim()">
+            创建
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -209,8 +255,56 @@ function goToEditorTest() {
 }
 
 function createNewWork() {
-  router.push('/writing')
-  console.log('创建新作品')
+  showCreateWorkModal.value = true
+  console.log('显示创建作品对话框')
+}
+
+const showCreateWorkModal = ref(false)
+const newWorkTitle = ref('')
+const newWorkDescription = ref('')
+const newWorkGenre = ref('novel')
+
+const handleCreateWork = async () => {
+  if (!newWorkTitle.value.trim()) {
+    alert('请输入作品标题')
+    return
+  }
+  
+  try {
+    // 获取当前用户 ID（假设从 localStorage 或 store 获取）
+    const userId = '01K74VN2BS7BY4QXYJNYZNMMRR' // TODO: 从用户状态获取
+    
+    console.log('准备创建作品:', {
+      userId,
+      workData: {
+        title: newWorkTitle.value.trim(),
+        description: newWorkDescription.value.trim() || undefined,
+        genre: newWorkGenre.value
+      }
+    })
+    
+    const response = await (window as any).gestell.work.create(userId, {
+      title: newWorkTitle.value.trim(),
+      description: newWorkDescription.value.trim() || undefined,
+      genre: newWorkGenre.value
+    })
+    
+    console.log('作品创建成功:', response)
+    
+    // 跳转到 WritingView，传递 workId
+    // response 直接就是 WorkInfo 对象，不需要 .work
+    router.push(`/writing/${response.id}`)
+    
+    // 重置表单
+    showCreateWorkModal.value = false
+    newWorkTitle.value = ''
+    newWorkDescription.value = ''
+    newWorkGenre.value = 'novel'
+    
+  } catch (error: any) {
+    console.error('创建作品失败:', error)
+    alert('创建作品失败: ' + (error.message || '未知错误'))
+  }
 }
 </script>
 
@@ -756,5 +850,160 @@ function createNewWork() {
     min-width: 180px;
     right: -8px;
   }
+}
+
+/* 创建作品模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 0 0 12px 12px;
+}
+
+.btn-cancel,
+.btn-confirm {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn-cancel:hover {
+  background: #e5e7eb;
+}
+
+.btn-confirm {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-confirm:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

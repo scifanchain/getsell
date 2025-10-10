@@ -34,10 +34,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 内容管理API
   content: {
-    create: (contentData) => ipcRenderer.invoke('content:create', contentData),
-    list: (chapterId) => ipcRenderer.invoke('content:list', chapterId),
-    update: (contentId, contentData) => ipcRenderer.invoke('content:update', contentId, contentData),
-    delete: (contentId) => ipcRenderer.invoke('content:delete', contentId),
+    create: (authorId, contentData) => ipcRenderer.invoke('content:create', authorId, contentData),
+    getById: (contentId) => ipcRenderer.invoke('content:get', contentId),
+    getByChapter: (chapterId) => ipcRenderer.invoke('content:getByChapter', chapterId),
+    getByWork: (workId) => ipcRenderer.invoke('content:getByWork', workId),
+    update: (contentId, userId, updateData) => ipcRenderer.invoke('content:update', contentId, userId, updateData),
+    autoSave: (contentId, userId, content) => ipcRenderer.invoke('content:autoSave', contentId, userId, content),
+    delete: (contentId, userId) => ipcRenderer.invoke('content:delete', contentId, userId),
+    getHistory: (contentId, userId) => ipcRenderer.invoke('content:getHistory', contentId, userId),
   },
 
   // 系统工具API
@@ -72,8 +76,11 @@ contextBridge.exposeInMainWorld('gestell', {
 
   // 作品管理API
   work: {
-    create: (workData) => ipcRenderer.invoke('work:create', workData),
+    create: (authorId, workData) => ipcRenderer.invoke('work:create', authorId, workData),
     list: (authorId) => ipcRenderer.invoke('work:list', authorId),
+    get: (workId, userId) => ipcRenderer.invoke('work:get', workId, userId),
+    update: (workId, userId, updateData) => ipcRenderer.invoke('work:update', workId, userId, updateData),
+    delete: (workId, userId) => ipcRenderer.invoke('work:delete', workId, userId),
   },
 
   // 章节管理API
@@ -81,6 +88,18 @@ contextBridge.exposeInMainWorld('gestell', {
     create: (chapterData) => ipcRenderer.invoke('chapter:create', chapterData),
     list: (workId) => ipcRenderer.invoke('chapter:list', workId),
     update: (chapterId, chapterData) => ipcRenderer.invoke('chapter:update', chapterId, chapterData),
+  },
+
+  // 内容管理API
+  content: {
+    create: (authorId, contentData) => ipcRenderer.invoke('content:create', authorId, contentData),
+    getById: (contentId) => ipcRenderer.invoke('content:get', contentId),
+    getByChapter: (chapterId) => ipcRenderer.invoke('content:getByChapter', chapterId),
+    getByWork: (workId) => ipcRenderer.invoke('content:getByWork', workId),
+    update: (contentId, userId, updateData) => ipcRenderer.invoke('content:update', contentId, userId, updateData),
+    autoSave: (contentId, userId, content) => ipcRenderer.invoke('content:autoSave', contentId, userId, content),
+    delete: (contentId, userId) => ipcRenderer.invoke('content:delete', contentId, userId),
+    getHistory: (contentId, userId) => ipcRenderer.invoke('content:getHistory', contentId, userId),
   },
 
   // 系统工具API

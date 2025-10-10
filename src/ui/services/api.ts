@@ -288,11 +288,10 @@ export const contentApi = {
           orderIndex: content.orderIndex
         })
         
-        if (!result.success) {
-          console.error(`更新内容 ${content.id} 失败:`, result.error)
-        }
+        console.log(`✅ 内容 ${content.id} 更新成功`)
       } catch (error) {
         console.error(`更新内容 ${content.id} 异常:`, error)
+        throw error // 重新抛出错误以便上层处理
       }
     }
   }
