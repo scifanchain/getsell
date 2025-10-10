@@ -17,6 +17,28 @@ export class PrismaChapterRepository implements IChapterRepository {
         const timestamp = getCurrentTimestamp();
         const chapterId = ulid();
 
+        // 计算章节层级
+        let level = 1;
+        if (chapterData.parentId) {
+            const parentChapter = await this.prisma.chapter.findUnique({
+                where: { id: chapterData.parentId },
+                select: { level: true, workId: true }
+            });
+            
+            if (!parentChapter) {
+                throw new Error('指定的父章节不存在');
+            }
+            
+            if (parentChapter.workId !== chapterData.workId) {
+                throw new Error('父章节不属于指定的作品');
+            }
+            
+            level = parentChapter.level + 1;
+            if (level > 3) {
+                throw new Error('章节层级不能超过3层');
+            }
+        }
+
         // 如果没有提供 orderIndex，计算下一个可用的索引
         let orderIndex = chapterData.orderIndex;
         if (orderIndex === undefined) {
@@ -35,6 +57,7 @@ export class PrismaChapterRepository implements IChapterRepository {
                 id: chapterId,
                 workId: chapterData.workId,
                 parentId: chapterData.parentId || null,
+                level,
                 orderIndex,
                 title: chapterData.title,
                 subtitle: chapterData.subtitle || null,

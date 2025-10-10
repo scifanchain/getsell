@@ -34,7 +34,7 @@ export interface Chapter {
   characterCount?: number    // 字符数
   contentCount?: number      // 内容块数量
   childChapterCount?: number // 子章节数量
-  level?: number        // 章节层级 (0-2, 最多3层)
+  level: number         // 章节层级 (1-3, 最多3层)
   createdAt: string
   updatedAt: string
 }

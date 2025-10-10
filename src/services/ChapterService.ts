@@ -31,6 +31,7 @@ export interface ChapterInfo {
   workId: string;
   parentId?: string;
   orderIndex: number;
+  level: number;
   type: 'chapter' | 'volume' | 'section';
   authorId: string;
   characterCount: number;
@@ -61,6 +62,7 @@ export class ChapterService implements IChapterService {
 
     /**
      * 创建新章节
+     * 章节层级限制：最多支持3层 (1. 卷 -> 2. 章 -> 3. 节)
      */
     async createChapter(authorId: string, chapterData: CreateChapterData): Promise<ChapterInfo> {
         // 验证作品是否存在且用户有权限
@@ -242,6 +244,7 @@ export class ChapterService implements IChapterService {
             workId: chapter.workId,
             parentId: chapter.parentId,
             orderIndex: chapter.orderIndex || 0,
+            level: chapter.level || 1,
             type: chapter.type || 'chapter',
             authorId: chapter.authorId,
             characterCount: chapter.characterCount || 0,

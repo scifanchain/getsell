@@ -40,7 +40,7 @@
           📄
         </button>
         <button 
-          v-if="(chapter.level || 0) < 2"
+          v-if="(chapter.level || 1) <= 3"
           class="action-btn"
           @click.stop="$emit('add-sub-chapter', chapter.id)"
           title="添加子章节"

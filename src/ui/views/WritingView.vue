@@ -180,6 +180,7 @@ interface ChapterLocal {
   updatedAt: string
   workId: string
   authorId?: string
+  level: number
 }
 
 // Types
@@ -259,7 +260,6 @@ watch(selectedChapterId, async (newChapterId) => {
 })
 
 // Methods
-// 转换章节数据格式
 const convertToLocalChapter = (chapter: Chapter): ChapterLocal => {
   return {
     id: chapter.id,
@@ -273,10 +273,10 @@ const convertToLocalChapter = (chapter: Chapter): ChapterLocal => {
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
     workId: chapter.workId || '',
-    authorId: chapter.authorId
+    authorId: chapter.authorId,
+    level: chapter.level
   }
 }
-
 const convertToApiChapter = (chapter: ChapterLocal): Chapter => {
   return {
     id: chapter.id,
@@ -290,7 +290,8 @@ const convertToApiChapter = (chapter: ChapterLocal): Chapter => {
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
     workId: chapter.workId || '',
-    authorId: chapter.authorId
+    authorId: chapter.authorId,
+    level: chapter.level
   }
 }
 

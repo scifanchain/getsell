@@ -59,6 +59,7 @@ export interface Chapter {
   content?: string
   workId: string
   orderIndex: number
+  level: number
   parentId?: string
   subtitle?: string
   description?: string
