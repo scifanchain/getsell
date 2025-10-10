@@ -58,6 +58,9 @@ function createWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      webSecurity: true,
       preload: path.join(__dirname, '../src/preload.js')
     },
     show: false // 等待ready-to-show事件

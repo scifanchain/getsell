@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Content Security Policy for Electron -->
+  <!-- 开发环境 Content Security Policy (允许 unsafe-eval 用于 HMR) -->
   <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self'; 
-    script-src 'self' 'unsafe-inline'; 
+    default-src 'self' 'unsafe-inline'; 
+    script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
     style-src 'self' 'unsafe-inline'; 
     img-src 'self' data: blob:; 
     font-src 'self' data:; 
-    connect-src 'self';
+    connect-src 'self' ws: wss: http://localhost:3000 http://localhost:3001;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
   ">
-  <title>Gestell - 去中心化科幻写作平台</title>
+  <title>Gestell - 去中心化科幻写作平台 (开发环境)</title>
   <style>
     body {
       margin: 0;
@@ -44,7 +44,7 @@
 </head>
 <body>
   <div id="app">
-    <div class="loading">🌌 Gestell 启动中...</div>
+    <div class="loading">🌌 Gestell 启动中... (开发模式)</div>
   </div>
   <script type="module" src="./main.ts"></script>
 </body>

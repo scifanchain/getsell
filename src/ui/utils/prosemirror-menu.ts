@@ -27,8 +27,15 @@ function cmdItem(cmd: any, options: any) {
     ...options
   }
   
+  // 确保 enable 函数存在且正确
   if (!options.enable && !options.select) {
-    passedOptions.enable = (state: any) => cmd(state)
+    passedOptions.enable = (state: any) => {
+      try {
+        return cmd(state)
+      } catch (error) {
+        return false
+      }
+    }
   }
   
   return new MenuItem(passedOptions)
@@ -44,7 +51,13 @@ function markActive(state: any, type: any) {
 function markItem(markType: any, options: any) {
   const passedOptions = {
     active(state: any) { return markActive(state, markType) },
-    enable: true,
+    enable(state: any) { 
+      try {
+        return toggleMark(markType)(state)
+      } catch (error) {
+        return false
+      }
+    },
     ...options
   }
   return cmdItem(toggleMark(markType), passedOptions)
@@ -89,8 +102,16 @@ export function buildMenuItems(schema: Schema) {
   const result: { [key: string]: MenuElement } = {}
   
   // 撤销/重做
-  result.undo = cmdItem(undo, { title: '撤销', label: icons.undo })
-  result.redo = cmdItem(redo, { title: '重做', label: icons.redo })
+  result.undo = cmdItem(undo, { 
+    title: '撤销', 
+    label: icons.undo,
+    enable: (state: any) => undo(state)
+  })
+  result.redo = cmdItem(redo, { 
+    title: '重做', 
+    label: icons.redo,
+    enable: (state: any) => redo(state)
+  })
   
   // 文本标记
   if (schema.marks.strong) {
@@ -157,11 +178,11 @@ export function buildMenuItems(schema: Schema) {
   
   // 创建完整菜单数组
   const fullMenu: MenuElement[][] = [
-    [result.undo, result.redo],
-    [result.toggleStrong, result.toggleEm, result.toggleCode],
-    [result.makeParagraph, result.makeHead1, result.makeHead2, result.makeHead3],
-    [result.wrapBulletList, result.wrapOrderedList, result.wrapBlockQuote]
-  ].filter(group => group.every(item => item))
+    [result.undo, result.redo].filter(Boolean),
+    [result.toggleStrong, result.toggleEm, result.toggleCode].filter(Boolean),
+    [result.makeParagraph, result.makeHead1, result.makeHead2, result.makeHead3].filter(Boolean),
+    [result.wrapBulletList, result.wrapOrderedList, result.wrapBlockQuote].filter(Boolean)
+  ].filter(group => group.length > 0)
   
   return { ...result, fullMenu }
 }
