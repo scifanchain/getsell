@@ -26,7 +26,7 @@
         <ChapterTree
           :chapters="chapters"
           :selected-chapter-id="selectedChapterId"
-          @chapter-select="handleChapterSelect"
+          @chapter-toggle="handleChapterSelect"
           @chapter-edit="handleChapterEdit"
           @chapter-delete="handleChapterDelete"
           @add-chapter="handleAddChapter"
@@ -426,11 +426,54 @@ const handleAddSubChapter = (parentId: string) => {
 
 const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
   try {
-    chapters.value = reorderedChapters
+    console.log('章节重排序事件接收到:', reorderedChapters.length, '个章节')
+    console.log('原有章节数量:', chapters.value.length)
+    console.log('重排序后的章节:', reorderedChapters.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level })))
+    
+    // 检查数据完整性
+    const originalIds = new Set(chapters.value.map(c => c.id))
+    const newIds = new Set(reorderedChapters.map(c => c.id))
+    
+    // 确保没有丢失章节
+    const missingIds = [...originalIds].filter(id => !newIds.has(id))
+    const addedIds = [...newIds].filter(id => !originalIds.has(id))
+    
+    if (missingIds.length > 0) {
+      console.warn('丢失的章节ID:', missingIds)
+      // 找回丢失的章节
+      const missingChapters = chapters.value.filter(c => missingIds.includes(c.id))
+      reorderedChapters.push(...missingChapters)
+      console.log('已恢复丢失的章节:', missingChapters.map(c => c.title))
+    }
+    
+    if (addedIds.length > 0) {
+      console.log('新增的章节ID:', addedIds)
+    }
+    
+    // 安全地更新章节数组
+    chapters.value.splice(0, chapters.value.length, ...reorderedChapters)
+    
+    console.log('更新后的章节状态:', chapters.value.length, '个章节')
+    console.log('章节层级结构:', chapters.value.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level })))
+    
+    // TODO: 实现章节重排序API
+    // if (currentWork.value && reorderedChapters.length > 0) {
+    //   const chapterOrders = reorderedChapters.map((chapter, index) => ({
+    //     chapterId: chapter.id,
+    //     orderIndex: index
+    //   }))
+    //   
+    //   await chapterApi.reorderChapters(currentWork.value.id, chapterOrders)
+    //   showNotification('章节顺序已更新', 'success')
+    // }
     showNotification('章节顺序已更新', 'success')
   } catch (error) {
     console.error('Reorder chapters failed:', error)
     showNotification('更新章节顺序失败', 'error')
+    // 重新加载章节以恢复正确状态
+    if (currentWork.value) {
+      await loadWork(currentWork.value.id)
+    }
   }
 }
 
