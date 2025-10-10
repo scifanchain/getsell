@@ -23,8 +23,10 @@
 
       <!-- 章节树 -->
       <div class="chapter-section">
-        <ChapterTreeNew
-          :chapters="chapters"
+        <ChapterTree
+          :chapters="chapters.map(convertToApiChapter)"
+          :contents="[]"
+          :work-id="currentWork?.id || ''"
           :selected-chapter-id="selectedChapterId"
           @chapter-select="handleChapterSelect"
           @chapter-edit="handleChapterEdit"
@@ -159,7 +161,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import ChapterTreeNew from '../components/ChapterTreeNew.vue'
+import ChapterTree from '../components/ChapterTree.vue'
 import EnhancedEditor from '../components/EnhancedEditor.vue'
 import ChapterEditModal from '../components/ChapterEditModal.vue'
 import WorkCreateModal from '../components/WorkCreateModal.vue'
@@ -368,10 +370,10 @@ const handleChapterSelect = (chapterId: string) => {
   selectedChapterId.value = chapterId
 }
 
-const handleChapterEdit = (chapter: ChapterLocal) => {
+const handleChapterEdit = (chapter: Chapter) => {
   editingChapter.value = {
     id: chapter.id,
-    workId: chapter.workId,
+    workId: chapter.workId ?? chapter.projectId,
     title: chapter.title,
     type: chapter.type || 'chapter'
   }
@@ -425,9 +427,9 @@ const handleAddSubChapter = (parentId: string) => {
   showChapterModal.value = true
 }
 
-const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
+const handleChaptersReorder = async (reorderedChapters: Chapter[]) => {
   try {
-    chapters.value = reorderedChapters
+    chapters.value = reorderedChapters.map(convertToLocalChapter)
     showNotification('章节顺序已更新', 'success')
   } catch (error) {
     console.error('Reorder chapters failed:', error)

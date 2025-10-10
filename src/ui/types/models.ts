@@ -36,6 +36,24 @@ export interface Chapter {
   characterCount?: number    // 字符数
   contentCount?: number      // 内容块数量
   childChapterCount?: number // 子章节数量
+  level?: number        // 章节层级 (0-2, 最多3层)
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Content {
+  id: string
+  title: string
+  type: 'text' | 'dialogue' | 'scene' | 'note'
+  content?: string
+  workId: string
+  chapterId?: string     // 可选，如果为空则为根目录内容
+  orderIndex: number
+  authorId?: string
+  wordCount?: number
+  characterCount?: number
+  status?: 'draft' | 'published' | 'archived'
+  version?: number
   createdAt: string
   updatedAt: string
 }

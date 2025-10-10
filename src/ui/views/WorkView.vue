@@ -105,6 +105,7 @@
           <div v-else class="chapters-tree">
             <ChapterTree 
               :chapters="chapters" 
+              :contents="[]"
               @chapter-click="openEditor"
               @chapter-edit="editChapter"
               @chapter-delete="deleteChapter"

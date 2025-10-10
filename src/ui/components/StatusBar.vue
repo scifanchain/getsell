@@ -3,6 +3,12 @@
     <div class="status-left">
       <span class="status-item">字数: {{ wordCount }}</span>
       <span class="status-item">项目: {{ currentProject || '未选择' }}</span>
+      <!-- 编辑器保存状态 -->
+      <span v-if="editorStore.editorStatus.currentContentId" 
+            class="status-item save-status" 
+            :class="editorStore.saveStatusClass">
+        {{ editorStore.saveStatusText }}
+      </span>
     </div>
     
     <div class="status-right">
@@ -16,6 +22,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useEditorStore } from '../stores/editor'
+
+const editorStore = useEditorStore()
 
 const wordCount = ref(0)
 const currentProject = ref<string | null>(null)
@@ -72,5 +81,26 @@ onUnmounted(() => {
 
 .text-red {
   color: #f44336;
+}
+
+.save-status {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.status-saving {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ff6f00;
+}
+
+.status-unsaved {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.status-saved {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
 }
 </style>

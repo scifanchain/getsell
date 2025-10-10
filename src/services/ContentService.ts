@@ -91,14 +91,8 @@ export class ContentService implements IContentService {
 
     const createdContent = await this.repositories.contentRepository.create(createData);
     
-    // 手动添加统计信息，因为 Repository 可能不会自动计算
-    return {
-      ...this.mapToContentInfo(createdContent),
-      wordCount,
-      characterCount,
-      content: contentData.content,
-      format: contentData.format as 'prosemirror' | 'markdown' | 'plain'
-    };
+    // 返回映射后的内容信息
+    return this.mapToContentInfo(createdContent);
   }
 
   /**
@@ -153,14 +147,28 @@ export class ContentService implements IContentService {
     let wordCount = content.wordCount;
     let characterCount = content.characterCount;
     
+    // 准备要传递给Repository的数据
+    const repositoryUpdateData: any = {};
+    
     if (updateData.content) {
       const stats = this.calculateStats(updateData.content);
       wordCount = stats.wordCount;
       characterCount = stats.characterCount;
+      
+      // 根据格式设置正确的内容字段
+      if (updateData.format === 'prosemirror' || !updateData.format) {
+        repositoryUpdateData.contentJson = updateData.content;
+      } else {
+        repositoryUpdateData.contentHtml = updateData.content;
+      }
+    }
+    
+    if (updateData.title !== undefined) {
+      repositoryUpdateData.title = updateData.title;
     }
 
     const updateDataWithStats = {
-      ...updateData,
+      ...repositoryUpdateData,
       wordCount,
       characterCount,
       version: content.version + 1,
@@ -178,6 +186,7 @@ export class ContentService implements IContentService {
     try {
       const updateData = {
         content,
+        format: 'prosemirror' as const, // 明确指定格式
         updatedAt: getCurrentTimestamp()
       };
 
@@ -278,12 +287,22 @@ export class ContentService implements IContentService {
    * 将数据库内容对象映射为内容信息对象
    */
   private mapToContentInfo(content: any): ContentInfo {
+    // 根据存储格式获取内容文本
+    let contentText = '';
+    if (content.contentJson) {
+      contentText = content.contentJson;
+    } else if (content.contentHtml) {
+      contentText = content.contentHtml;
+    } else if (content.contentText) {
+      contentText = content.contentText;
+    }
+
     return {
       id: content.id,
       chapterId: content.chapterId,
       title: content.title,
-      content: content.content,
-      format: content.format || 'prosemirror',
+      content: contentText,
+      format: content.type || 'prosemirror',
       wordCount: content.wordCount || 0,
       characterCount: content.characterCount || 0,
       authorId: content.authorId,

@@ -16,12 +16,11 @@
           <span class="char-count">{{ stats.characterCount }}字符</span>
         </div>
         
-        <div class="save-status" :class="{ 'saving': isSaving, 'unsaved': hasUnsavedChanges }">
-          <span v-if="isSaving">保存中...</span>
-          <span v-else-if="hasUnsavedChanges">未保存</span>
-          <span v-else-if="lastSavedAt">{{ saveStatusText }}</span>
-          <span v-else>就绪</span>
-        </div>
+        <!-- 手动保存按钮 -->
+        <button class="save-btn-header" @click="saveNow" :disabled="isSaving">
+          <span class="save-icon">💾</span>
+          {{ isSaving ? '保存中...' : '保存' }}
+        </button>
       </div>
     </div>
     
@@ -48,6 +47,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import ProseMirrorEditor from './ProseMirrorEditor.vue'
 import { useAutoSave } from '../composables/useAutoSave'
+import { useEditorStore } from '../stores/editor'
 import { contentApi } from '../services/api'
 
 interface Props {
@@ -66,10 +66,18 @@ const emit = defineEmits<{
   'title-updated': [title: string]
 }>()
 
+// 使用编辑器状态管理
+const editorStore = useEditorStore()
+
 // 本地状态
 const localTitle = ref(props.initialTitle || '')
 const editorContent = ref(props.initialContent || '')
 const stats = ref({ wordCount: 0, characterCount: 0 })
+
+// 设置当前内容ID到全局状态
+if (props.contentId) {
+  editorStore.updateEditorStatus({ currentContentId: props.contentId })
+}
 
 // 使用自动保存 Hook
 const { isSaving, lastSavedAt, hasUnsavedChanges, triggerAutoSave, saveNow: saveContentNow } = useAutoSave(
@@ -80,29 +88,24 @@ const { isSaving, lastSavedAt, hasUnsavedChanges, triggerAutoSave, saveNow: save
     onSaved: (result) => {
       emit('content-saved', result)
       updateStats(editorContent.value)
+      editorStore.markSaved() // 更新全局状态
     },
     onError: (error) => {
       emit('content-error', error)
+      editorStore.setSaving(false) // 保存失败，停止保存状态
     }
   }
 )
 
-// 保存状态文本
-const saveStatusText = computed(() => {
-  if (!lastSavedAt.value) return ''
-  
-  const now = new Date()
-  const saved = lastSavedAt.value
-  const diffMs = now.getTime() - saved.getTime()
-  const diffMinutes = Math.floor(diffMs / 60000)
-  
-  if (diffMinutes < 1) {
-    return '刚刚保存'
-  } else if (diffMinutes < 60) {
-    return `${diffMinutes}分钟前保存`
-  } else {
-    return saved.toLocaleTimeString()
-  }
+// 移除原来的 saveStatusText 计算属性，因为现在在 store 中处理
+
+// 监听自动保存状态变化，同步到全局 store
+watch(isSaving, (newValue) => {
+  editorStore.setSaving(newValue)
+})
+
+watch(hasUnsavedChanges, (newValue) => {
+  editorStore.setUnsaved(newValue)
 })
 
 // 监听内容变化，触发自动保存
@@ -270,22 +273,34 @@ onUnmounted(() => {
   color: #666;
 }
 
-.save-status {
-  padding: 4px 8px;
+.save-btn-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #007bff;
+  color: white;
+  border: none;
   border-radius: 4px;
+  cursor: pointer;
   font-size: 12px;
   font-weight: 500;
   transition: all 0.2s;
 }
 
-.save-status.saving {
-  background: #fff3cd;
-  color: #856404;
+.save-btn-header:hover:not(:disabled) {
+  background: #0056b3;
+  transform: translateY(-1px);
 }
 
-.save-status.unsaved {
-  background: #f8d7da;
-  color: #721c24;
+.save-btn-header:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.save-icon {
+  font-size: 14px;
 }
 
 .editor-container {
