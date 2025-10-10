@@ -12,6 +12,7 @@
             <label for="title">章节标题</label>
             <input
               id="title"
+              ref="titleInput"
               v-model="formData.title"
               type="text"
               placeholder="请输入章节标题"
@@ -63,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 
 interface Chapter {
   id?: string
@@ -87,6 +88,8 @@ const emit = defineEmits<{
   'close': []
 }>()
 
+const titleInput = ref<HTMLInputElement | null>(null)
+
 const formData = ref({
   title: '',
   subtitle: '',
@@ -107,6 +110,11 @@ onMounted(() => {
       parentId: props.chapter.parentId || ''
     }
   }
+  
+  // 自动聚焦到标题输入框
+  nextTick(() => {
+    titleInput.value?.focus()
+  })
 })
 
 const handleSubmit = () => {
