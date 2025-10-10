@@ -23,10 +23,10 @@ export interface ElectronAPI {
   }
   
   chapter: {
-    create: (chapterData: { title: string; content?: string; projectId: string; order?: number }) => Promise<any>
-    list: (projectId: string) => Promise<any[]>
+    create: (chapterData: { title: string; content?: string; workId: string; orderIndex: number }) => Promise<any>
+    list: (workId: string) => Promise<any[]>
     find: (id: string) => Promise<any>
-    update: (id: string, chapterData: Partial<{ title: string; content?: string; order?: number }>) => Promise<any>
+    update: (id: string, chapterData: Partial<{ title: string; content?: string; orderIndex?: number }>) => Promise<any>
     delete: (id: string) => Promise<void>
   }
 

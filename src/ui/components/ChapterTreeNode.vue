@@ -154,7 +154,7 @@ const isExpanded = ref(true) // 默认展开
 const childChapters = computed(() => {
   return props.chapters
     .filter(ch => ch.parentId === props.chapter.id)
-    .sort((a, b) => (a.orderIndex || a.order || 0) - (b.orderIndex || b.order || 0))
+    .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
 })
 
 // 章节内容

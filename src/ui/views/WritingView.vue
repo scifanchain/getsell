@@ -24,9 +24,7 @@
       <!-- 章节树 -->
       <div class="chapter-section">
         <ChapterTree
-          :chapters="chapters.map(convertToApiChapter)"
-          :contents="[]"
-          :work-id="currentWork?.id || ''"
+          :chapters="chapters"
           :selected-chapter-id="selectedChapterId"
           @chapter-select="handleChapterSelect"
           @chapter-edit="handleChapterEdit"
@@ -168,19 +166,19 @@ import WorkCreateModal from '../components/WorkCreateModal.vue'
 import { workApi, chapterApi, contentApi } from '../services/api'
 import type { Chapter } from '../types/models'
 
-// 兼容性类型定义 - 与组件内部类型保持一致
+// 章节数据类型定义
 interface ChapterLocal {
   id: string
   title: string
   parentId?: string
   orderIndex: number
-  type: 'chapter' | 'volume' | 'section'
-  characterCount: number
-  contentCount: number
-  childChapterCount: number
+  type?: 'chapter' | 'volume' | 'section'
+  characterCount?: number
+  contentCount?: number
+  childChapterCount?: number
   createdAt: string
   updatedAt: string
-  workId?: string
+  workId: string
   authorId?: string
 }
 
@@ -267,14 +265,14 @@ const convertToLocalChapter = (chapter: Chapter): ChapterLocal => {
     id: chapter.id,
     title: chapter.title,
     parentId: chapter.parentId,
-    orderIndex: chapter.orderIndex ?? chapter.order ?? 0,
+    orderIndex: chapter.orderIndex || 0,
     type: chapter.type ?? 'chapter',
     characterCount: chapter.characterCount ?? 0,
     contentCount: chapter.contentCount ?? 0,
     childChapterCount: chapter.childChapterCount ?? 0,
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
-    workId: chapter.workId ?? chapter.projectId,
+    workId: chapter.workId || '',
     authorId: chapter.authorId
   }
 }
@@ -284,7 +282,6 @@ const convertToApiChapter = (chapter: ChapterLocal): Chapter => {
     id: chapter.id,
     title: chapter.title,
     parentId: chapter.parentId,
-    order: chapter.orderIndex,
     orderIndex: chapter.orderIndex,
     type: chapter.type,
     characterCount: chapter.characterCount,
@@ -292,8 +289,7 @@ const convertToApiChapter = (chapter: ChapterLocal): Chapter => {
     childChapterCount: chapter.childChapterCount,
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
-    projectId: chapter.workId ?? '',
-    workId: chapter.workId,
+    workId: chapter.workId || '',
     authorId: chapter.authorId
   }
 }
@@ -370,10 +366,10 @@ const handleChapterSelect = (chapterId: string) => {
   selectedChapterId.value = chapterId
 }
 
-const handleChapterEdit = (chapter: Chapter) => {
+const handleChapterEdit = (chapter: ChapterLocal) => {
   editingChapter.value = {
     id: chapter.id,
-    workId: chapter.workId ?? chapter.projectId,
+    workId: chapter.workId,
     title: chapter.title,
     type: chapter.type || 'chapter'
   }
@@ -427,9 +423,9 @@ const handleAddSubChapter = (parentId: string) => {
   showChapterModal.value = true
 }
 
-const handleChaptersReorder = async (reorderedChapters: Chapter[]) => {
+const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
   try {
-    chapters.value = reorderedChapters.map(convertToLocalChapter)
+    chapters.value = reorderedChapters
     showNotification('章节顺序已更新', 'success')
   } catch (error) {
     console.error('Reorder chapters failed:', error)

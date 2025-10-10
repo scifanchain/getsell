@@ -143,11 +143,9 @@ export const chapterApi = {
   async create(chapterData: CreateChapterData): Promise<Chapter> {
     const authorId = chapterData.authorId || 'user_mock_001';
     
-    // 转换数据格式（兼容新旧接口）
+    // 转换数据格式
     const createData = {
       ...chapterData,
-      workId: chapterData.workId || chapterData.projectId,
-      orderIndex: chapterData.orderIndex ?? chapterData.order ?? 0,
       authorId: authorId
     };
     
@@ -159,8 +157,8 @@ export const chapterApi = {
     }
   },
 
-  async list(projectId: string): Promise<Chapter[]> {
-    const result = await window.electronAPI.invoke('chapter:list', projectId)
+  async list(workId: string): Promise<Chapter[]> {
+    const result = await window.electronAPI.invoke('chapter:list', workId)
     if (result.success) {
       return result.data || []
     } else {

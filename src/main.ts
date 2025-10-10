@@ -264,7 +264,6 @@ ipcMain.handle('chapter:list', async (event: IpcMainInvokeEvent, workId: string)
       title: chapter.title,
       content: chapter.content,
       workId: chapter.workId,
-      order: chapter.orderIndex || 0,
       parentId: chapter.parentId,
       orderIndex: chapter.orderIndex,
       subtitle: chapter.subtitle,

@@ -58,12 +58,11 @@ export interface Chapter {
   title: string
   content?: string
   workId: string
-  order: number
+  orderIndex: number
   parentId?: string
-  orderIndex?: number
   subtitle?: string
   description?: string
-  type?: string
+  type?: 'chapter' | 'volume' | 'section'
   authorId?: string
   createdAt: string
   updatedAt: string
@@ -73,12 +72,11 @@ export interface ChapterData {
   title: string;
   content?: string;
   workId: string;
-  order?: number;
+  orderIndex: number;
   parentId?: string;
-  orderIndex?: number;
   subtitle?: string;
   description?: string;
-  type?: string;
+  type?: 'chapter' | 'volume' | 'section';
   authorId?: string;
 }
 
@@ -88,13 +86,12 @@ export interface Content {
   title: string;
   content: string;
   chapterId: string;
-  order: number;
+  orderIndex: number;
   tags?: string[];
   workId: string;
   type?: string;
   contentJson?: string;  // ProseMirror 文档的 JSON 表示
   contentHtml?: string;  // HTML 表示
-  orderIndex?: number;
   authorId?: string;
   createdAt: string;
   updatedAt: string;
@@ -104,13 +101,12 @@ export interface ContentData {
   title: string;
   content: string;
   chapterId: string;
-  order?: number;
+  orderIndex: number;
   tags?: string[];
   workId: string;
   type?: string;
   contentJson?: string;  // ProseMirror 文档的 JSON 表示
   contentHtml?: string;  // HTML 表示
-  orderIndex?: number;
   authorId?: string;
 }
 

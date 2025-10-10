@@ -35,7 +35,7 @@ interface ElectronAPI {
   }
   chapter: {
     create: (data: any) => Promise<any>
-    list: (projectId: string) => Promise<any>
+    list: (workId: string) => Promise<any>
     update: (id: string, data: any) => Promise<any>
   }
   content: {

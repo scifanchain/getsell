@@ -105,7 +105,6 @@
           <div v-else class="chapters-tree">
             <ChapterTree 
               :chapters="chapters" 
-              :contents="[]"
               @chapter-click="openEditor"
               @chapter-edit="editChapter"
               @chapter-delete="deleteChapter"
@@ -234,7 +233,7 @@ const newChapter = ref<Partial<ChapterData>>({
   subtitle: '',
   description: '',
   workId: '',
-  order: 0
+  orderIndex: 0
 })
 
 // 作品设置表单
@@ -250,7 +249,7 @@ const currentWork = computed(() => workStore.currentWork)
 const chapterCount = computed(() => chapters.value.length)
 
 const sortedChapters = computed(() => {
-  return [...chapters.value].sort((a, b) => a.order - b.order)
+  return [...chapters.value].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
 })
 
 // 方法
@@ -309,7 +308,7 @@ const createChapter = async () => {
     subtitle: newChapter.value.subtitle?.trim() || undefined,
     description: newChapter.value.description?.trim() || undefined,
     workId: workId.value,
-    order: chapters.value.length + 1
+    orderIndex: chapters.value.length + 1
   }
   
   try {
@@ -317,7 +316,7 @@ const createChapter = async () => {
     chapters.value.push(response.chapter)
     
     // 重置表单
-    newChapter.value = { title: '', subtitle: '', description: '', workId: '', order: 0 }
+    newChapter.value = { title: '', subtitle: '', description: '', workId: '', orderIndex: 0 }
     showCreateChapter.value = false
     
     // 直接打开编辑器

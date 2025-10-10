@@ -24,10 +24,8 @@ export interface Chapter {
   id: string
   title: string
   content?: string
-  projectId: string     // 兼容旧接口
-  workId?: string       // 新接口
-  order: number         // 兼容旧接口
-  orderIndex?: number   // 新接口
+  workId: string        // 作品ID
+  orderIndex: number    // 排序索引
   parentId?: string     // 父章节ID
   subtitle?: string     // 副标题
   description?: string  // 描述
@@ -90,10 +88,8 @@ export interface CreateProjectData {
 export interface CreateChapterData {
   title: string
   content?: string
-  projectId: string  // 兼容旧接口
-  workId?: string    // 新接口使用 workId
-  order?: number
-  orderIndex?: number  // 新接口使用 orderIndex
+  workId: string       // 作品ID
+  orderIndex: number   // 排序索引
   authorId?: string    // 作者ID
   parentId?: string    // 父章节ID
   subtitle?: string    // 副标题
@@ -110,8 +106,7 @@ export interface UpdateProjectData {
 export interface UpdateChapterData {
   title?: string
   content?: string
-  order?: number
-  orderIndex?: number  // 新接口使用 orderIndex
+  orderIndex?: number  // 排序索引
   subtitle?: string    // 副标题
   description?: string // 描述
   type?: 'chapter' | 'volume' | 'section'  // 章节类型

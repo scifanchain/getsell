@@ -18,7 +18,7 @@ export const useChapterStore = defineStore('chapter', () => {
   const chapterCount = computed(() => chapters.value.length)
   
   const sortedChapters = computed(() => {
-    return [...chapters.value].sort((a, b) => a.order - b.order)
+    return [...chapters.value].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   })
 
   const currentChapterIndex = computed(() => {
@@ -53,12 +53,12 @@ export const useChapterStore = defineStore('chapter', () => {
   })
 
   // Actions
-  async function loadChapters(projectId: string) {
+  async function loadChapters(workId: string) {
     loading.value = true
     error.value = null
     
     try {
-      const data = await chapterApi.list(projectId)
+      const data = await chapterApi.list(workId)
       chapters.value = data
     } catch (err) {
       error.value = err instanceof Error ? err.message : '加载章节失败'
@@ -73,9 +73,9 @@ export const useChapterStore = defineStore('chapter', () => {
     error.value = null
     
     try {
-      // 如果没有指定order，设置为最后一个
-      if (chapterData.order === undefined) {
-        chapterData.order = chapters.value.length + 1
+      // 如果没有指定orderIndex，设置为最后一个
+      if (chapterData.orderIndex === undefined) {
+        chapterData.orderIndex = chapters.value.length + 1
       }
       
       const chapter = await chapterApi.create(chapterData)
@@ -164,13 +164,13 @@ export const useChapterStore = defineStore('chapter', () => {
       loading.value = true
       // 批量更新章节顺序
       const updatePromises = newOrder.map((chapter, index) => 
-        chapterApi.update(chapter.id, { order: index + 1 })
+        chapterApi.update(chapter.id, { orderIndex: index + 1 })
       )
       
       await Promise.all(updatePromises)
       chapters.value = newOrder.map((chapter, index) => ({
         ...chapter,
-        order: index + 1
+        orderIndex: index + 1
       }))
     } catch (err) {
       error.value = err instanceof Error ? err.message : '重新排序失败'

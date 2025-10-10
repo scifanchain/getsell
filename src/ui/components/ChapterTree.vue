@@ -177,14 +177,13 @@ const sortedChapters = computed({
   get: () => {
     return [...props.chapters]
       .filter(chapter => !chapter.parentId) // 只显示根级章节
-      .sort((a, b) => (a.orderIndex || a.order || 0) - (b.orderIndex || b.order || 0))
+      .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   },
   set: (value) => {
     // 更新排序
     const reorderedChapters = value.map((chapter, index) => ({
       ...chapter,
-      orderIndex: index,
-      order: index // 兼容旧接口
+      orderIndex: index
     }))
     emit('chapters-reorder', reorderedChapters)
   }
