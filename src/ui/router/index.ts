@@ -23,6 +23,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/works',
+    name: 'works',
+    component: () => import('../views/WorkListView.vue'),
+    meta: {
+      title: '作品列表',
+      icon: 'folder'
+    }
+  },
+  {
     path: '/work/:id',
     name: 'work',
     component: () => import('../views/WorkView.vue'),
