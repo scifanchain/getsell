@@ -215,10 +215,13 @@ export class PrismaChapterRepository implements IChapterRepository {
     async update(id: string, updateData: Partial<ChapterData>): Promise<any> {
         const timestamp = getCurrentTimestamp();
 
+        // 过滤掉不应该更新的字段
+        const { workId, parentId, authorId, orderIndex, ...allowedUpdateData } = updateData;
+
         return await this.prisma.chapter.update({
             where: { id },
             data: {
-                ...updateData,
+                ...allowedUpdateData,
                 updatedAt: timestamp
             },
             include: {
@@ -274,6 +277,28 @@ export class PrismaChapterRepository implements IChapterRepository {
                     where: { id },
                     data: {
                         orderIndex,
+                        updatedAt: timestamp
+                    }
+                })
+            )
+        );
+    }
+
+    /**
+     * 批量更新章节顺序（包括层级和父节点）
+     */
+    async batchReorder(chapters: Array<{ id: string; parentId?: string; orderIndex: number; level: number }>): Promise<void> {
+        const timestamp = getCurrentTimestamp();
+
+        // 使用事务来确保原子性
+        await this.prisma.$transaction(
+            chapters.map((chapter) =>
+                this.prisma.chapter.update({
+                    where: { id: chapter.id },
+                    data: {
+                        parentId: chapter.parentId || null,
+                        orderIndex: chapter.orderIndex,
+                        level: chapter.level,
                         updatedAt: timestamp
                     }
                 })

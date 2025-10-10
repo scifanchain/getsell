@@ -56,6 +56,12 @@ export interface IChapterRepository {
     reorder(workId: string, chapterOrders: Array<{ id: string; orderIndex: number }>): Promise<void>;
 
     /**
+     * 批量更新章节顺序（包括层级和父节点）
+     * @param chapters 章节更新数据数组
+     */
+    batchReorder(chapters: Array<{ id: string; parentId?: string; orderIndex: number; level: number }>): Promise<void>;
+
+    /**
      * 移动章节到新的父章节下
      * @param chapterId 章节ID
      * @param newParentId 新父章节ID（null表示移到根级别）

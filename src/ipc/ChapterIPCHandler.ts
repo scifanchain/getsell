@@ -85,6 +85,22 @@ export class ChapterIPCHandler {
             }
         });
 
+        // 批量更新章节顺序（包括层级和父节点）
+        ipcMain.handle('chapters:reorder', async (event: IpcMainInvokeEvent, userId: string, chapters: Array<{ id: string; parentId?: string; orderIndex: number; level: number }>) => {
+            try {
+                console.log(`批量更新 ${chapters.length} 个章节的顺序`);
+                
+                // 使用 ChapterRepository 的批量更新方法
+                await this.services.repositoryContainer.chapterRepository.batchReorder(chapters);
+                
+                console.log('✅ 批量更新章节顺序成功');
+                return { success: true, data: undefined };
+            } catch (error: any) {
+                console.error('批量更新章节顺序失败:', error);
+                return { success: false, error: error.message };
+            }
+        });
+
         // 兼容旧接口：使用 chapterData 参数（不需要 authorId）
         ipcMain.handle('chapter:createLegacy', async (event: IpcMainInvokeEvent, chapterData: any) => {
             try {

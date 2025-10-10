@@ -110,7 +110,18 @@ onMounted(() => {
 })
 
 const handleSubmit = () => {
-  emit('save', { ...formData.value })
+  if (props.isNew) {
+    // 创建模式：传递所有字段（包括 workId 和 parentId）
+    emit('save', { ...formData.value })
+  } else {
+    // 编辑模式：只传递可以更新的字段，不包括 workId 和 parentId
+    emit('save', {
+      title: formData.value.title,
+      subtitle: formData.value.subtitle,
+      description: formData.value.description,
+      type: formData.value.type
+    })
+  }
 }
 </script>
 

@@ -256,10 +256,44 @@ const sortedChildChapters = computed({
   get: () => childChapters.value,
   set: (value) => {
     console.log('=== 子章节顺序更新 ===')
+    console.log('当前父章节:', props.chapter.title, 'level:', props.chapter.level)
+    console.log('拖入的章节:', value.map(ch => `${ch.title}(level=${ch.level})`))
     
-    // 更新章节数据
+    // 验证每个章节移动是否合法
+    for (const chapter of value) {
+      const targetLevel = props.chapter.level + 1
+      const subTreeDepth = getSubTreeDepth(chapter.id)
+      const finalMaxLevel = targetLevel + subTreeDepth
+      
+      console.log(`  验证 "${chapter.title}": 目标level=${targetLevel}, 子树深度=${subTreeDepth}, 最终最大level=${finalMaxLevel}`)
+      
+      if (finalMaxLevel > 3) {
+        // 拒绝这次移动
+        if (props.chapter.level === 3) {
+          showDragError(`无法移动到 "${props.chapter.title}" 下：节不能包含子章节`)
+        } else if (props.chapter.level === 2 && subTreeDepth > 0) {
+          if (chapter.level === 2 && subTreeDepth === 1) {
+            showDragError(`无法移动 "${chapter.title}"：该章包含子节，只能移到卷下面或根目录`)
+          } else {
+            showDragError(`无法移动 "${chapter.title}"：该章节有${subTreeDepth}层子章节，移到这里会超过3层限制`)
+          }
+        } else {
+          showDragError(`无法移动 "${chapter.title}"：该章节有${subTreeDepth}层子章节，移到这里会超过3层限制`)
+        }
+        console.log('❌ 验证失败，阻止更新')
+        return // 阻止更新
+      }
+    }
+    
+    console.log('✅ 验证通过，开始更新章节数据')
+    
+    // 创建新的章节列表，不直接修改原数组
     const updatedChapters = [...props.chapters]
     
+    // 记录哪些章节被移动到这里了
+    const movedChapterIds = new Set(value.map(ch => ch.id))
+    
+    // 更新被移动章节的信息
     value.forEach((chapter, index) => {
       const chapterIndex = updatedChapters.findIndex(ch => ch.id === chapter.id)
       if (chapterIndex >= 0) {
@@ -272,7 +306,7 @@ const sortedChildChapters = computed({
       }
     })
     
-    // 递归更新子章节层级
+    // 递归更新被移动章节的子章节层级
     const updateChildrenLevels = (parentId: string, parentLevel: number) => {
       const children = updatedChapters.filter(ch => ch.parentId === parentId)
       children.forEach(child => {
@@ -287,10 +321,12 @@ const sortedChildChapters = computed({
       })
     }
     
+    // 为每个被移动的章节更新其子章节
     value.forEach(chapter => {
       updateChildrenLevels(chapter.id, props.chapter.level + 1)
     })
     
+    console.log('发送 chapters-reorder 事件')
     emit('chapters-reorder', updatedChapters)
   }
 })

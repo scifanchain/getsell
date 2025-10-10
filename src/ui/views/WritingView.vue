@@ -520,7 +520,7 @@ const handleContentsReorder = async (data: { chapterId?: string; contents: Conte
 const handleChapterSave = async (chapterData: any) => {
   try {
     if (!currentUser.value) {
-      showNotification('用户未登录', 'error')
+      alert('用户未登录，无法保存章节')
       return
     }
 
@@ -532,10 +532,10 @@ const handleChapterSave = async (chapterData: any) => {
       await chapterApi.create(dataWithAuthor)
     } else {
       if (!editingChapter.value?.id) {
-        showNotification('没有正在编辑的章节', 'error')
+        alert('没有正在编辑的章节')
         return
       }
-      await chapterApi.update(editingChapter.value.id, chapterData)
+      await chapterApi.update(editingChapter.value.id, currentUser.value.id, chapterData)
     }
 
     if (currentWork.value) {
@@ -545,7 +545,12 @@ const handleChapterSave = async (chapterData: any) => {
     showNotification('章节已保存', 'success')
   } catch (error: any) {
     console.error('Save chapter failed:', error)
-    showNotification('保存章节失败: ' + error.message, 'error')
+    // 使用弹框提示业务逻辑错误
+    if (error.message) {
+      alert(error.message)
+    } else {
+      alert('保存章节失败: 未知错误')
+    }
   }
 }
 

@@ -272,8 +272,29 @@ const sortedChapters = computed({
   },
   set: (value) => {
     console.log('=== ChapterTree: 根级章节拖拽发生 ===')
-    console.log('拖拽后的根级章节:', value.map(c => ({ id: c.id, title: c.title, parentId: c.parentId })))
-    console.log('当前 lastInvalidMove:', lastInvalidMove.value)
+    console.log('拖拽后的根级章节:', value.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level })))
+    
+    // 验证每个章节移动到根级别是否合法
+    for (const chapter of value) {
+      const targetLevel = 1 // 根级别是 level 1
+      const subTreeDepth = getSubTreeDepth(chapter.id)
+      const finalMaxLevel = targetLevel + subTreeDepth
+      
+      console.log(`  验证 "${chapter.title}": 目标level=${targetLevel}, 子树深度=${subTreeDepth}, 最终最大level=${finalMaxLevel}`)
+      
+      if (finalMaxLevel > 3) {
+        // 拒绝这次移动
+        if (subTreeDepth === 2) {
+          showDragError(`无法移动 "${chapter.title}" 到根目录：它包含${subTreeDepth}层子章节，最多只能包含2层`)
+        } else {
+          showDragError(`无法移动 "${chapter.title}" 到根目录：会超过3层目录限制`)
+        }
+        console.log('❌ 验证失败，阻止更新')
+        return // 阻止更新
+      }
+    }
+    
+    console.log('✅ 验证通过，开始重建章节列表')
     
     // 检查是否有无效移动需要撤销
     if (lastInvalidMove.value) {
@@ -281,61 +302,61 @@ const sortedChapters = computed({
       if (invalidChapter) {
         console.warn('🚫 撤销无效移动:', lastInvalidMove.value)
         showDragError(`无法移动章节 "${invalidChapter.title}"：${lastInvalidMove.value.reason}`)
-        
-        // 清除无效移动记录
         lastInvalidMove.value = null
-        
-        // 不执行移动，直接返回
-        console.log('阻止了无效移动，直接返回')
         return
       }
     }
     
-    // 获取当前所有章节的映射
-    const allChaptersMap = new Map(props.chapters.map(ch => [ch.id, ch]))
-    
     // 构建新的章节列表
     const newChapters: ChapterLocal[] = []
+    const processedIds = new Set<string>() // 记录已处理的章节ID
     
-    // 处理根级章节
-    value.forEach((chapter, index) => {
-      // 更新为根级章节
-      const updatedChapter = {
+    // 递归添加章节及其所有子章节
+    const addChapterWithChildren = (chapterId: string, parentId: string | undefined, orderIndex: number, level: number) => {
+      if (processedIds.has(chapterId)) {
+        console.warn(`章节 ${chapterId} 已处理，跳过`)
+        return // 避免重复添加
+      }
+      
+      const chapter = props.chapters.find(ch => ch.id === chapterId)
+      if (!chapter) {
+        console.warn(`找不到章节 ${chapterId}`)
+        return
+      }
+      
+      // 添加当前章节
+      newChapters.push({
         ...chapter,
-        parentId: undefined,
-        orderIndex: index,
-        level: 0
-      }
-      newChapters.push(updatedChapter)
+        parentId,
+        orderIndex,
+        level
+      })
+      processedIds.add(chapterId)
       
-      // 递归添加该章节的所有子章节，保持原有层级结构
-      const addChildrenRecursively = (parentId: string, currentLevel: number) => {
-        const children = props.chapters
-          .filter(ch => ch.parentId === parentId)
-          .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
-        
-        children.forEach(child => {
-          const updatedChild = {
-            ...child,
-            level: currentLevel + 1
-          }
-          newChapters.push(updatedChild)
-          
-          // 递归处理子章节的子章节
-          addChildrenRecursively(child.id, currentLevel + 1)
-        })
-      }
+      // 递归添加子章节
+      const children = props.chapters
+        .filter(ch => ch.parentId === chapterId)
+        .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
       
-      addChildrenRecursively(chapter.id, 0)
+      children.forEach((child, index) => {
+        addChapterWithChildren(child.id, chapterId, index, level + 1)
+      })
+    }
+    
+    // 处理所有根级章节及其子树
+    value.forEach((chapter, index) => {
+      addChapterWithChildren(chapter.id, undefined, index, 1)
     })
     
     // 添加不在根级拖拽中的其他章节（那些仍然是其他章节的子章节）
-    const processedIds = new Set(newChapters.map(ch => ch.id))
     const remainingChapters = props.chapters.filter(ch => !processedIds.has(ch.id))
-    newChapters.push(...remainingChapters)
+    if (remainingChapters.length > 0) {
+      console.log('添加未处理的章节:', remainingChapters.map(ch => ch.title))
+      newChapters.push(...remainingChapters)
+    }
     
-    console.log('重新构建的章节数量:', newChapters.length)
-    console.log('原始章节数量:', props.chapters.length)
+    console.log(`重新构建完成: ${newChapters.length} 个章节 (原始: ${props.chapters.length})`)
+    console.log('根级章节:', newChapters.filter(ch => !ch.parentId).map(ch => ch.title))
     
     emit('chapters-reorder', newChapters)
   }

@@ -175,8 +175,8 @@ export const chapterApi = {
     }
   },
 
-  async update(id: string, chapterData: UpdateChapterData): Promise<Chapter> {
-    const result = await window.electronAPI.invoke('chapter:update', id, 'user_mock_001', chapterData)
+  async update(id: string, userId: string, chapterData: UpdateChapterData): Promise<Chapter> {
+    const result = await window.electronAPI.invoke('chapter:update', id, userId, chapterData)
     if (result.success) {
       return result.data
     } else {
@@ -218,69 +218,12 @@ export const chapterApi = {
       throw new Error(`章节包含无效的父章节引用: ${invalidParents.length} 个`)
     }
     
-    // 拓扑排序: 父章节必须先于子章节更新
-    const sorted: typeof chapters = []
-    const visited = new Set<string>()
-    const visiting = new Set<string>()
+    // 使用批量更新 API
+    const result = await window.electronAPI.invoke('chapters:reorder', userId, chapters)
     
-    const visit = (chapterId: string) => {
-      if (visited.has(chapterId)) return
-      if (visiting.has(chapterId)) {
-        console.warn('⚠️ 检测到循环引用:', chapterId)
-        return
-      }
-      
-      visiting.add(chapterId)
-      
-      const chapter = chapters.find(c => c.id === chapterId)
-      if (!chapter) return
-      
-      // 先处理父章节
-      if (chapter.parentId) {
-        visit(chapter.parentId)
-      }
-      
-      visiting.delete(chapterId)
-      visited.add(chapterId)
-      sorted.push(chapter)
-    }
-    
-    // 从所有根章节(没有父章节的)开始遍历,避免重复访问
-    const rootChapters = chapters.filter(c => !c.parentId)
-    const nonRootChapters = chapters.filter(c => c.parentId)
-    
-    // 先访问所有根章节
-    rootChapters.forEach(c => visit(c.id))
-    
-    // 再访问剩余的非根章节(以防有孤立的子树)
-    nonRootChapters.forEach(c => visit(c.id))
-    
-    console.log('📊 排序后的更新顺序:', sorted.map(c => ({
-      id: c.id.substring(0, 8),
-      parentId: c.parentId?.substring(0, 8) || 'null',
-      level: c.level,
-      orderIndex: c.orderIndex
-    })))
-    
-    // 按排序后的顺序更新
-    for (const chapter of sorted) {
-      try {
-        const result = await window.electronAPI.invoke('chapter:update', chapter.id, userId, {
-          parentId: chapter.parentId || null, // 确保 undefined 转为 null
-          orderIndex: chapter.orderIndex,
-          level: chapter.level
-        })
-        
-        if (!result.success) {
-          console.error(`❌ 更新章节失败:`, chapter.id, result.error)
-          throw new Error(result.error)
-        } else {
-          console.log(`✅ 更新章节成功:`, chapter.id.substring(0, 8))
-        }
-      } catch (error) {
-        console.error(`❌ 更新章节异常:`, chapter.id, error)
-        throw error
-      }
+    if (!result.success) {
+      console.error('❌ 批量更新章节顺序失败:', result.error)
+      throw new Error(result.error || 'Failed to reorder chapters')
     }
     
     console.log('✅ 所有章节更新完成')
