@@ -2,7 +2,7 @@ import { ServiceContainer } from '../services/ServiceContainer';
 import { UserIPCHandler } from './UserIPCHandler';
 import { WorkIPCHandler } from './WorkIPCHandler';
 import { SystemIPCHandler } from './SystemIPCHandler';
-import { ChapterIPCHandler } from '../services/ChapterIPCHandler';
+import { ChapterIPCHandler } from './ChapterIPCHandler';
 import { ContentIPCHandler } from './ContentIPCHandler';
 
 /**

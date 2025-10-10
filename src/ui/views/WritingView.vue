@@ -210,7 +210,7 @@ interface EditingChapter {
   workId?: string
   parentId?: string
   title: string
-  type: string
+  type: 'chapter' | 'volume' | 'section'
 }
 
 // Composables
