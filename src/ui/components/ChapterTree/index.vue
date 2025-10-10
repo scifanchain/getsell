@@ -500,6 +500,19 @@ const handleCreateContent = (data: { title: string; type: string; workId?: strin
   margin-bottom: 8px;
 }
 
+.content-list {
+  min-height: 40px;
+  padding: 4px 0;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+/* 拖拽时高亮显示可放置区域 */
+.content-list.sortable-drag-over {
+  background-color: #e3f2fd;
+  border: 2px dashed #2196f3;
+}
+
 .draggable-list {
   min-height: 60px;
 }

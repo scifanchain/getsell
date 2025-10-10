@@ -61,13 +61,16 @@
       </div>
     </div>
     
-    <!-- 章节内容 -->
+    <!-- 章节内容 - 总是显示拖放区域 -->
     <div v-if="isExpanded" class="contents-section">
       <draggable
         v-model="sortedChapterContents"
         :group="{ name: 'chapter-contents', pull: true, put: ['contents', 'chapter-contents'] }"
         @change="handleContentDragChange"
         animation="150"
+        item-key="id"
+        class="content-drop-zone"
+        :class="{ 'empty': chapterContents.length === 0, 'has-content': chapterContents.length > 0 }"
       >
         <template #item="{ element: content }">
           <div 
@@ -546,6 +549,60 @@ const handleContentDragChange = (evt: any) => {
 .contents-section {
   margin-left: 16px;
   margin-top: 1px;
+}
+
+.content-drop-zone {
+  min-height: 30px;
+  padding: 4px 0;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.content-drop-zone.has-content {
+  min-height: 10px;
+  padding: 2px 0;
+}
+
+.content-drop-zone.empty {
+  min-height: 40px;
+  background-color: #f9f9f9;
+  border: 1px dashed #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0;
+}
+
+.content-drop-zone.empty::before {
+  content: '拖放内容到此处';
+  color: #aaa;
+  font-size: 11px;
+}
+
+/* 拖拽悬停时高亮显示 */
+.content-drop-zone:not(.empty) {
+  position: relative;
+}
+
+.content-drop-zone:not(.empty)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: transparent;
+  border: 2px dashed transparent;
+  border-radius: 3px;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+/* 当拖拽经过时显示边框 */
+.sortable-drag-over,
+.sortable-drag-over.content-drop-zone:not(.empty)::before {
+  background-color: rgba(33, 150, 243, 0.05);
+  border-color: #2196f3;
 }
 
 .content-item {
