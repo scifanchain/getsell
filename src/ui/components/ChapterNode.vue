@@ -2,8 +2,11 @@
   <div class="chapter-node">
     <div 
       class="chapter-item"
-      :class="{ 'has-children': hasChildren }"
-      @click="$emit('chapter-click', chapter.id)"
+      :class="{ 
+        'has-children': hasChildren,
+        'selected': isSelected
+      }"
+      @click="handleClick"
     >
       <button 
         v-if="hasChildren"
@@ -34,6 +37,7 @@
         :key="child.id"
         :chapter="child"
         :chapters="chapters"
+        :selectedChapterId="selectedChapterId"
         @chapter-click="$emit('chapter-click', $event)"
         @chapter-edit="$emit('chapter-edit', $event)"
         @chapter-delete="$emit('chapter-delete', $event)"
@@ -49,11 +53,12 @@ import type { Chapter } from '../../shared/types'
 interface Props {
   chapter: Chapter
   chapters: Chapter[]
+  selectedChapterId?: string | null
 }
 
 const props = defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   'chapter-click': [chapterId: string]
   'chapter-edit': [chapter: Chapter]
   'chapter-delete': [chapterId: string]
@@ -68,6 +73,14 @@ const childChapters = computed(() => {
 const hasChildren = computed(() => {
   return childChapters.value.length > 0
 })
+
+const isSelected = computed(() => {
+  return props.selectedChapterId === props.chapter.id
+})
+
+const handleClick = () => {
+  emit('chapter-click', props.chapter.id)
+}
 
 const toggle = () => {
   expanded.value = !expanded.value
@@ -98,6 +111,16 @@ export default {
 .chapter-item:hover {
   background: #f8f9fa;
   border-color: #dee2e6;
+}
+
+.chapter-item.selected {
+  background: #e7f3ff;
+  border-color: #0d6efd;
+}
+
+.chapter-item.selected .chapter-title {
+  color: #0d6efd;
+  font-weight: 600;
 }
 
 .toggle-btn {

@@ -104,8 +104,7 @@
           <!-- 树形视图 -->
           <div v-else class="chapters-tree">
             <ChapterTree 
-              :chapters="chapters" 
-              @chapter-click="openEditor"
+              :chapters="chapters"
               @chapter-edit="editChapter"
               @chapter-delete="deleteChapter"
             />
@@ -212,18 +211,20 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkStore } from '../stores/work'
+import { useChapterStore } from '../stores/chapter'
 import ChapterTree from '../components/ChapterTree/index.vue'
 import type { Work, Chapter, ChapterData } from '../../shared/types'
 
 const route = useRoute()
 const router = useRouter()
 const workStore = useWorkStore()
+const chapterStore = useChapterStore()
 
 // 响应式状态
 const loading = ref(false)
 const error = ref<string | null>(null)
 const chapters = ref<Chapter[]>([])
-const viewMode = ref<'list' | 'tree'>('list')
+const viewMode = ref<'list' | 'tree'>('tree')
 const showCreateChapter = ref(false)
 const showWorkSettings = ref(false)
 
@@ -327,6 +328,8 @@ const createChapter = async () => {
 }
 
 const openEditor = (chapterId: string) => {
+  chapterStore.selectChapter(chapterId)
+  console.log('WorkView: 选中后 selectedChapterId:', chapterStore.selectedChapterId)
   router.push(`/editor/${workId.value}/${chapterId}`)
 }
 

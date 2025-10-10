@@ -93,10 +93,11 @@
             :chapter="chapter" 
             :chapters="chapters"
             :contents="contents"
-            :selected-chapter-id="selectedChapterId"
-            :selected-content-id="selectedContentId"
+            :selected-chapter-id="selectedChapterId ?? undefined"
+            :selected-content-id="selectedContentId ?? undefined"
             :dragging="isDragging"
             @chapter-toggle="$emit('chapter-toggle', $event)"
+            @chapter-click="(id) => { console.log('ChapterTree: 收到点击事件, id:', id, '当前selectedId:', selectedChapterId); selectedChapterId = id; console.log('ChapterTree: 已更新selectedId为:', selectedChapterId); $emit('chapter-click', id) }"
             @chapter-edit="$emit('chapter-edit', $event)"
             @chapter-delete="$emit('chapter-delete', $event)"
             @add-sub-chapter="$emit('add-sub-chapter', $event)"
@@ -145,14 +146,13 @@ import type { ChapterLocal, Content } from './types'
 interface Props {
   chapters: ChapterLocal[]
   contents?: Content[]
-  selectedChapterId?: string
-  selectedContentId?: string
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'chapter-toggle': [chapterId: string]
+  'chapter-click': [chapterId: string]
   'chapter-edit': [chapter: ChapterLocal]
   'chapter-delete': [chapterId: string]
   'add-chapter': []
@@ -166,6 +166,8 @@ const emit = defineEmits<{
 }>()
 
 const isDragging = ref(false)
+const selectedChapterId = ref<string | null>(null)
+const selectedContentId = ref<string | null>(null)
 const showCreateContentModal = ref(false)
 const createContentWorkId = ref<string | undefined>()
 const createContentChapterId = ref<string | undefined>()

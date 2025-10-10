@@ -3,16 +3,18 @@
     <div 
       class="chapter-node" 
       :class="{ 
-        'selected': selectedChapterId === chapter.id,
+        'selected': props.selectedChapterId === chapter.id,
         'has-children': hasChildren,
         'expanded': isExpanded 
       }"
+      @click="$emit('chapter-click', chapter.id)"
     >
-      <div class="chapter-content" @click="handleToggle">
+      <div class="chapter-content">
         <span 
           v-if="hasChildren" 
           class="expand-toggle"
           :class="{ 'expanded': isExpanded }"
+          @click.stop="handleToggle"
         >
           ▶
         </span>
@@ -71,7 +73,7 @@
         <template #item="{ element: content }">
           <div 
             class="content-item"
-            :class="{ 'selected': selectedContentId === content.id }"
+            :class="{ 'selected': props.selectedContentId === content.id }"
             @click="$emit('content-select', content.id)"
           >
             <span class="content-icon">📄</span>
@@ -116,10 +118,11 @@
             :chapter="child"
             :chapters="chapters"
             :contents="contents"
-            :selected-chapter-id="selectedChapterId"
-            :selected-content-id="selectedContentId"
+            :selected-chapter-id="props.selectedChapterId"
+            :selected-content-id="props.selectedContentId"
             :dragging="dragging"
             @chapter-toggle="$emit('chapter-toggle', $event)"
+            @chapter-click="$emit('chapter-click', $event)"
             @chapter-edit="$emit('chapter-edit', $event)"
             @chapter-delete="$emit('chapter-delete', $event)"
             @add-sub-chapter="$emit('add-sub-chapter', $event)"
@@ -155,6 +158,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   'chapter-toggle': [chapterId: string]
+  'chapter-click': [chapterId: string]
   'chapter-edit': [chapter: ChapterLocal]
   'chapter-delete': [chapterId: string]
   'add-sub-chapter': [parentId: string]
