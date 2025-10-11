@@ -68,7 +68,6 @@
                     <div class="nav-content">
                       <div class="nav-title">{{ chapter.title }}</div>
                       <div class="nav-stats">
-                        <span>{{ getChapterContentCount(chapter.id) }}节</span>
                         <span>{{ formatWordCount(getChapterWordCount(chapter.id)) }}</span>
                       </div>
                     </div>
@@ -101,7 +100,6 @@
                         <div class="nav-content">
                           <div class="nav-title">{{ child2.title }}</div>
                           <div class="nav-stats">
-                            <span>{{ getChapterContentCount(child2.id) }}节</span>
                             <span>{{ formatWordCount(getChapterWordCount(child2.id)) }}</span>
                           </div>
                         </div>
@@ -133,7 +131,6 @@
                           <div class="nav-content">
                             <div class="nav-title">{{ child3.title }}</div>
                             <div class="nav-stats">
-                              <span>{{ getChapterContentCount(child3.id) }}节</span>
                               <span>{{ formatWordCount(getChapterWordCount(child3.id)) }}</span>
                             </div>
                           </div>
@@ -743,16 +740,38 @@ const scrollToChapter = (chapterId: string) => {
   const element = document.getElementById(`chapter-${chapterId}`)
   if (element && chaptersContentRef.value) {
     const container = chaptersContentRef.value
-    const elementTop = element.offsetTop
-    const containerTop = container.scrollTop
-    const containerHeight = container.clientHeight
-    const elementHeight = element.clientHeight
     
-    // 计算滚动位置，让章节显示在容器顶部稍微下方
-    const scrollTo = elementTop - 20
+    // 尝试找到章节标题元素
+    const titleElement = element.querySelector('.chapter-title')
+    
+    let targetScrollTop = 0
+    
+    if (titleElement) {
+      // 使用精确的位置计算
+      const containerRect = container.getBoundingClientRect()
+      const titleRect = titleElement.getBoundingClientRect()
+      
+      // 计算标题元素相对于容器顶部的位置
+      const titleOffsetFromContainerTop = titleRect.top - containerRect.top + container.scrollTop
+      
+      // 计算章节的padding-top (通过计算章节容器和标题的位置差异)
+      const elementRect = element.getBoundingClientRect()
+      const paddingAndHeaderSpace = titleRect.top - elementRect.top
+      
+      // 设置目标滚动位置，确保整个章节头部完全显示
+      // 预留足够空间显示完整的章节标题、副标题和元数据
+      // 减去padding和header空间，确保章节从顶部开始显示
+      targetScrollTop = titleOffsetFromContainerTop - paddingAndHeaderSpace - 20
+    } else {
+      // 如果找不到标题元素，使用章节容器的位置
+      targetScrollTop = element.offsetTop - 20
+    }
+    
+    // 确保不会滚动到负数位置
+    targetScrollTop = Math.max(0, targetScrollTop)
     
     container.scrollTo({
-      top: scrollTo,
+      top: targetScrollTop,
       behavior: 'smooth'
     })
     
@@ -2141,6 +2160,20 @@ onMounted(() => {
   min-height: 50px;
   max-height: 100px;
   overflow-y: auto;
+  text-align: justify;
+}
+
+/* ProseMirror 内容两端对齐 */
+:deep(.ProseMirror) {
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+:deep(.ProseMirror p) {
+  text-align: justify;
+  text-justify: inter-ideograph;
+  word-spacing: normal;
+  letter-spacing: normal;
 }
 
 .content-actions {
@@ -2434,6 +2467,8 @@ onMounted(() => {
   line-height: 1.8;
   font-size: 16px;
   color: #374151;
-  white-space: pre-wrap;
+  white-space: normal;
+  text-align: justify;
+  text-justify: inter-ideograph;
 }
 </style>

@@ -87,11 +87,18 @@ watch(() => props.content, renderContent, { immediate: true })
   line-height: 1.6;
   color: #333;
   max-width: none;
+  text-align: justify;
+  text-justify: inter-ideograph;
 }
 
 /* ProseMirror 内容样式 */
 .prosemirror-renderer :deep(p) {
   margin: 0 0 1em 0;
+  text-align: justify;
+  text-justify: inter-ideograph;
+  word-spacing: normal;
+  letter-spacing: normal;
+  hyphens: auto;
 }
 
 .prosemirror-renderer :deep(p:last-child) {
