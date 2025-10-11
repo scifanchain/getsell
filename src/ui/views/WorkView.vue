@@ -74,6 +74,22 @@
                     </div>
                   </div>
                   
+                  <!-- 一级章节的内容列表 -->
+                  <template v-for="content in getChapterContents(chapter.id)" :key="content.id">
+                    <div
+                      :class="['nav-item', 'nav-level-content', 'nav-content-0', { active: activeContentId === content.id }]"
+                      @click="scrollToContent(content.id)"
+                    >
+                      <div class="nav-content-icon">📄</div>
+                      <div class="nav-content">
+                        <div class="nav-title">{{ content.title }}</div>
+                        <div class="nav-stats">
+                          <span>{{ formatWordCount(getContentWordCount(content)) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                  
                   <!-- 二级章节 -->
                   <template v-if="chapter.children && chapter.children.length > 0">
                     <template v-for="(child2, child2Index) in chapter.children" :key="child2.id">
@@ -91,23 +107,54 @@
                         </div>
                       </div>
                       
-                      <!-- 三级章节 -->
-                      <div
-                        v-for="(child3, child3Index) in child2.children"
-                        v-if="child2.children && child2.children.length > 0"
-                        :key="child3.id"
-                        :class="['nav-item', 'nav-level-2', { active: activeChapterId === child3.id }]"
-                        @click="scrollToChapter(child3.id)"
-                      >
-                        <div class="nav-number">{{ index + 1 }}.{{ child2Index + 1 }}.{{ child3Index + 1 }}</div>
-                        <div class="nav-content">
-                          <div class="nav-title">{{ child3.title }}</div>
-                          <div class="nav-stats">
-                            <span>{{ getChapterContentCount(child3.id) }}节</span>
-                            <span>{{ formatWordCount(getChapterWordCount(child3.id)) }}</span>
+                      <!-- 二级章节的内容列表 -->
+                      <template v-for="content in getChapterContents(child2.id)" :key="content.id">
+                        <div
+                          :class="['nav-item', 'nav-level-content', 'nav-content-1', { active: activeContentId === content.id }]"
+                          @click="scrollToContent(content.id)"
+                        >
+                          <div class="nav-content-icon">📄</div>
+                          <div class="nav-content">
+                            <div class="nav-title">{{ content.title }}</div>
+                            <div class="nav-stats">
+                              <span>{{ formatWordCount(getContentWordCount(content)) }}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </template>
+                      
+                      <!-- 三级章节 -->
+                      <template v-for="(child3, child3Index) in child2.children" v-if="child2.children && child2.children.length > 0" :key="child3.id">
+                        <div
+                          :class="['nav-item', 'nav-level-2', { active: activeChapterId === child3.id }]"
+                          @click="scrollToChapter(child3.id)"
+                        >
+                          <div class="nav-number">{{ index + 1 }}.{{ child2Index + 1 }}.{{ child3Index + 1 }}</div>
+                          <div class="nav-content">
+                            <div class="nav-title">{{ child3.title }}</div>
+                            <div class="nav-stats">
+                              <span>{{ getChapterContentCount(child3.id) }}节</span>
+                              <span>{{ formatWordCount(getChapterWordCount(child3.id)) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- 三级章节的内容列表 -->
+                        <template v-for="content in getChapterContents(child3.id)" :key="content.id">
+                          <div
+                            :class="['nav-item', 'nav-level-content', 'nav-content-2', { active: activeContentId === content.id }]"
+                            @click="scrollToContent(content.id)"
+                          >
+                            <div class="nav-content-icon">📄</div>
+                            <div class="nav-content">
+                              <div class="nav-title">{{ content.title }}</div>
+                              <div class="nav-stats">
+                                <span>{{ formatWordCount(getContentWordCount(content)) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </template>
+                      </template>
                     </template>
                   </template>
                 </template>
@@ -151,10 +198,11 @@
                       <div
                         v-for="content in getChapterContents(chapter.id)"
                         :key="content.id"
+                        :id="`content-${content.id}`"
                         class="content-item"
                       >
                         <div class="content-header">
-                          <h6 class="content-title">{{ content.title }}</h6>
+                          <h6 class="content-title" @click="scrollToContent(content.id)">{{ content.title }}</h6>
                           <div class="content-meta">
                             <span>📝 {{ formatWordCount(getContentWordCount(content)) }}</span>
                             <span>🕒 {{ formatDate(content.updatedAt) }}</span>
@@ -194,10 +242,11 @@
                           <div
                             v-for="content in getChapterContents(child2.id)"
                             :key="content.id"
+                            :id="`content-${content.id}`"
                             class="content-item"
                           >
                             <div class="content-header">
-                              <h6 class="content-title">{{ content.title }}</h6>
+                              <h6 class="content-title" @click="scrollToContent(content.id)">{{ content.title }}</h6>
                               <div class="content-meta">
                                 <span>📝 {{ formatWordCount(getContentWordCount(content)) }}</span>
                                 <span>🕒 {{ formatDate(content.updatedAt) }}</span>
@@ -238,10 +287,11 @@
                           <div
                             v-for="content in getChapterContents(child3.id)"
                             :key="content.id"
+                            :id="`content-${content.id}`"
                             class="content-item"
                           >
                             <div class="content-header">
-                              <h6 class="content-title">{{ content.title }}</h6>
+                              <h6 class="content-title" @click="scrollToContent(content.id)">{{ content.title }}</h6>
                               <div class="content-meta">
                                 <span>📝 {{ formatWordCount(getContentWordCount(content)) }}</span>
                                 <span>🕒 {{ formatDate(content.updatedAt) }}</span>
@@ -402,6 +452,7 @@ const chapters = ref<Chapter[]>([])
 const contents = ref<Content[]>([])
 const showWorkSettings = ref(false)
 const activeChapterId = ref<string | null>(null)  // 当前激活的章节ID
+const activeContentId = ref<string | null>(null)  // 当前激活的内容ID
 const chaptersContentRef = ref<HTMLElement | null>(null)  // 内容区域引用
 const showFullDescription = ref(false)  // 是否显示完整描述
 
@@ -707,6 +758,52 @@ const scrollToChapter = (chapterId: string) => {
     
     // 立即设置激活状态
     activeChapterId.value = chapterId
+    activeContentId.value = null  // 清除内容激活状态
+  }
+}
+
+// 滚动到指定内容
+const scrollToContent = (contentId: string) => {
+  // 直接找到内容元素
+  const contentElement = document.getElementById(`content-${contentId}`)
+  if (contentElement && chaptersContentRef.value) {
+    const container = chaptersContentRef.value
+    
+    // 尝试找到内容标题元素
+    const titleElement = contentElement.querySelector('.content-title')
+    
+    let targetScrollTop = 0
+    
+    if (titleElement) {
+      // 使用更精确的位置计算方法
+      const containerRect = container.getBoundingClientRect()
+      const titleRect = titleElement.getBoundingClientRect()
+      
+      // 计算标题元素相对于容器顶部的位置
+      const titleOffsetFromContainerTop = titleRect.top - containerRect.top + container.scrollTop
+      
+      // 设置目标滚动位置，确保标题显示在容器顶部下方合适位置
+      targetScrollTop = titleOffsetFromContainerTop - 80 // 增加更多顶部空间
+    } else {
+      // 如果找不到标题元素，使用内容容器的位置
+      targetScrollTop = contentElement.offsetTop - 80
+    }
+    
+    // 确保不会滚动到负数位置
+    targetScrollTop = Math.max(0, targetScrollTop)
+    
+    // 滚动到目标位置
+    container.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth'
+    })
+    
+    // 找到对应的章节ID并设置激活状态
+    const content = contents.value.find(c => c.id === contentId)
+    if (content) {
+      activeChapterId.value = content.chapterId
+      activeContentId.value = contentId
+    }
   }
 }
 
@@ -1303,17 +1400,22 @@ onMounted(() => {
 .nav-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .nav-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: #374151;
-  margin-bottom: 2px;
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .nav-item.active .nav-title {
@@ -1323,9 +1425,11 @@ onMounted(() => {
 
 .nav-stats {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   font-size: 10px;
   color: #9ca3af;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .nav-stats span {
@@ -1362,6 +1466,80 @@ onMounted(() => {
   background: #f5f6fa;
 }
 
+/* 内容项样式 */
+.nav-item.nav-level-content {
+  padding: 4px 16px;
+  margin: 0;
+  border-bottom: none;
+  background: #f8fafc;
+  border-left-width: 1px;
+}
+
+.nav-item.nav-content-0 {
+  padding-left: 48px;
+  background: #f8fafc;
+}
+
+.nav-item.nav-content-1 {
+  padding-left: 68px;
+  background: #f5f6fa;
+}
+
+.nav-item.nav-content-2 {
+  padding-left: 84px;
+  background: #f1f5f9;
+}
+
+.nav-item.nav-level-content:hover {
+  background: #e2e8f0;
+}
+
+.nav-item.nav-level-content.active {
+  background: linear-gradient(90deg, #fef3c7 0%, #fef9c3 100%);
+  border-left-color: #f59e0b;
+}
+
+.nav-content-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.nav-item.nav-level-content.active .nav-content-icon {
+  color: #d97706;
+}
+
+.nav-item.nav-level-content .nav-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+  margin-bottom: 1px;
+}
+
+.nav-item.nav-level-content.active .nav-title {
+  color: #92400e;
+  font-weight: 500;
+}
+
+.nav-item.nav-level-content .nav-stats {
+  font-size: 9px;
+}
+
+.nav-item.nav-level-content .nav-stats span {
+  background: #e5e7eb;
+  padding: 1px 4px;
+}
+
+.nav-item.nav-level-content.active .nav-stats span {
+  background: #fde68a;
+  color: #92400e;
+}
+
 .nav-item.nav-level-0:hover {
   background: #f8fafc;
 }
@@ -1393,12 +1571,12 @@ onMounted(() => {
 }
 
 .nav-item.nav-level-1 .nav-title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .nav-item.nav-level-2 .nav-title {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
   color: #6b7280;
 }
@@ -1903,6 +2081,11 @@ onMounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 12px;
+  margin-bottom: 20px;
+}
+
+.content-item:last-child {
+  margin-bottom: 0;
 }
 
 .content-header {
@@ -1919,6 +2102,14 @@ onMounted(() => {
   margin: 0;
   flex: 1;
   min-width: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.content-title:hover {
+  background-color: #f3f4f6;
 }
 
 .content-meta {
@@ -2135,7 +2326,7 @@ onMounted(() => {
   }
   
   .nav-title {
-    font-size: 13px;
+    font-size: 15px;
   }
   
   .chapter-section {
