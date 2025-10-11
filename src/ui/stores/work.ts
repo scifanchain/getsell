@@ -5,6 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Work, WorkData } from '../../shared/types'
+import { useUserStore } from './user'
 
 // 模拟 API 调用
 const workApi = {
@@ -17,9 +18,8 @@ const workApi = {
     return await (window as any).gestell.work.list(authorId)
   },
 
-  async getWork(workId: string): Promise<Work> {
-    // TODO: 实现获取单个作品的 API
-    throw new Error('Not implemented')
+  async getWork(workId: string, userId: string): Promise<Work> {
+    return await (window as any).gestell.work.get(workId, userId)
   },
 
   async updateWork(workId: string, updateData: Partial<WorkData>): Promise<Work> {
@@ -98,7 +98,14 @@ export const useWorkStore = defineStore('work', () => {
       currentWork.value = work
     } else {
       try {
-        const fetchedWork = await workApi.getWork(workId)
+        // 获取当前用户 ID
+        const userStore = useUserStore()
+        const userId = userStore.currentUser?.id
+        if (!userId) {
+          throw new Error('用户未登录')
+        }
+        
+        const fetchedWork = await workApi.getWork(workId, userId)
         currentWork.value = fetchedWork
         // 如果不在列表中，添加到列表
         if (!works.value.find(w => w.id === workId)) {

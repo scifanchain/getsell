@@ -27,7 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 章节管理API
   chapter: {
     create: (chapterData) => ipcRenderer.invoke('chapter:create', chapterData),
-    list: (workId) => ipcRenderer.invoke('chapter:list', workId),
+    list: (workId, userId) => ipcRenderer.invoke('chapter:list', workId, userId),
     update: (chapterId, chapterData) => ipcRenderer.invoke('chapter:update', chapterId, chapterData),
     delete: (chapterId) => ipcRenderer.invoke('chapter:delete', chapterId),
   },
@@ -86,7 +86,7 @@ contextBridge.exposeInMainWorld('gestell', {
   // 章节管理API
   chapter: {
     create: (chapterData) => ipcRenderer.invoke('chapter:create', chapterData),
-    list: (workId) => ipcRenderer.invoke('chapter:list', workId),
+    list: (workId, userId) => ipcRenderer.invoke('chapter:list', workId, userId),
     update: (chapterId, chapterData) => ipcRenderer.invoke('chapter:update', chapterId, chapterData),
   },
 

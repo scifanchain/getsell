@@ -35,9 +35,11 @@ export interface UserCreateResponse {
 export interface Work {
   id: string
   title: string
+  subtitle?: string
   description?: string
   authorId: string
   genre?: string
+  status?: string
   collaborationMode?: string
   createdAt: string
   updatedAt: string
