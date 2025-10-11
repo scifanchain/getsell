@@ -115,7 +115,7 @@ model Content {
   orderIndex          Int              @map("order_index")
   title               String?
   type                String           @default("text")
-  contentJson          String?  @map("content_json") // ProseMirror 文档的 JSON 表示
+  contentJson          String?         @map("content_json") // ProseMirror 文档的 JSON 表示
   contentHtml         String?          @map("content_html")
   contentText         String?          @map("content_text")
   wordCount           Int              @default(0) @map("word_count")

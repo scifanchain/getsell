@@ -2,29 +2,8 @@
   <div class="home-view">
     <!-- 主体内容 -->
     <div class="main-body">
-      <!-- 左栏导航 -->
-    <aside class="left-sidebar">
-      <nav class="nav-icons">
-        <div class="nav-item" title="作品管理">
-          <i class="icon-works">📚</i>
-        </div>
-        <div class="nav-item" title="人物设定">
-          <i class="icon-characters">👥</i>
-        </div>
-        <div class="nav-item" title="纪元历史">
-          <i class="icon-timeline">⏳</i>
-        </div>
-        <div class="nav-item" title="地点设定">
-          <i class="icon-locations">🗺️</i>
-        </div>
-        <div class="nav-item" title="设置">
-          <i class="icon-settings">⚙️</i>
-        </div>
-      </nav>
-    </aside>
-
-    <!-- 中间主内容区 -->
-    <main class="main-content">
+      <!-- 中间主内容区 -->
+      <main class="main-content">
       <!-- 欢迎区域 -->
       <section class="welcome-banner">
         <h1 class="app-title">Gestell</h1>
@@ -181,7 +160,7 @@
         </div>
       </div>
     </aside>
-    </div>
+    </div> <!-- main-body -->
     
     <!-- 创建作品模态框 -->
     <div v-if="showCreateWorkModal" class="modal-overlay" @click="showCreateWorkModal = false">
@@ -311,9 +290,10 @@ const handleCreateWork = async () => {
 <style scoped>
 .home-view {
   display: flex;
-  height: 100vh;
+  height: 100%;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  overflow: hidden;
 }
 
 /* 主要内容区域 */
@@ -321,46 +301,6 @@ const handleCreateWork = async () => {
   display: flex;
   flex: 1;
   overflow: hidden;
-}
-
-/* 左侧导航栏 */
-.left-sidebar {
-  width: 60px;
-  background: #2d3748;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-.nav-icons {
-  padding: 20px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  align-items: center;
-}
-
-.nav-item {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-}
-
-.nav-item i {
-  font-size: 20px;
-  font-style: normal;
 }
 
 /* 主内容区 */
@@ -766,30 +706,9 @@ const handleCreateWork = async () => {
   .content-sections {
     grid-template-columns: 1fr;
   }
-  
-  .main-menu {
-    gap: 8px;
-  }
-  
-  .titlebar-left {
-    gap: 12px;
-  }
 }
 
 @media (max-width: 768px) {
-  .left-sidebar {
-    width: 50px;
-  }
-  
-  .nav-item {
-    width: 35px;
-    height: 35px;
-  }
-  
-  .nav-item i {
-    font-size: 16px;
-  }
-  
   .main-content {
     padding: 16px;
   }
@@ -801,54 +720,6 @@ const handleCreateWork = async () => {
   .primary-actions {
     flex-direction: column;
     align-items: center;
-  }
-  
-  .main-menu {
-    display: none;
-  }
-  
-  .user-name {
-    display: none;
-  }
-  
-  .titlebar-left {
-    gap: 8px;
-  }
-  
-  .app-logo {
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .custom-titlebar {
-    height: 28px;
-  }
-  
-  .titlebar-left {
-    padding-left: 8px;
-  }
-  
-  .app-logo {
-    font-size: 0.75rem;
-  }
-  
-  .logo-icon {
-    font-size: 1em;
-  }
-  
-  .user-avatar {
-    width: 18px;
-    height: 18px;
-  }
-  
-  .control-btn {
-    width: 40px;
-  }
-  
-  .user-dropdown {
-    min-width: 180px;
-    right: -8px;
   }
 }
 

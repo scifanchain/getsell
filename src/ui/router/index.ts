@@ -10,6 +10,9 @@ import HomeView from '../views/HomeView.vue'
 import EditorView from '../views/EditorView.vue'
 import EditorTestView from '../views/EditorTestView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import CharactersView from '../views/CharactersView.vue'
+import TimelineView from '../views/TimelineView.vue'
+import LocationsView from '../views/LocationsView.vue'
 
 // 路由定义
 const routes: RouteRecordRaw[] = [
@@ -29,6 +32,33 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '作品列表',
       icon: 'folder'
+    }
+  },
+  {
+    path: '/characters',
+    name: 'characters',
+    component: CharactersView,
+    meta: {
+      title: '人物设定',
+      icon: 'users'
+    }
+  },
+  {
+    path: '/timeline',
+    name: 'timeline',
+    component: TimelineView,
+    meta: {
+      title: '纪元历史',
+      icon: 'timeline'
+    }
+  },
+  {
+    path: '/locations',
+    name: 'locations',
+    component: LocationsView,
+    meta: {
+      title: '地点设定',
+      icon: 'map'
     }
   },
   {

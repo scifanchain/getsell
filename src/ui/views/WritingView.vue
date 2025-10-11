@@ -29,11 +29,13 @@
           :work-id="currentWork?.id"
           :selected-chapter-id="selectedChapterId"
           @chapter-toggle="handleChapterSelect"
+          @chapter-click="handleChapterSelect"
           @chapter-edit="handleChapterEdit"
           @chapter-delete="handleChapterDelete"
           @add-chapter="handleAddChapter"
           @add-sub-chapter="handleAddSubChapter"
           @add-content="handleAddContent"
+          @content-select="handleContentSelect"
           @chapters-reorder="handleChaptersReorder"
           @contents-reorder="handleContentsReorder"
         />
@@ -42,11 +44,11 @@
 
     <!-- 主编辑区域 -->
     <div class="main-editor-area">
-      <div v-if="selectedChapterId && currentContent" class="editor-wrapper">
+      <div v-if="currentContent" class="editor-wrapper">
         <EnhancedEditor
           :content-id="currentContent.id"
           :user-id="currentUser?.id || ''"
-          :chapter-id="selectedChapterId"
+          :chapter-id="currentContent.chapterId || selectedChapterId || ''"
           :initial-content="currentContent.content"
           :initial-title="currentContent.title"
           @content-saved="handleContentSaved"
@@ -368,13 +370,97 @@ const loadUserFirstWork = async () => {
 
 const loadChapterContent = async (chapterId: string) => {
   try {
-    if (!currentUser.value) return
+    if (!currentUser.value) {
+      console.warn('用户未登录，无法加载内容')
+      return
+    }
 
-    const contents = await contentApi.getByChapter(chapterId, currentUser.value.id)
-    currentContent.value = contents.length > 0 ? contents[0] : null
+    console.log('开始加载章节内容:', chapterId)
+    
+    const contentList = await contentApi.getByChapter(chapterId, currentUser.value.id)
+    console.log('加载到的内容数量:', contentList.length)
+    
+    if (contentList.length > 0) {
+      // 按最后编辑时间排序，加载最新编辑的内容
+      const sortedByEditTime = [...contentList].sort((a, b) => {
+        const timeA = new Date(a.lastEditedAt || a.updatedAt || a.createdAt).getTime()
+        const timeB = new Date(b.lastEditedAt || b.updatedAt || b.createdAt).getTime()
+        return timeB - timeA // 降序，最新的在前
+      })
+      
+      currentContent.value = sortedByEditTime[0]
+      console.log('已加载最新编辑的内容:', {
+        id: currentContent.value.id,
+        title: currentContent.value.title || '无标题',
+        lastEditedAt: currentContent.value.lastEditedAt,
+        totalContents: contentList.length
+      })
+      
+      if (contentList.length > 1) {
+        console.log(`该章节有 ${contentList.length} 个内容片段，已加载最新编辑的版本`)
+      }
+    } else {
+      // 如果没有内容，设置为 null，界面会显示"开始写作"按钮
+      currentContent.value = null
+      console.log('该章节暂无内容，等待用户创建')
+    }
   } catch (error) {
     console.error('Load chapter content failed:', error)
     showNotification('加载章节内容失败', 'error')
+    currentContent.value = null
+  }
+}
+
+// 处理内容选择 - 用户在 ChapterTree 中点击某个内容
+const handleContentSelect = async (contentId: string) => {
+  try {
+    if (!currentUser.value) {
+      showNotification('用户未登录', 'error')
+      return
+    }
+
+    console.log('🔍 用户选择内容:', contentId)
+    
+    // 直接加载指定的内容
+    const content = await contentApi.get(contentId, currentUser.value.id)
+    
+    console.log('📦 从 API 获取的完整内容对象:', content)
+    console.log('📦 内容字段检查:', {
+      hasId: !!content.id,
+      hasTitle: !!content.title,
+      hasContent: !!content.content,
+      hasChapterId: !!content.chapterId,
+      contentType: typeof content.content,
+      contentLength: content.content?.length || 0
+    })
+    
+    currentContent.value = content
+    
+    console.log('✅ 已设置 currentContent.value')
+    console.log('📊 当前状态检查:', {
+      selectedChapterId: selectedChapterId.value,
+      hasCurrentContent: !!currentContent.value,
+      currentContentId: currentContent.value?.id,
+      contentChapterId: content.chapterId,
+      shouldShowEditor: !!currentContent.value
+    })
+    
+    // 更新选中的章节ID（如果需要）
+    if (content.chapterId) {
+      if (selectedChapterId.value !== content.chapterId) {
+        selectedChapterId.value = content.chapterId
+        console.log('🔄 已更新 selectedChapterId 为:', content.chapterId)
+      }
+    } else {
+      // 如果是根级别内容（chapterId 为 null），清空 selectedChapterId
+      console.log('ℹ️ 这是根级别内容（无章节关联）')
+      if (selectedChapterId.value) {
+        selectedChapterId.value = ''
+      }
+    }
+  } catch (error: any) {
+    console.error('❌ Load content failed:', error)
+    showNotification(`加载内容失败: ${error.message || '未知错误'}`, 'error')
   }
 }
 
@@ -474,9 +560,38 @@ const handleAddContent = async (data: { title?: string, type?: string, workId?: 
       
       console.log('内容创建成功:', response)
       
+      console.log('📦 创建返回的完整对象:', response)
+      console.log('📦 返回对象字段检查:', {
+        hasId: !!response.id,
+        hasTitle: !!response.title,
+        hasContent: !!response.content,
+        hasChapterId: !!response.chapterId,
+        allKeys: Object.keys(response)
+      })
+      
       // 刷新章节数据
       if (currentWork.value) {
         await loadWork(currentWork.value.id)
+      }
+      
+      // 🎯 新增：自动加载新创建的内容到编辑器
+      if (response && response.id) {
+        currentContent.value = response
+        
+        console.log('✅ 已设置 currentContent.value')
+        console.log('📊 当前状态检查:', {
+          selectedChapterId: selectedChapterId.value,
+          hasCurrentContent: !!currentContent.value,
+          currentContentId: currentContent.value?.id,
+          shouldShowEditor: !!(selectedChapterId.value && currentContent.value)
+        })
+        
+        // 如果章节ID不同，更新选中的章节
+        if (data.chapterId && selectedChapterId.value !== data.chapterId) {
+          selectedChapterId.value = data.chapterId
+          console.log('🔄 已更新 selectedChapterId 为:', data.chapterId)
+        }
+        console.log('已自动加载新内容到编辑器')
       }
       
       showNotification('内容创建成功', 'success')
@@ -638,18 +753,47 @@ const createNewContent = async () => {
       return
     }
 
-    const newContent = await contentApi.create(currentUser.value.id, {
+    if (!selectedChapterId.value) {
+      showNotification('请先选择章节', 'error')
+      return
+    }
+
+    if (!currentWork.value) {
+      showNotification('作品信息缺失', 'error')
+      return
+    }
+
+    console.log('创建新内容:', {
+      workId: currentWork.value.id,
       chapterId: selectedChapterId.value,
-      content: '',
-      format: 'prosemirror',
-      title: '新内容'
+      userId: currentUser.value.id
     })
 
+    // 创建空的 ProseMirror 文档
+    const emptyProseMirrorDoc = JSON.stringify({
+      type: 'doc',
+      content: []
+    })
+
+    const newContent = await contentApi.create(currentUser.value.id, {
+      chapterId: selectedChapterId.value,
+      content: emptyProseMirrorDoc,
+      format: 'prosemirror',
+      title: selectedChapter.value?.title || '新内容'
+    })
+
+    console.log('内容创建成功:', newContent)
     currentContent.value = newContent
-    showNotification('已创建新内容', 'success')
-  } catch (error) {
+    
+    // 重新加载作品数据以更新统计信息
+    if (currentWork.value) {
+      await loadWork(currentWork.value.id)
+    }
+    
+    showNotification('已创建新内容，开始写作吧！', 'success')
+  } catch (error: any) {
     console.error('Create content failed:', error)
-    showNotification('创建内容失败', 'error')
+    showNotification(`创建内容失败: ${error.message || '未知错误'}`, 'error')
   }
 }
 

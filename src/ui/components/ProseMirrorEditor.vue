@@ -1,13 +1,17 @@
 <template>
   <div class="prosemirror-editor">
     <div class="editor-menu" ref="menuContainer"></div>
-    <div class="editor-content" ref="editorContainer"></div>
+    <div 
+      class="editor-content" 
+      ref="editorContainer"
+      @click="handleContentClick"
+    ></div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { EditorState } from 'prosemirror-state'
+import { EditorState, TextSelection } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
 import { Schema, DOMParser, DOMSerializer } from 'prosemirror-model'
 import { schema as basicSchema } from 'prosemirror-schema-basic'
@@ -62,8 +66,27 @@ const initEditor = () => {
   // 创建初始文档
   let doc
   if (props.modelValue) {
-    const htmlDoc = new window.DOMParser().parseFromString(props.modelValue, 'text/html')
-    doc = DOMParser.fromSchema(schema).parse(htmlDoc.body)
+    try {
+      // 🎯 尝试解析为 ProseMirror JSON
+      const parsed = JSON.parse(props.modelValue)
+      if (parsed.type === 'doc') {
+        // 是 ProseMirror JSON 格式
+        doc = schema.nodeFromJSON(parsed)
+        console.log('✅ 成功从 JSON 加载文档')
+      } else {
+        throw new Error('Not a ProseMirror doc')
+      }
+    } catch (e) {
+      // 不是 JSON 或解析失败，尝试作为 HTML 处理
+      try {
+        const htmlDoc = new window.DOMParser().parseFromString(props.modelValue, 'text/html')
+        doc = DOMParser.fromSchema(schema).parse(htmlDoc.body)
+        console.log('✅ 成功从 HTML 加载文档')
+      } catch (htmlError) {
+        console.warn('⚠️ 内容格式不正确，使用空文档', e, htmlError)
+        doc = schema.nodes.doc.createAndFill()
+      }
+    }
   } else {
     doc = schema.nodes.doc.createAndFill()
   }
@@ -98,9 +121,9 @@ const initEditor = () => {
 
       // 发出内容变化事件
       if (transaction.docChanged) {
-        const html = getHTML()
-        emit('update:modelValue', html)
-        emit('change', html)
+        const content = getContent()  // 使用 JSON 格式
+        emit('update:modelValue', content)
+        emit('change', content)
       }
     },
     attributes: {
@@ -151,15 +174,45 @@ const getHTML = (): string => {
   return div.innerHTML
 }
 
+// 🎯 获取 ProseMirror JSON 内容
+const getJSON = (): string => {
+  if (!editorView) return JSON.stringify({ type: 'doc', content: [] })
+  return JSON.stringify(editorView.state.doc.toJSON())
+}
+
+// 获取当前内容（默认返回 JSON 格式）
+const getContent = (): string => {
+  return getJSON()
+}
+
 // 设置内容
-const setContent = (html: string) => {
-  if (!editorView) return
+const setContent = (content: string) => {
+  if (!editorView || !content) return
   
-  const htmlDoc = new window.DOMParser().parseFromString(html, 'text/html')
-  const doc = DOMParser.fromSchema(schema).parse(htmlDoc.body)
+  try {
+    // 🎯 尝试解析为 JSON
+    const parsed = JSON.parse(content)
+    if (parsed.type === 'doc') {
+      const doc = schema.nodeFromJSON(parsed)
+      const transaction = editorView.state.tr.replaceWith(0, editorView.state.doc.content.size, doc.content)
+      editorView.dispatch(transaction)
+      console.log('✅ 成功设置 JSON 内容')
+      return
+    }
+  } catch (e) {
+    // 不是 JSON，尝试作为 HTML 处理
+  }
   
-  const transaction = editorView.state.tr.replaceWith(0, editorView.state.doc.content.size, doc.content)
-  editorView.dispatch(transaction)
+  // 作为 HTML 处理
+  try {
+    const htmlDoc = new window.DOMParser().parseFromString(content, 'text/html')
+    const doc = DOMParser.fromSchema(schema).parse(htmlDoc.body)
+    const transaction = editorView.state.tr.replaceWith(0, editorView.state.doc.content.size, doc.content)
+    editorView.dispatch(transaction)
+    console.log('✅ 成功设置 HTML 内容')
+  } catch (e) {
+    console.error('❌ 设置内容失败:', e)
+  }
 }
 
 // 获取纯文本内容
@@ -170,8 +223,8 @@ const getText = (): string => {
 
 // 监听 modelValue 变化
 watch(() => props.modelValue, (newValue) => {
-  if (newValue !== getHTML()) {
-    setContent(newValue || '')
+  if (newValue && newValue !== getContent()) {
+    setContent(newValue)
   }
 })
 
@@ -183,6 +236,17 @@ watch(() => props.readonly, () => {
     })
   }
 })
+
+// 🎯 点击编辑器空白区域聚焦
+const handleContentClick = (e: MouseEvent) => {
+  if (!editorView) return
+  
+  // 如果点击的是编辑器容器本身（空白区域），聚焦到编辑器末尾
+  const target = e.target as HTMLElement
+  if (target.classList.contains('editor-content') || target.closest('.ProseMirror')) {
+    editorView.focus()
+  }
+}
 
 // 暴露方法给父组件
 defineExpose({
@@ -196,6 +260,21 @@ defineExpose({
 // 生命周期
 onMounted(() => {
   initEditor()
+  
+  // 🎯 自动聚焦到编辑器
+  setTimeout(() => {
+    if (editorView) {
+      editorView.focus()
+      // 将光标移到文档末尾
+      const { doc } = editorView.state
+      const endPos = doc.content.size
+      const tr = editorView.state.tr.setSelection(
+        TextSelection.near(doc.resolve(endPos))
+      )
+      editorView.dispatch(tr)
+      console.log('✅ 编辑器自动聚焦')
+    }
+  }, 100)
 })
 
 onUnmounted(() => {
@@ -225,16 +304,19 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow-y: auto;
+  min-height: 400px; /* 🎯 设置最小高度 */
 }
 
 :deep(.prose-editor) {
   outline: none;
   padding: 16px;
   min-height: 100%;
+  height: 100%; /* 🎯 占满容器 */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   font-size: 16px;
   line-height: 1.6;
   color: #2c3e50;
+  cursor: text; /* 🎯 全区域显示文本光标 */
 }
 
 :deep(.prose-editor:empty::before) {

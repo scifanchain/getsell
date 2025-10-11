@@ -74,15 +74,53 @@ const localTitle = ref(props.initialTitle || '')
 const editorContent = ref(props.initialContent || '')
 const stats = ref({ wordCount: 0, characterCount: 0 })
 
+// 🎯 监听 props 变化，更新本地状态（修复内容切换问题）
+watch(() => props.contentId, (newContentId, oldContentId) => {
+  if (newContentId && newContentId !== oldContentId) {
+    console.log('EnhancedEditor: contentId 变化', { 
+      old: oldContentId, 
+      new: newContentId 
+    })
+    // 更新本地状态
+    localTitle.value = props.initialTitle || ''
+    editorContent.value = props.initialContent || ''
+    updateStats(editorContent.value)
+    
+    // 更新全局状态
+    editorStore.updateEditorStatus({ currentContentId: newContentId })
+  }
+})
+
+// 监听 initialContent 变化（当同一个 contentId 但内容变化时）
+watch(() => props.initialContent, (newContent) => {
+  if (newContent !== undefined && newContent !== editorContent.value) {
+    console.log('EnhancedEditor: initialContent 变化')
+    editorContent.value = newContent
+    updateStats(newContent)
+  }
+})
+
+// 监听 initialTitle 变化
+watch(() => props.initialTitle, (newTitle) => {
+  if (newTitle !== undefined && newTitle !== localTitle.value) {
+    console.log('EnhancedEditor: initialTitle 变化')
+    localTitle.value = newTitle
+  }
+})
+
 // 设置当前内容ID到全局状态
 if (props.contentId) {
   editorStore.updateEditorStatus({ currentContentId: props.contentId })
 }
 
-// 使用自动保存 Hook
+// 🎯 使用 computed 创建非空的响应式引用
+const contentIdRef = computed(() => props.contentId || '')
+const userIdRef = computed(() => props.userId)
+
+// 使用自动保存 Hook（传入 Ref，自动追踪变化）
 const { isSaving, lastSavedAt, hasUnsavedChanges, triggerAutoSave, saveNow: saveContentNow } = useAutoSave(
-  props.contentId || '',
-  props.userId,
+  contentIdRef,  // ← 传入响应式 computed
+  userIdRef,     // ← 传入响应式 computed
   {
     interval: 5000, // 5秒自动保存
     onSaved: (result) => {
@@ -111,6 +149,11 @@ watch(hasUnsavedChanges, (newValue) => {
 // 监听内容变化，触发自动保存
 watch(editorContent, (newContent) => {
   if (props.contentId && newContent !== props.initialContent) {
+    console.log('🔄 EnhancedEditor: 内容变化，触发自动保存', {
+      contentId: props.contentId,
+      contentIdRef: contentIdRef.value,
+      contentLength: newContent.length
+    })
     triggerAutoSave(newContent)
   }
   updateStats(newContent)
@@ -306,12 +349,15 @@ onUnmounted(() => {
 .editor-container {
   flex: 1;
   overflow: hidden;
-  padding: 20px;
+  padding: 0; /* 🎯 移除 padding，让编辑器占满 */
+  display: flex;
+  flex-direction: column;
 }
 
 .main-editor {
   height: 100%;
   width: 100%;
+  flex: 1; /* 🎯 占满父容器 */
 }
 
 .editor-footer {
