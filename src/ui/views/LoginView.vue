@@ -30,16 +30,42 @@
         <!-- 登录表单 -->
         <form v-if="mode === 'login'" @submit.prevent="handleLogin" class="form">
           <div class="form-group">
-            <label>邮箱地址</label>
+            <label>用户名</label>
             <input 
-              v-model="loginForm.email"
-              type="email" 
+              v-model="loginForm.username"
+              type="text" 
               required
-              placeholder="输入邮箱地址"
+              placeholder="输入用户名"
+              autocomplete="username"
+              :disabled="loading"
             >
           </div>
           
+          <div class="form-group">
+            <label>密码</label>
+            <input 
+              v-model="loginForm.password"
+              type="password"
+              placeholder="输入密码（可选）"
+              autocomplete="current-password"
+              :disabled="loading"
+            >
+            <small class="form-hint">如果您的账号未设置密码，可留空</small>
+          </div>
+          
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input 
+                v-model="loginForm.rememberMe"
+                type="checkbox"
+                :disabled="loading"
+              >
+              <span>记住登录状态</span>
+            </label>
+          </div>
+          
           <button type="submit" :disabled="loading" class="btn btn-primary btn-full">
+            <span v-if="loading" class="loading-spinner"></span>
             {{ loading ? '登录中...' : '登录' }}
           </button>
         </form>
@@ -49,11 +75,42 @@
           <div class="form-group">
             <label>用户名</label>
             <input 
-              v-model="registerForm.name"
+              v-model="registerForm.username"
               type="text" 
               required
-              placeholder="输入用户名"
+              minlength="3"
+              maxlength="20"
+              placeholder="3-20个字符"
+              autocomplete="username"
+              :disabled="loading"
             >
+            <small class="form-hint">用户名将用于登录，不可修改</small>
+          </div>
+          
+          <div class="form-group">
+            <label>密码</label>
+            <input 
+              v-model="registerForm.password"
+              type="password"
+              minlength="6"
+              placeholder="输入密码（可选，至少6位）"
+              autocomplete="new-password"
+              :disabled="loading"
+            >
+            <small class="form-hint">设置密码可以保护您的账号安全</small>
+          </div>
+          
+          <div class="form-group">
+            <label>显示名称</label>
+            <input 
+              v-model="registerForm.displayName"
+              type="text"
+              maxlength="50"
+              placeholder="输入显示名称（可选）"
+              autocomplete="name"
+              :disabled="loading"
+            >
+            <small class="form-hint">显示名称可以在个人资料中修改</small>
           </div>
           
           <div class="form-group">
@@ -63,11 +120,15 @@
               type="email" 
               required
               placeholder="输入邮箱地址"
+              autocomplete="email"
+              :disabled="loading"
             >
+            <small class="form-hint">邮箱用于找回账号</small>
           </div>
           
           <button type="submit" :disabled="loading" class="btn btn-primary btn-full">
-            {{ loading ? '注册中...' : '注册' }}
+            <span v-if="loading" class="loading-spinner"></span>
+            {{ loading ? '注册中...' : '创建账号' }}
           </button>
         </form>
         
@@ -86,19 +147,24 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 响应式数据
 const mode = ref<'login' | 'register'>('login')
 const loginForm = ref({
-  email: ''
+  username: '',
+  password: '',
+  rememberMe: true
 })
 const registerForm = ref({
-  name: '',
+  username: '',
+  password: '',
+  displayName: '',
   email: ''
 })
 
@@ -108,12 +174,25 @@ const error = computed(() => userStore.error)
 
 // 方法
 async function handleLogin() {
-  if (!loginForm.value.email) return
+  if (!loginForm.value.username.trim()) {
+    userStore.error = '请输入用户名'
+    return
+  }
+  
+  // 清除之前的错误
+  userStore.clearError()
   
   try {
-    const user = await userStore.loginUser(loginForm.value.email)
-    if (user) {
-      router.push('/')
+    const result = await userStore.loginUser(
+      loginForm.value.username,
+      loginForm.value.password || undefined,
+      loginForm.value.rememberMe
+    )
+    
+    if (result) {
+      // 登录成功，跳转到原始目标页面或首页
+      const redirect = route.query.redirect as string || '/'
+      await router.push(redirect)
     }
   } catch (error) {
     console.error('登录失败:', error)
@@ -121,16 +200,53 @@ async function handleLogin() {
 }
 
 async function handleRegister() {
-  if (!registerForm.value.name || !registerForm.value.email) return
+  const { username, password, displayName, email } = registerForm.value
+  
+  // 验证表单
+  if (!username.trim()) {
+    userStore.error = '请输入用户名'
+    return
+  }
+  
+  if (username.length < 3 || username.length > 20) {
+    userStore.error = '用户名长度应为3-20个字符'
+    return
+  }
+  
+  // 验证密码（如果填写了）
+  if (password && password.length < 6) {
+    userStore.error = '密码长度至少6位'
+    return
+  }
+  
+  if (!email.trim()) {
+    userStore.error = '请输入邮箱地址'
+    return
+  }
+  
+  // 验证邮箱格式
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    userStore.error = '请输入有效的邮箱地址'
+    return
+  }
+  
+  // 清除之前的错误
+  userStore.clearError()
   
   try {
-    await userStore.createUser({
-      name: registerForm.value.name,
-      email: registerForm.value.email
+    const user = await userStore.registerUser({
+      username: username.trim(),
+      password: password.trim() || undefined,
+      displayName: displayName.trim() || username.trim(),
+      email: email.trim()
     })
     
-    // 注册成功后自动登录
-    router.push('/')
+    if (user) {
+      // 注册成功后自动跳转到原始目标页面或首页
+      const redirect = route.query.redirect as string || '/'
+      await router.push(redirect)
+    }
   } catch (error) {
     console.error('注册失败:', error)
   }
@@ -222,6 +338,45 @@ async function handleRegister() {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  color: #374151;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .btn {

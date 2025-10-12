@@ -19,10 +19,10 @@ export const userApi = {
   // 用户注册
   async register(userData: {
     username: string;
+    password?: string;
     email: string;
     displayName?: string;
     bio?: string;
-    password?: string;
   }) {
     return await window.electronAPI.invoke('user:register', userData)
   },
@@ -42,9 +42,9 @@ export const userApi = {
     return await window.electronAPI.invoke('user:updateProfile', userId, updateData)
   },
 
-  // 初始化默认用户
-  async initializeDefaultUser() {
-    return await window.electronAPI.invoke('user:initializeDefault')
+  // 更改密码
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    return await window.electronAPI.invoke('user:changePassword', userId, currentPassword, newPassword)
   },
 
   // 获取用户统计
@@ -104,6 +104,18 @@ export const workApi = {
     return await window.electronAPI.invoke('work:getUserWorks', userId, options)
   },
 
+  // 获取所有作品列表
+  async getAllWorks(options?: {
+    status?: 'draft' | 'published' | 'archived';
+    genre?: string;
+    sortBy?: 'title' | 'updatedAt' | 'createdAt' | 'totalWords';
+    sortOrder?: 'asc' | 'desc';
+    limit?: number;
+    offset?: number;
+  }) {
+    return await window.electronAPI.invoke('work:getAllWorks', options)
+  },
+
   // 更新作品
   async update(workId: string, userId: string, updateData: {
     title?: string;
@@ -141,15 +153,17 @@ export const workApi = {
 // 章节相关API
 export const chapterApi = {
   async create(chapterData: CreateChapterData): Promise<Chapter> {
-    const authorId = chapterData.authorId || 'user_mock_001';
+    if (!chapterData.authorId) {
+      throw new Error('请先登录');
+    }
     
     // 转换数据格式
     const createData = {
       ...chapterData,
-      authorId: authorId
+      authorId: chapterData.authorId
     };
     
-    const result = await window.electronAPI.invoke('chapter:create', authorId, createData)
+    const result = await window.electronAPI.invoke('chapter:create', chapterData.authorId, createData)
     if (result.success) {
       return result.data
     } else {
@@ -234,7 +248,8 @@ export const chapterApi = {
 export const contentApi = {
   // 创建内容
   async create(authorId: string, contentData: {
-    chapterId: string;
+    workId?: string;
+    chapterId?: string;
     content: string;
     format: 'prosemirror' | 'markdown' | 'plain';
     title?: string;

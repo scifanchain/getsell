@@ -4,6 +4,7 @@
 
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '../stores/user'
 
 // 导入视图组件
 import HomeView from '../views/HomeView.vue'
@@ -102,7 +103,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/LoginView.vue'),
     meta: {
       title: '登录',
-      icon: 'user'
+      icon: 'user',
+      requiresAuth: false,  // 不需要登录
+      isPublic: true        // 公开页面
     }
   },
   {
@@ -134,6 +137,31 @@ router.beforeEach((to, from, next) => {
   // 更新页面标题
   if (to.meta?.title) {
     document.title = `${to.meta.title} - Gestell`
+  }
+  
+  // 检查登录状态
+  const userStore = useUserStore()
+  const isPublicPage = to.meta?.isPublic === true
+  
+  // 如果是公开页面（如登录页），直接通过
+  if (isPublicPage) {
+    // 如果已登录且访问登录页，重定向到首页
+    if (userStore.isLoggedIn && to.name === 'login') {
+      next('/')
+      return
+    }
+    next()
+    return
+  }
+  
+  // 如果需要登录但未登录，重定向到登录页
+  if (!userStore.isLoggedIn) {
+    console.log('🔒 用户未登录，重定向到登录页')
+    next({
+      name: 'login',
+      query: { redirect: to.fullPath }  // 保存原始目标路径
+    })
+    return
   }
   
   next()

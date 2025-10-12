@@ -131,6 +131,42 @@ export class PrismaWorkRepository implements IWorkRepository {
     }
 
     /**
+     * 获取所有作品列表
+     */
+    async findAll(
+        pagination?: PaginationOptions,
+        sort?: SortOptions
+    ): Promise<any[]> {
+        const orderBy: any = {};
+        if (sort) {
+            orderBy[sort.field] = sort.direction;
+        } else {
+            orderBy.updatedAt = 'desc';
+        }
+
+        return await this.prisma.work.findMany({
+            orderBy,
+            skip: pagination?.skip || 0,
+            take: pagination?.take || 100,
+            include: {
+                author: {
+                    select: {
+                        id: true,
+                        username: true,
+                        displayName: true
+                    }
+                },
+                _count: {
+                    select: {
+                        chapters: true,
+                        contents: true
+                    }
+                }
+            }
+        });
+    }
+
+    /**
      * 更新作品信息
      */
     async update(id: string, updateData: Partial<WorkData>): Promise<any> {

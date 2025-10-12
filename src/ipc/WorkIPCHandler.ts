@@ -43,6 +43,16 @@ export class WorkIPCHandler {
             }
         });
 
+        // 获取所有作品列表
+        ipcMain.handle('work:getAllWorks', async (event, options) => {
+            try {
+                return await this.services.workService.getAllWorks(options);
+            } catch (error) {
+                console.error('Get all works error:', error);
+                throw error;
+            }
+        });
+
         // 更新作品
         ipcMain.handle('work:update', async (event, workId, userId, updateData) => {
             try {

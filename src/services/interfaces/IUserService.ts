@@ -40,10 +40,12 @@ export interface IUserService {
     updateProfile(userId: string, updateData: UpdateUserData): Promise<UserInfo>;
 
     /**
-     * 初始化默认用户（首次启动）
-     * @returns 默认用户信息
+     * 更改密码
+     * @param userId 用户ID
+     * @param currentPassword 当前密码
+     * @param newPassword 新密码
      */
-    initializeDefaultUser(): Promise<UserInfo>;
+    changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void>;
 
     /**
      * 获取用户统计信息

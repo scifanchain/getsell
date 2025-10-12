@@ -53,15 +53,12 @@ export class UserIPCHandler {
             }
         });
 
-        // 初始化默认用户
-        ipcMain.handle('user:initializeDefault', async (event) => {
+        // 更改密码
+        ipcMain.handle('user:changePassword', async (event, userId, currentPassword, newPassword) => {
             try {
-                console.log('🔄 IPC: 收到初始化默认用户请求');
-                const result = await this.services.userService.initializeDefaultUser();
-                console.log('✅ IPC: 默认用户初始化成功:', result?.id, result?.email);
-                return result;
+                return await this.services.userService.changePassword(userId, currentPassword, newPassword);
             } catch (error) {
-                console.error('❌ IPC: Initialize default user error:', error);
+                console.error('Change password error:', error);
                 throw error;
             }
         });

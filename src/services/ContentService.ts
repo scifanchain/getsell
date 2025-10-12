@@ -65,6 +65,29 @@ export class ContentService implements IContentService {
   constructor(private repositories: RepositoryContainer) {}
 
   /**
+   * 检查用户对作品的写权限
+   */
+  private async checkWorkWriteAccess(workId: string, userId: string): Promise<boolean> {
+    const work = await this.repositories.workRepository.findById(workId);
+    if (!work) {
+      return false;
+    }
+    
+    // 作者有写权限
+    if (work.authorId === userId) {
+      return true;
+    }
+    
+    // 协作者有写权限
+    if (work.collaborators) {
+      const collaborators = work.collaborators.split(',');
+      return collaborators.includes(userId);
+    }
+    
+    return false;
+  }
+
+  /**
    * 创建新内容
    */
   async createContent(authorId: string, contentData: CreateContentData): Promise<ContentInfo> {
@@ -170,17 +193,20 @@ export class ContentService implements IContentService {
       throw new Error('内容不存在');
     }
 
-    // 验证权限
+    // 验证权限 - 只有作者和协作者可以编辑
     if (content.chapterId) {
-      // 如果内容属于某个章节，验证章节权限
+      // 如果内容属于某个章节,通过 workId 检查权限
       const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
-      if (!chapter || !this.checkChapterAccess(chapter, userId)) {
+      if (!chapter) {
+        throw new Error('章节不存在');
+      }
+      
+      if (!(await this.checkWorkWriteAccess(chapter.workId, userId))) {
         throw new Error('没有权限编辑此内容');
       }
     } else {
-      // 如果是根级别内容，验证作品权限
-      const work = await this.repositories.workRepository.findById(content.workId);
-      if (!work || work.authorId !== userId) {
+      // 如果是根级别内容,验证作品权限
+      if (!(await this.checkWorkWriteAccess(content.workId, userId))) {
         throw new Error('没有权限编辑此内容');
       }
     }

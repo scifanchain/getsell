@@ -46,9 +46,4 @@ export interface IUserRepository {
      * @param id 用户ID
      */
     delete(id: string): Promise<void>;
-
-    /**
-     * 确保默认用户存在
-     */
-    ensureDefaultUser(): Promise<void>;
 }

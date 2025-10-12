@@ -89,15 +89,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 // 用户状态
-const userName = ref('星河散人')
-const userEmail = ref('xinghe@gestell.com')
-const userAvatar = ref('')
+const userName = computed(() => {
+  if (!userStore.currentUser) return ''
+  return userStore.currentUser.displayName || userStore.currentUser.name || '未命名用户'
+})
+const userEmail = computed(() => userStore.currentUser?.email || '')
+const userAvatar = computed(() => userStore.currentUser?.avatarUrl || '')
 const showUserDropdown = ref(false)
 const isMaximized = ref(false)
 
@@ -170,9 +175,8 @@ function goToHelp() {
 function handleLogin() {
   if (userName.value) {
     // 登出
-    userName.value = ''
-    userEmail.value = ''
-    userAvatar.value = ''
+    userStore.logoutUser()
+    router.push('/login')
     console.log('用户已登出')
   } else {
     // 登录

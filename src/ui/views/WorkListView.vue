@@ -5,7 +5,7 @@
       <div class="header-content">
         <h1 class="page-title">
           <span class="title-icon">📚</span>
-          我的作品
+          所有作品
         </h1>
         <button @click="createNewWork" class="create-btn">
           <span class="btn-icon">➕</span>
@@ -277,9 +277,12 @@ const error = ref<string | null>(null)
 // 真实作品数据
 const works = ref<any[]>([])
 
-// 获取当前用户ID（使用默认用户ID，如果没有登录用户）
+// 获取当前用户ID
 const getCurrentUserId = () => {
-  return userStore.currentUser?.id || '01K74VN2BS7BY4QXYJNYZNMMRR'
+  if (!userStore.currentUser?.id) {
+    throw new Error('请先登录')
+  }
+  return userStore.currentUser.id
 }
 
 // 计算属性：筛选后的作品
@@ -309,15 +312,14 @@ async function fetchWorks() {
     
     // 首先尝试获取真实数据
     try {
-      const userId = getCurrentUserId()
-      const response = await workApi.getUserWorks(userId, {
+      const response = await workApi.getAllWorks({
         sortBy: 'updatedAt',
         sortOrder: 'desc'
       })
       
       console.log('API 响应:', response)
       
-      // WorkService.getUserWorks 直接返回 WorkInfo[] 数组
+      // WorkService.getAllWorks 直接返回 WorkInfo[] 数组
       if (Array.isArray(response)) {
         works.value = response
         console.log('成功加载真实数据，作品数量:', response.length)
@@ -456,12 +458,33 @@ function getMockWorks() {
 // 方法
 async function createNewWork() {
   try {
-    // TODO: 打开创建作品对话框
-    console.log('创建新作品')
-    // 创建成功后刷新列表
+    const title = prompt('请输入作品标题:')
+    if (!title || !title.trim()) {
+      return
+    }
+
+    const description = prompt('请输入作品简介(可选):') || ''
+    
+    const userId = getCurrentUserId()
+    
+    // 创建作品
+    const newWork = await workApi.create(userId, {
+      title: title.trim(),
+      description: description.trim(),
+      genre: 'science_fiction',
+      collaborationMode: 'solo'
+    })
+    
+    console.log('作品创建成功:', newWork)
+    
+    // 刷新列表
     await fetchWorks()
+    
+    // 跳转到写作页面
+    router.push(`/writing/${newWork.id}`)
   } catch (err) {
     console.error('创建作品失败:', err)
+    alert('创建作品失败，请稍后重试')
   }
 }
 

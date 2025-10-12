@@ -592,17 +592,16 @@ const handleCreateContent = (data: { title: string; type: string; workId?: strin
 
 .content-icon {
   margin-right: 6px;
-  font-size: 11px;
+  font-size: 14px;
   opacity: 0.7;
 }
 
 .content-title {
-  font-size: 11px;
+  font-size: 14px;
   color: #4b5563;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 500;
 }
 
 .content-actions {

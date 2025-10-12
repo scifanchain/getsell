@@ -3,6 +3,32 @@ import { getCurrentTimestamp } from '../utils/timestamp';
 import { RepositoryContainer } from '../data/RepositoryContainer';
 import { GestallCrypto } from '../crypto/crypto';
 import { ulid } from 'ulid';
+import * as crypto from 'crypto';
+
+/**
+ * 密码工具函数
+ */
+class PasswordUtils {
+    /**
+     * 哈希密码
+     */
+    static hashPassword(password: string): string {
+        const salt = crypto.randomBytes(16).toString('hex');
+        const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+        return `${salt}:${hash}`;
+    }
+
+    /**
+     * 验证密码
+     */
+    static verifyPassword(password: string, storedHash: string): boolean {
+        if (!storedHash) return false;
+        const [salt, hash] = storedHash.split(':');
+        if (!salt || !hash) return false;
+        const verifyHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+        return hash === verifyHash;
+    }
+}
 
 /**
  * 用户服务实现
@@ -30,8 +56,21 @@ export class UserService implements IUserService {
                 };
             }
 
-            // 对于本地应用，我们简化认证流程
-            // 在生产环境中，这里应该验证密码哈希
+            // 验证密码（如果设置了密码）
+            if (credentials.password && user.passwordHash) {
+                const isPasswordValid = PasswordUtils.verifyPassword(
+                    credentials.password,
+                    user.passwordHash
+                );
+                
+                if (!isPasswordValid) {
+                    return {
+                        success: false,
+                        message: '密码错误',
+                        user: null as any
+                    };
+                }
+            }
             
             // 更新最后活跃时间
             await this.repositories.userRepository.update(user.id, {
@@ -85,6 +124,12 @@ export class UserService implements IUserService {
         // 生成密钥对
         const keyPair = this.cryptoService.generateKeyPair();
         
+        // 处理密码
+        let passwordHash: string | undefined;
+        if (userData.password && userData.password.trim() !== '') {
+            passwordHash = PasswordUtils.hashPassword(userData.password);
+        }
+        
         // 使用密码加密私钥（如果提供了密码）
         const privateKeyEncrypted = userData.password ? 
             this.cryptoService.encryptPrivateKey(keyPair.privateKey, userData.password) :
@@ -94,6 +139,7 @@ export class UserService implements IUserService {
         const userCreateData = {
             id: ulid(),
             username: userData.username,
+            passwordHash: passwordHash,
             displayName: userData.displayName || userData.username,
             email: userData.email,
             bio: userData.bio,
@@ -130,19 +176,38 @@ export class UserService implements IUserService {
     }
 
     /**
-     * 初始化默认用户
+     * 更改密码
      */
-    async initializeDefaultUser(): Promise<UserInfo> {
-        // 确保默认用户存在
-        await this.repositories.userRepository.ensureDefaultUser();
-        
-        // 获取真实的默认用户（使用正确的用户ID）
-        const defaultUser = await this.repositories.userRepository.findById('01K74VN2BS7BY4QXYJNYZNMMRR');
-        if (!defaultUser) {
-            throw new Error('无法找到默认用户');
+    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+        // 获取用户
+        const user = await this.repositories.userRepository.findById(userId);
+        if (!user) {
+            throw new Error('用户不存在');
         }
 
-        return this.mapToUserInfo(defaultUser);
+        // 如果用户已经有密码，验证当前密码
+        if (user.passwordHash) {
+            const isValid = PasswordUtils.verifyPassword(currentPassword, user.passwordHash);
+            if (!isValid) {
+                throw new Error('当前密码不正确');
+            }
+        }
+
+        // 验证新密码
+        if (!newPassword || newPassword.trim() === '') {
+            throw new Error('新密码不能为空');
+        }
+        if (newPassword.length < 6) {
+            throw new Error('新密码至少需要6个字符');
+        }
+
+        // 哈希新密码
+        const newPasswordHash = PasswordUtils.hashPassword(newPassword);
+
+        // 更新密码
+        await this.repositories.userRepository.update(userId, {
+            passwordHash: newPasswordHash
+        } as any);
     }
 
     /**

@@ -229,6 +229,8 @@ interface Work {
   id: string
   title: string
   progressPercentage?: number
+  authorId: string
+  collaborators?: string
 }
 
 interface WorkStats {
@@ -620,17 +622,36 @@ const handleAddContent = async (data: { title?: string, type?: string, workId?: 
   // 如果有 title，说明是从 ContentCreateModal 来的，直接创建内容
   if (data.title) {
     try {
-      const userId = currentUser.value?.id || '01K74VN2BS7BY4QXYJNYZNMMRR'
+      const userId = currentUser.value?.id
+      if (!userId) {
+        showNotification('请先登录', 'error')
+        return
+      }
+      
+      const workId = currentWork.value?.id
+      if (!workId) {
+        showNotification('请先选择或创建作品', 'error')
+        return
+      }
+
+      // 检查用户是否有权限修改此作品
+      if (currentWork.value && currentWork.value.authorId !== userId) {
+        const collaborators = currentWork.value.collaborators?.split(',') || []
+        if (!collaborators.includes(userId)) {
+          showNotification('您没有权限在此作品中创建内容', 'error')
+          return
+        }
+      }
       
       console.log('准备创建内容:', {
         userId,
-        workId: currentWork.value?.id,
+        workId,
         chapterId: data.chapterId,
         title: data.title
       })
       
       const response = await (window as any).gestell.content.create(userId, {
-        workId: currentWork.value?.id,
+        workId: workId,
         chapterId: data.chapterId,
         title: data.title,
         content: JSON.stringify({ type: 'doc', content: [] }),
@@ -790,6 +811,16 @@ const handleChapterSave = async (chapterData: any) => {
       return
     }
 
+    // 检查用户是否有权限修改此作品
+    if (currentWork.value && currentWork.value.authorId !== currentUser.value.id) {
+      // 检查是否是协作者
+      const collaborators = currentWork.value.collaborators?.split(',') || []
+      if (!collaborators.includes(currentUser.value.id)) {
+        alert('您没有权限在此作品中创建章节')
+        return
+      }
+    }
+
     if (isNewChapter.value) {
       const dataWithAuthor = {
         ...chapterData,
@@ -855,6 +886,7 @@ const createNewContent = async () => {
     })
 
     const newContent = await contentApi.create(currentUser.value.id, {
+      workId: currentWork.value.id,
       chapterId: selectedChapterId.value,
       content: emptyProseMirrorDoc,
       format: 'prosemirror',

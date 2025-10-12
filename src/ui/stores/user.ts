@@ -24,37 +24,50 @@ export const useUserStore = defineStore('user', () => {
   })
 
   // Actions
-  async function createUser(userData: { name: string; email: string }) {
+  async function registerUser(userData: { 
+    username: string
+    password?: string
+    displayName?: string
+    email: string
+    bio?: string
+  }) {
     loading.value = true
     error.value = null
     
     try {
-      const user = await userApi.create(userData)
+      const user = await userApi.register(userData)
       currentUser.value = user
       isLoggedIn.value = true
+      // 保存到本地存储
+      localStorage.setItem('currentUserId', user.id)
       return user
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '创建用户失败'
+      error.value = err instanceof Error ? err.message : '注册失败'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  async function loginUser(email: string) {
+  async function loginUser(username: string, password?: string, rememberMe: boolean = true) {
     loading.value = true
     error.value = null
     
     try {
-      const user = await userApi.findByEmail(email)
-      if (user) {
-        currentUser.value = user
+      const result = await userApi.login({ username, password, rememberMe })
+      
+      if (result.success && result.user) {
+        currentUser.value = result.user
         isLoggedIn.value = true
-        // 保存到本地存储
-        localStorage.setItem('currentUserId', user.id)
-        return user
+        
+        // 根据 rememberMe 决定是否保存到本地存储
+        if (rememberMe) {
+          localStorage.setItem('currentUserId', result.user.id)
+        }
+        
+        return result.user
       } else {
-        error.value = '用户不存在'
+        error.value = result.message || '登录失败'
         return null
       }
     } catch (err) {
@@ -63,6 +76,15 @@ export const useUserStore = defineStore('user', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // 兼容旧的方法
+  async function createUser(userData: { name: string; email: string }) {
+    return await registerUser({
+      username: userData.name,
+      email: userData.email,
+      displayName: userData.name
+    })
   }
 
   async function loadUserFromStorage() {
@@ -98,6 +120,49 @@ export const useUserStore = defineStore('user', () => {
     error.value = null
   }
 
+  async function updateProfile(profileData: {
+    displayName?: string
+    bio?: string
+    email?: string
+    avatarUrl?: string
+  }) {
+    if (!currentUser.value) {
+      throw new Error('未登录')
+    }
+
+    loading.value = true
+    error.value = null
+
+    try {
+      const updatedUser = await userApi.updateProfile(currentUser.value.id, profileData)
+      currentUser.value = updatedUser
+      return updatedUser
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '更新个人资料失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function changePassword(currentPassword: string, newPassword: string) {
+    if (!currentUser.value) {
+      throw new Error('未登录')
+    }
+
+    loading.value = true
+    error.value = null
+
+    try {
+      await userApi.changePassword(currentUser.value.id, currentPassword, newPassword)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '更改密码失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     // State
     currentUser,
@@ -110,10 +175,13 @@ export const useUserStore = defineStore('user', () => {
     userEmail,
     
     // Actions
-    createUser,
+    registerUser,
     loginUser,
+    createUser,
     loadUserFromStorage,
     logoutUser,
-    clearError
+    clearError,
+    updateProfile,
+    changePassword
   }
 })

@@ -29,6 +29,14 @@ export interface IWorkRepository {
     findByAuthor(authorId: string, pagination?: PaginationOptions, sort?: SortOptions): Promise<any[]>;
 
     /**
+     * 获取所有作品列表
+     * @param pagination 分页选项
+     * @param sort 排序选项
+     * @returns 作品列表
+     */
+    findAll(pagination?: PaginationOptions, sort?: SortOptions): Promise<any[]>;
+
+    /**
      * 更新作品信息
      * @param id 作品ID
      * @param updateData 更新数据

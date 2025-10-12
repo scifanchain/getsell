@@ -43,10 +43,9 @@ export class WorkService implements IWorkService {
             return null;
         }
 
-        // 检查用户权限（作者或协作者）
-        if (!this.checkWorkAccess(work, userId)) {
-            throw new Error('没有访问此作品的权限');
-        }
+        // 所有用户都可以查看作品(只读访问)
+        // 只有作者和协作者可以修改作品(在更新/删除时检查)
+        // 如果需要限制,可以检查 work.isPublic
 
         return this.mapToWorkInfo(work);
     }
@@ -68,6 +67,28 @@ export class WorkService implements IWorkService {
         const works = await this.repositories.workRepository.findByAuthor(
             userId, 
             paginationOptions, 
+            sortOptions
+        );
+
+        return works.map(work => this.mapToWorkInfo(work));
+    }
+
+    /**
+     * 获取所有作品列表
+     */
+    async getAllWorks(options?: WorkQueryOptions): Promise<WorkInfo[]> {
+        const paginationOptions = {
+            skip: options?.offset || 0,
+            take: options?.limit || 100
+        };
+
+        const sortOptions = {
+            field: options?.sortBy || 'updatedAt',
+            direction: options?.sortOrder || 'desc'
+        };
+
+        const works = await this.repositories.workRepository.findAll(
+            paginationOptions,
             sortOptions
         );
 
@@ -194,11 +215,13 @@ export class WorkService implements IWorkService {
             description: work.description,
             genre: work.genre,
             tags: work.tags ? work.tags.split(',') : [],
+            authorId: work.authorId, // 添加 authorId 用于权限检查
             author: {
                 id: work.author.id,
                 username: work.author.username,
                 displayName: work.author.displayName
             },
+            collaborators: work.collaborators, // 添加协作者列表
             status: work.status as any,
             collaborationMode: work.collaborationMode,
             progressPercentage: work.progressPercentage || 0,

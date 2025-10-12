@@ -212,8 +212,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const isDev = import.meta.env.DEV
 
 // 导航方法
@@ -250,8 +252,13 @@ const handleCreateWork = async () => {
   }
   
   try {
-    // 获取当前用户 ID（假设从 localStorage 或 store 获取）
-    const userId = '01K74VN2BS7BY4QXYJNYZNMMRR' // TODO: 从用户状态获取
+    // 检查用户是否登录
+    const userId = userStore.currentUser?.id
+    if (!userId) {
+      alert('请先登录')
+      router.push('/login')
+      return
+    }
     
     console.log('准备创建作品:', {
       userId,

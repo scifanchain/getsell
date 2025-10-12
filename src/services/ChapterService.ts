@@ -46,8 +46,8 @@ export interface ChapterInfo {
  */
 export interface IChapterService {
   createChapter(authorId: string, chapterData: CreateChapterData): Promise<ChapterInfo>;
-  getChapter(chapterId: string, userId: string): Promise<ChapterInfo | null>;
-  getChaptersByWork(workId: string, userId: string): Promise<ChapterInfo[]>;
+  getChapter(chapterId: string, userId?: string): Promise<ChapterInfo | null>;
+  getChaptersByWork(workId: string, userId?: string): Promise<ChapterInfo[]>;
   updateChapter(chapterId: string, userId: string, updateData: UpdateChapterData): Promise<ChapterInfo>;
   deleteChapter(chapterId: string, userId: string): Promise<void>;
   reorderChapters(workId: string, userId: string, chapterOrders: { chapterId: string; orderIndex: number }[]): Promise<void>;
@@ -61,8 +61,31 @@ export class ChapterService implements IChapterService {
     constructor(private repositories: RepositoryContainer) {}
 
     /**
+     * 检查用户对作品的写权限
+     */
+    private async checkWorkWriteAccess(workId: string, userId: string): Promise<boolean> {
+        const work = await this.repositories.workRepository.findById(workId);
+        if (!work) {
+            return false;
+        }
+        
+        // 作者有写权限
+        if (work.authorId === userId) {
+            return true;
+        }
+        
+        // 协作者有写权限
+        if (work.collaborators) {
+            const collaborators = work.collaborators.split(',');
+            return collaborators.includes(userId);
+        }
+        
+        return false;
+    }
+
+    /**
      * 创建新章节
-     * 章节层级限制：最多支持3层 (1. 卷 -> 2. 章 -> 3. 节)
+     * 章节层级限制:最多支持3层 (1. 卷 -> 2. 章 -> 3. 节)
      */
     async createChapter(authorId: string, chapterData: CreateChapterData): Promise<ChapterInfo> {
         // 验证作品是否存在且用户有权限
@@ -71,7 +94,8 @@ export class ChapterService implements IChapterService {
             throw new Error('作品不存在');
         }
 
-        if (work.authorId !== authorId) {
+        // 只有作者和协作者可以创建章节
+        if (!(await this.checkWorkWriteAccess(chapterData.workId, authorId))) {
             throw new Error('没有权限在此作品中创建章节');
         }
 
@@ -110,36 +134,31 @@ export class ChapterService implements IChapterService {
     }
 
     /**
-     * 获取章节详情
+     * 获取章节详情（查看不需要登录）
      */
-    async getChapter(chapterId: string, userId: string): Promise<ChapterInfo | null> {
+    async getChapter(chapterId: string, userId?: string): Promise<ChapterInfo | null> {
         const chapter = await this.repositories.chapterRepository.findById(chapterId);
         
         if (!chapter) {
             return null;
         }
 
-        // 检查用户权限
-        if (!await this.checkChapterAccess(chapter, userId)) {
-            throw new Error('没有访问此章节的权限');
-        }
-
+        // 查看章节不需要权限检查
         return this.mapToChapterInfo(chapter);
     }
 
     /**
-     * 获取作品的章节列表
+     * 获取作品的章节列表（查看不需要登录）
      */
-    async getChaptersByWork(workId: string, userId: string): Promise<ChapterInfo[]> {
-        // 验证作品权限
+    async getChaptersByWork(workId: string, userId?: string): Promise<ChapterInfo[]> {
+        // 所有用户都可以查看章节列表(只读)
+        // 验证作品是否存在
         const work = await this.repositories.workRepository.findById(workId);
         if (!work) {
             throw new Error('作品不存在');
         }
 
-        if (work.authorId !== userId) {
-            throw new Error('没有访问此作品的权限');
-        }
+        // 不检查权限 - 所有用户可以查看章节
 
         const chapters = await this.repositories.chapterRepository.findByWork(workId);
         return chapters.map(chapter => this.mapToChapterInfo(chapter));

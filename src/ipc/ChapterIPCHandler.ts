@@ -27,10 +27,10 @@ export class ChapterIPCHandler {
             }
         });
 
-        // 获取章节详情
+        // 获取章节详情（查看不需要登录）
         ipcMain.handle('chapter:get', async (event: IpcMainInvokeEvent, chapterId: string, userId?: string) => {
             try {
-                const chapter = await this.services.chapterService.getChapter(chapterId, userId || 'user_mock_001');
+                const chapter = await this.services.chapterService.getChapter(chapterId, userId);
                 if (!chapter) {
                     return { success: false, error: '章节不存在' };
                 }
@@ -41,10 +41,10 @@ export class ChapterIPCHandler {
             }
         });
 
-        // 获取作品的章节列表
+        // 获取作品的章节列表（查看不需要登录）
         ipcMain.handle('chapter:list', async (event: IpcMainInvokeEvent, workId: string, userId?: string) => {
             try {
-                const chapters = await this.services.chapterService.getChaptersByWork(workId, userId || 'user_mock_001');
+                const chapters = await this.services.chapterService.getChaptersByWork(workId, userId);
                 return { success: true, data: chapters };
             } catch (error: any) {
                 console.error('获取章节列表失败:', error);
@@ -63,10 +63,13 @@ export class ChapterIPCHandler {
             }
         });
 
-        // 删除章节
+        // 删除章节（需要登录）
         ipcMain.handle('chapter:delete', async (event: IpcMainInvokeEvent, chapterId: string, userId?: string) => {
             try {
-                await this.services.chapterService.deleteChapter(chapterId, userId || 'user_mock_001');
+                if (!userId) {
+                    return { success: false, error: '请先登录' };
+                }
+                await this.services.chapterService.deleteChapter(chapterId, userId);
                 return { success: true };
             } catch (error: any) {
                 console.error('删除章节失败:', error);
@@ -101,11 +104,13 @@ export class ChapterIPCHandler {
             }
         });
 
-        // 兼容旧接口：使用 chapterData 参数（不需要 authorId）
+        // 兼容旧接口：使用 chapterData 参数
         ipcMain.handle('chapter:createLegacy', async (event: IpcMainInvokeEvent, chapterData: any) => {
             try {
-                const authorId = chapterData.authorId || 'user_mock_001';
-                const chapter = await this.services.chapterService.createChapter(authorId, chapterData);
+                if (!chapterData.authorId) {
+                    return { success: false, error: '请先登录' };
+                }
+                const chapter = await this.services.chapterService.createChapter(chapterData.authorId, chapterData);
                 return { success: true, data: { chapterId: chapter.id, chapter } };
             } catch (error: any) {
                 console.error('创建章节失败（旧接口）:', error);

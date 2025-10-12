@@ -136,9 +136,6 @@ async function initCore(): Promise<void> {
     ipcManager = new IPCManager(services, mainWindow);
     ipcManager.initialize();
     
-    // 确保默认用户存在
-    await repositories.userRepository.ensureDefaultUser();
-    
     // 保持旧架构向后兼容
     console.log('🔍 使用Prisma数据库模式');
     db = new GestallPrismaDatabase();

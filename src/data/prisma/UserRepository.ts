@@ -98,36 +98,4 @@ export class PrismaUserRepository implements IUserRepository {
             where: { id }
         });
     }
-
-    /**
-     * 确保默认用户存在
-     */
-    async ensureDefaultUser(): Promise<void> {
-        try {
-            const existingUser = await this.prisma.author.findUnique({
-                where: { id: 'user_mock_001' }
-            });
-
-            if (!existingUser) {
-                const timestamp = getCurrentTimestamp();
-                await this.prisma.author.create({
-                    data: {
-                        id: 'user_mock_001',
-                        username: 'demo_user',
-                        displayName: '演示用户',
-                        email: 'demo@gestell.dev',
-                        bio: '这是一个演示用户账户',
-                        status: 'active',
-                        createdAt: timestamp,
-                        updatedAt: timestamp
-                    }
-                });
-                console.log('✅ 默认用户创建成功');
-            } else {
-                console.log('ℹ️ 默认用户已存在');
-            }
-        } catch (error) {
-            console.warn('⚠️ 创建默认用户失败:', (error as Error).message);
-        }
-    }
 }

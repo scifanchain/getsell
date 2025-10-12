@@ -28,6 +28,13 @@ export interface IWorkService {
     getUserWorks(userId: string, options?: WorkQueryOptions): Promise<WorkInfo[]>;
 
     /**
+     * 获取所有作品列表
+     * @param options 查询选项
+     * @returns 作品列表
+     */
+    getAllWorks(options?: WorkQueryOptions): Promise<WorkInfo[]>;
+
+    /**
      * 更新作品信息
      * @param workId 作品ID
      * @param userId 用户ID
@@ -89,11 +96,13 @@ export interface WorkInfo {
     description?: string;
     genre?: string;
     tags?: string[];
+    authorId: string; // 作者ID（用于权限检查）
     author: {
         id: string;
         username: string;
         displayName: string;
     };
+    collaborators?: string; // 协作者ID列表（逗号分隔）
     status: 'draft' | 'published' | 'archived';
     collaborationMode: string;
     progressPercentage: number;
