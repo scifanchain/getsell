@@ -51,7 +51,6 @@ interface ContentData {
     title?: string;
     type?: string;
     contentJson?: string;
-    contentHtml?: string;
     authorId?: string;
 }
 
@@ -375,8 +374,8 @@ export class GestallPrismaDatabase {
                 title: contentData.title || null,
                 type: contentData.type || 'text',
                 contentJson: contentData.contentJson || '',
-                contentHtml: contentData.contentHtml || '',
-                contentText: textContent,
+                // contentHtml: contentData.contentHtml || '', // 字段已在schema中注释
+                // contentText: textContent, // 字段已在schema中注释
                 wordCount: wordCount,
                 characterCount: characterCount,
                 paragraphCount: paragraphCount,

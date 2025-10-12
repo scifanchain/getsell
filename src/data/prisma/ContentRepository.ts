@@ -44,7 +44,6 @@ export class PrismaContentRepository implements IContentRepository {
                 title: contentData.title || null,
                 type: contentData.type || 'text',
                 contentJson: contentData.contentJson || null,
-                contentHtml: contentData.contentHtml || null,
                 wordCount,
                 characterCount,
                 authorId: contentData.authorId!,

@@ -10,7 +10,7 @@
     style-src 'self' 'unsafe-inline'; 
     img-src 'self' data: blob:; 
     font-src 'self' data:; 
-    connect-src 'self';
+    connect-src 'self' ws: wss: http://localhost:4001 ws://localhost:4001;
     object-src 'none';
     base-uri 'self';
     form-action 'self';

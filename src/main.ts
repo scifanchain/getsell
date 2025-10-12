@@ -60,7 +60,7 @@ function createWindow(): void {
       contextIsolation: true,
       allowRunningInsecureContent: false,
       experimentalFeatures: false,
-      webSecurity: true,
+      webSecurity: false, // 对于协同编辑功能，禁用 web 安全限制
       preload: path.join(__dirname, '../src/preload.js')
     },
     show: false // 等待ready-to-show事件

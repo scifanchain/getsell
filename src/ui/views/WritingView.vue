@@ -45,7 +45,41 @@
     <!-- 主编辑区域 -->
     <div class="main-editor-area">
       <div v-if="currentContent" class="editor-wrapper">
+        <!-- 编辑器模式切换 -->
+        <div class="editor-mode-toggle" v-if="currentUser">
+          <button 
+            @click="toggleEditorMode" 
+            class="mode-toggle-btn"
+            :class="{ active: useCollaborativeEditor }"
+          >
+            <span class="icon">{{ useCollaborativeEditor ? '🤝' : '📝' }}</span>
+            {{ useCollaborativeEditor ? '协同模式' : '单机模式' }}
+          </button>
+        </div>
+
+        <!-- 协同编辑器 -->
+        <CollaborativeProseMirrorEditor
+          v-if="useCollaborativeEditor && currentUser"
+          :key="`collab-${currentContent.id}`"
+          :model-value="currentContent.content || ''"
+          :content-id="currentContent.id"
+          :user-id="currentUser.id"
+          :user-name="currentUser.name"
+          :enable-collaboration="true"
+          :collaboration-config="{
+            websocketUrl: 'ws://localhost:4001/signaling',
+            webrtcSignaling: ['ws://localhost:4001/signaling'],
+            maxConnections: 10
+          }"
+          @update:modelValue="handleContentUpdate"
+          @collaboration-changed="handleCollaborationChanged"
+          @collaborators-updated="handleCollaboratorsUpdated"
+        />
+
+        <!-- 原始增强编辑器 -->
         <EnhancedEditor
+          v-else
+          :key="`standard-${currentContent.id}`"
           :content-id="currentContent.id"
           :user-id="currentUser?.id || ''"
           :chapter-id="currentContent.chapterId || selectedChapterId || ''"
@@ -167,6 +201,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import ChapterTree from '../components/ChapterTree/index.vue'
 import EnhancedEditor from '../components/EnhancedEditor.vue'
+import CollaborativeProseMirrorEditor from '../components/CollaborativeProseMirrorEditor.vue'
 import ChapterEditModal from '../components/ChapterEditModal.vue'
 import WorkCreateModal from '../components/WorkCreateModal.vue'
 import { workApi, chapterApi, contentApi } from '../services/api'
@@ -233,6 +268,11 @@ const currentContent = ref<any>(null)
 const workStats = ref<WorkStats>({ totalWords: 0, totalChapters: 0 })
 const notifications = ref<Notification[]>([])
 
+// Collaborative editing state
+const useCollaborativeEditor = ref(false)
+const collaborationEnabled = ref(false)
+const activeCollaborators = ref<any[]>([])
+
 // Modal states
 const showChapterModal = ref(false)
 const showWorkModal = ref(false)
@@ -267,6 +307,36 @@ watch(selectedChapterId, async (newChapterId) => {
 })
 
 // Methods
+// Collaborative editing methods
+const toggleEditorMode = () => {
+  useCollaborativeEditor.value = !useCollaborativeEditor.value
+  showNotification(
+    useCollaborativeEditor.value ? '已切换到协同编辑模式' : '已切换到单机编辑模式',
+    'info'
+  )
+}
+
+const handleContentUpdate = async (content: string) => {
+  if (currentContent.value) {
+    // 在协同模式下，简单更新本地内容（Yjs 会处理持久化）
+    currentContent.value = { ...currentContent.value, content }
+  }
+}
+
+const handleCollaborationChanged = (enabled: boolean) => {
+  collaborationEnabled.value = enabled
+  showNotification(
+    enabled ? '协同编辑已启用' : '协同编辑已关闭',
+    'info'
+  )
+}
+
+const handleCollaboratorsUpdated = (collaborators: any[]) => {
+  activeCollaborators.value = collaborators
+  if (collaborators.length > 0) {
+    showNotification(`${collaborators.length} 位协作者在线`, 'info')
+  }
+}
 const convertToLocalChapter = (chapter: Chapter): ChapterLocal => {
   return {
     id: chapter.id,
@@ -1072,6 +1142,44 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
   border-radius: 4px;
   font-size: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 编辑器模式切换 */
+.editor-mode-toggle {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.mode-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: white;
+  color: #495057;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-toggle-btn:hover {
+  background: #f8f9fa;
+  border-color: #6c757d;
+}
+
+.mode-toggle-btn.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.mode-toggle-btn .icon {
+  font-size: 14px;
 }
 
 .notification.success {

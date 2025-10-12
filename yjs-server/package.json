@@ -1,0 +1,24 @@
+{
+  "name": "gestell-yjs-server",
+  "version": "1.0.0",
+  "description": "Yjs WebSocket collaboration server for Gestell",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.18.0",
+    "cors": "^2.8.5",
+    "yjs": "^13.6.18",
+    "y-websocket": "^2.0.4",
+    "lib0": "^0.2.97"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "keywords": ["yjs", "websocket", "collaborative", "editing", "gestell"],
+  "author": "Gestell Team",
+  "license": "MIT"
+}

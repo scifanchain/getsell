@@ -9,28 +9,32 @@ datasource db {
 }
 
 model Author {
-  id                  String             @id
-  username            String             @unique
-  displayName         String?            @map("display_name")
-  email               String?            @unique
-  bio                 String?
-  avatarUrl           String?            @map("avatar_url")
-  walletAddress       String?            @map("wallet_address")
-  publicKey           String?            @map("public_key")
-  privateKeyEncrypted String?            @map("private_key_encrypted")
-  totalWorks          Int                @default(0) @map("total_works")
-  totalWords          Int                @default(0) @map("total_words")
-  status              String             @default("active")
-  preferences         String?
-  lastActiveAt        DateTime?          @map("last_active_at")
-  createdAt           DateTime           @map("created_at")
-  updatedAt           DateTime           @map("updated_at")
-  chapters            Chapter[]
-  collaborationLogs   CollaborationLog[]
-  contentVersions     ContentVersion[]
-  editedContents      Content[]          @relation("ContentEditor")
-  contents            Content[]
-  works               Work[]
+  id                    String                 @id
+  username              String                 @unique
+  displayName           String?                @map("display_name")
+  email                 String?                @unique
+  bio                   String?
+  avatarUrl             String?                @map("avatar_url")
+  walletAddress         String?                @map("wallet_address")
+  publicKey             String?                @map("public_key")
+  privateKeyEncrypted   String?                @map("private_key_encrypted")
+  totalWorks            Int                    @default(0) @map("total_works")
+  totalWords            Int                    @default(0) @map("total_words")
+  status                String                 @default("active")
+  preferences           String?
+  lastActiveAt          DateTime?              @map("last_active_at")
+  createdAt             DateTime               @map("created_at")
+  updatedAt             DateTime               @map("updated_at")
+  chapters              Chapter[]
+  collaborationLogs     CollaborationLog[]
+  contentVersions       ContentVersion[]
+  editedContents        Content[]              @relation("ContentEditor")
+  contents              Content[]
+  works                 Work[]
+  // 新增：协同编辑相关关联
+  collaborativeSessions CollaborativeSession[]
+  sentInvites           CollaborationInvite[]  @relation("CollaborationInviter")
+  receivedInvites       CollaborationInvite[]  @relation("CollaborationInvitee")
 
   @@map("authors")
 }
@@ -109,98 +113,98 @@ model Chapter {
 }
 
 model Content {
-  id                  String           @id
-  workId              String           @map("work_id")
-  chapterId           String?          @map("chapter_id")
-  orderIndex          Int              @map("order_index")
+  id                  String                 @id
+  workId              String                 @map("work_id")
+  chapterId           String?                @map("chapter_id")
+  orderIndex          Int                    @map("order_index")
   title               String?
-  type                String           @default("text")
-  contentJson          String?         @map("content_json") // ProseMirror 文档的 JSON 表示
-  contentHtml         String?          @map("content_html")
-  contentText         String?          @map("content_text")
-  wordCount           Int              @default(0) @map("word_count")
-  characterCount      Int              @default(0) @map("character_count")
-  paragraphCount      Int              @default(0) @map("paragraph_count")
-  status              String           @default("draft")
-  version             Int              @default(1)
-  authorId            String           @map("author_id")
-  isCollaborative     Boolean          @default(false) @map("is_collaborative")
+  type                String                 @default("text")
+  contentJson         String?                @map("content_json") // ProseMirror 文档的 JSON 表示
+  // contentHtml         String?               @map("content_html")
+  // contentText         String?               @map("content_text")
+  wordCount           Int                    @default(0) @map("word_count")
+  characterCount      Int                    @default(0) @map("character_count")
+  paragraphCount      Int                    @default(0) @map("paragraph_count")
+  status              String                 @default("draft")
+  version             Int                    @default(1)
+  authorId            String                 @map("author_id")
+  isCollaborative     Boolean                @default(false) @map("is_collaborative")
   contributors        String?
-  storyTimeline       String?          @map("story_timeline")
-  charactersInvolved  String?          @map("characters_involved")
+  storyTimeline       String?                @map("story_timeline")
+  charactersInvolved  String?                @map("characters_involved")
   location            String?
-  sceneDescription    String?          @map("scene_description")
+  sceneDescription    String?                @map("scene_description")
   tags                String?
-  emotionTone         String?          @map("emotion_tone")
-  importanceLevel     Int              @default(3) @map("importance_level")
-  contentHash         String?          @map("content_hash")
-  blockchainTimestamp DateTime?        @map("blockchain_timestamp")
-  copyrightStatus     String           @default("draft") @map("copyright_status")
-  isPublic            Boolean          @default(false) @map("is_public")
-  publishedAt         DateTime?        @map("published_at")
-  writingDuration     Int              @default(0) @map("writing_duration")
-  lastEditedAt        DateTime         @map("last_edited_at")
-  lastEditorId        String           @map("last_editor_id")
+  emotionTone         String?                @map("emotion_tone")
+  importanceLevel     Int                    @default(3) @map("importance_level")
+  contentHash         String?                @map("content_hash")
+  blockchainTimestamp DateTime?              @map("blockchain_timestamp")
+  copyrightStatus     String                 @default("draft") @map("copyright_status")
+  isPublic            Boolean                @default(false) @map("is_public")
+  publishedAt         DateTime?              @map("published_at")
+  writingDuration     Int                    @default(0) @map("writing_duration")
+  lastEditedAt        DateTime               @map("last_edited_at")
+  lastEditorId        String                 @map("last_editor_id")
   notes               String?
   metadata            String?
-  createdAt           DateTime         @map("created_at")
-  updatedAt           DateTime         @map("updated_at")
+  createdAt           DateTime               @map("created_at")
+  updatedAt           DateTime               @map("updated_at")
   versions            ContentVersion[]
-  lastEditor          Author           @relation("ContentEditor", fields: [lastEditorId], references: [id])
-  author              Author           @relation(fields: [authorId], references: [id])
-  chapter             Chapter?         @relation(fields: [chapterId], references: [id])
-  work                Work             @relation(fields: [workId], references: [id])
+  collaborativeDoc    CollaborativeDocument? // 新增：关联协同文档
+  lastEditor          Author                 @relation("ContentEditor", fields: [lastEditorId], references: [id])
+  author              Author                 @relation(fields: [authorId], references: [id])
+  chapter             Chapter?               @relation(fields: [chapterId], references: [id])
+  work                Work                   @relation(fields: [workId], references: [id])
 
   @@map("contents")
 }
 
 model ContentVersion {
-  id             String  @id
-  contentId      String  @map("content_id")
-  contentJson    String  @map("content_json") // ProseMirror 文档的 JSON 表示
-  contentHtml    String? @map("content_html")
-  contentText    String? @map("content_text")
-  wordCount      Int     @default(0) @map("word_count")
-  characterCount Int     @default(0) @map("character_count")
-  versionNumber  Int     @map("version_number")
-  changeSummary  String? @map("change_summary")
-  authorId       String  @map("author_id")
-  blockchainHash String? @map("blockchain_hash")
+  id             String   @id
+  contentId      String   @map("content_id")
+  contentJson    String   @map("content_json") // ProseMirror 文档的 JSON 表示
+  contentHtml    String?  @map("content_html")
+  contentText    String?  @map("content_text")
+  wordCount      Int      @default(0) @map("word_count")
+  characterCount Int      @default(0) @map("character_count")
+  versionNumber  Int      @map("version_number")
+  changeSummary  String?  @map("change_summary")
+  authorId       String   @map("author_id")
+  blockchainHash String?  @map("blockchain_hash")
   createdAt      DateTime @map("created_at")
-  author         Author  @relation(fields: [authorId], references: [id])
-  content        Content @relation(fields: [contentId], references: [id])
+  author         Author   @relation(fields: [authorId], references: [id])
+  content        Content  @relation(fields: [contentId], references: [id])
 
   @@map("content_versions")
 }
 
 model Character {
-  id            String  @id
-  workId        String  @map("work_id")
+  id            String   @id
+  workId        String   @map("work_id")
   name          String
   description   String?
   appearance    String?
   personality   String?
   background    String?
   relationships String?
-  imageUrl      String? @map("image_url")
+  imageUrl      String?  @map("image_url")
   tags          String?
   createdAt     DateTime @map("created_at")
   updatedAt     DateTime @map("updated_at")
-  work          Work    @relation(fields: [workId], references: [id])
+  work          Work     @relation(fields: [workId], references: [id])
 
   @@map("characters")
 }
 
-
 model BlockchainSync {
-  id              String  @id
-  contentId       String  @map("content_id")
-  contentType     String  @map("content_type")
-  blockchainHash  String  @map("blockchain_hash")
-  transactionHash String? @map("transaction_hash")
-  blockNumber     Int?    @map("block_number")
-  syncStatus      String  @default("pending") @map("sync_status")
-  syncData        String? @map("sync_data")
+  id              String   @id
+  contentId       String   @map("content_id")
+  contentType     String   @map("content_type")
+  blockchainHash  String   @map("blockchain_hash")
+  transactionHash String?  @map("transaction_hash")
+  blockNumber     Int?     @map("block_number")
+  syncStatus      String   @default("pending") @map("sync_status")
+  syncData        String?  @map("sync_data")
   createdAt       DateTime @map("created_at")
   updatedAt       DateTime @map("updated_at")
 
@@ -208,17 +212,17 @@ model BlockchainSync {
 }
 
 model CollaborationLog {
-  id         String  @id
-  workId     String  @map("work_id")
-  authorId   String  @map("author_id")
+  id         String   @id
+  workId     String   @map("work_id")
+  authorId   String   @map("author_id")
   action     String
-  targetType String  @map("target_type")
-  targetId   String  @map("target_id")
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
   changes    String?
   message    String?
   createdAt  DateTime @map("created_at")
-  author     Author  @relation(fields: [authorId], references: [id])
-  work       Work    @relation(fields: [workId], references: [id])
+  author     Author   @relation(fields: [authorId], references: [id])
+  work       Work     @relation(fields: [workId], references: [id])
 
   @@map("collaboration_logs")
 }
@@ -228,4 +232,117 @@ model SchemaVersion {
   appliedAt DateTime @map("applied_at")
 
   @@map("schema_version")
+}
+
+// ================== 协同编辑相关模型 ==================
+
+model CollaborativeDocument {
+  id             String    @id
+  contentId      String    @unique @map("content_id")
+  workId         String    @map("work_id")
+  documentType   String    @default("content") @map("document_type") // content, chapter, work
+  yjsState       Bytes?    @map("yjs_state") // Yjs 文档的完整状态
+  stateVector    Bytes?    @map("state_vector") // Yjs 状态向量
+  lastSyncAt     DateTime? @map("last_sync_at")
+  isActive       Boolean   @default(true) @map("is_active")
+  maxConnections Int       @default(10) @map("max_connections")
+  settings       String? // JSON 格式的协同设置
+  createdAt      DateTime  @map("created_at")
+  updatedAt      DateTime  @map("updated_at")
+
+  // 关联关系
+  content   Content                @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  sessions  CollaborativeSession[]
+  updates   YjsUpdate[]
+  conflicts ConflictResolution[]
+
+  @@map("collaborative_documents")
+}
+
+model CollaborativeSession {
+  id             String    @id
+  documentId     String    @map("document_id")
+  userId         String    @map("user_id")
+  peerId         String    @map("peer_id") // WebRTC peer ID
+  sessionType    String    @default("editor") @map("session_type") // editor, viewer
+  status         String    @default("active") @map("status") // active, idle, disconnected
+  permissions    String    @default("edit") // read, edit, comment
+  cursorPosition String?   @map("cursor_position") // JSON 格式的光标位置
+  selection      String? // JSON 格式的选择范围
+  awareness      String? // Yjs Awareness 数据
+  lastHeartbeat  DateTime  @map("last_heartbeat")
+  connectedAt    DateTime  @map("connected_at")
+  disconnectedAt DateTime? @map("disconnected_at")
+  clientInfo     String?   @map("client_info") // 客户端信息 (浏览器、OS等)
+
+  // 关联关系
+  document CollaborativeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     Author                @relation(fields: [userId], references: [id])
+
+  @@index([documentId, status])
+  @@index([userId, status])
+  @@map("collaborative_sessions")
+}
+
+model YjsUpdate {
+  id         String   @id
+  documentId String   @map("document_id")
+  updateData Bytes    @map("update_data") // Yjs update 的二进制数据
+  clock      String   @map("clock") // Yjs 逻辑时钟
+  origin     String? // 更新来源 (userId 或 system)
+  size       Int      @map("size") // 更新大小 (bytes)
+  applied    Boolean  @default(false) // 是否已应用到主文档
+  createdAt  DateTime @map("created_at")
+
+  // 关联关系
+  document CollaborativeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([documentId, applied])
+  @@map("yjs_updates")
+}
+
+model ConflictResolution {
+  id             String    @id
+  documentId     String    @map("document_id")
+  conflictType   String    @map("conflict_type") // concurrent_edit, state_mismatch, network_partition
+  description    String?
+  conflictData   String    @map("conflict_data") // JSON 格式的冲突详情
+  resolutionType String    @map("resolution_type") // auto, manual, system
+  resolution     String? // JSON 格式的解决方案
+  status         String    @default("pending") // pending, resolved, ignored
+  involvedUsers  String?   @map("involved_users") // JSON 数组格式的用户ID列表
+  resolvedBy     String?   @map("resolved_by") // 解决冲突的用户ID
+  resolvedAt     DateTime? @map("resolved_at")
+  createdAt      DateTime  @map("created_at")
+
+  // 关联关系
+  document CollaborativeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, status])
+  @@map("conflict_resolutions")
+}
+
+model CollaborationInvite {
+  id           String    @id
+  workId       String    @map("work_id")
+  contentId    String?   @map("content_id") // 可选，特定内容的邀请
+  inviterId    String    @map("inviter_id")
+  inviteeEmail String?   @map("invitee_email")
+  inviteeId    String?   @map("invitee_id") // 如果是注册用户
+  permissions  String    @default("edit") // read, edit, comment, admin
+  inviteCode   String    @unique @map("invite_code")
+  status       String    @default("pending") // pending, accepted, rejected, expired
+  expiresAt    DateTime? @map("expires_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  message      String? // 邀请消息
+  createdAt    DateTime  @map("created_at")
+
+  // 关联关系
+  inviter Author  @relation("CollaborationInviter", fields: [inviterId], references: [id])
+  invitee Author? @relation("CollaborationInvitee", fields: [inviteeId], references: [id])
+
+  @@index([workId, status])
+  @@index([inviteCode])
+  @@map("collaboration_invites")
 }

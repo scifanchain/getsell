@@ -12,6 +12,7 @@ import { PrismaWorkRepository } from './prisma/WorkRepository';
 import { PrismaChapterRepository } from './prisma/ChapterRepository';
 import { PrismaContentRepository } from './prisma/ContentRepository';
 import { PrismaStatsRepository } from './prisma/StatsRepository';
+import { ICollaborationRepository, PrismaCollaborationRepository } from './prisma/CollaborationRepository';
 
 /**
  * Repository 容器
@@ -27,6 +28,7 @@ export class RepositoryContainer {
     private _chapterRepository?: IChapterRepository;
     private _contentRepository?: IContentRepository;
     private _statsRepository?: IStatsRepository;
+    private _collaborationRepository?: ICollaborationRepository;
 
     constructor(databaseManager: DatabaseManager) {
         this.databaseManager = databaseManager;
@@ -81,6 +83,16 @@ export class RepositoryContainer {
             this._statsRepository = new PrismaStatsRepository(this.prisma);
         }
         return this._statsRepository;
+    }
+
+    /**
+     * 获取协同编辑 Repository
+     */
+    get collaborationRepository(): ICollaborationRepository {
+        if (!this._collaborationRepository) {
+            this._collaborationRepository = new PrismaCollaborationRepository(this.prisma);
+        }
+        return this._collaborationRepository;
     }
 
     /**

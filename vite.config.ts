@@ -9,8 +9,11 @@ export default defineConfig(({ mode }) => ({
   // Electron渲染进程配置
   base: './',
   
+  // 开发模式的根目录
+  root: mode === 'development' ? 'src/ui' : '.',
+  
   build: {
-    outDir: 'dist/renderer',
+    outDir: mode === 'development' ? '../../dist/renderer' : 'dist/renderer',
     rollupOptions: {
       input: {
         // 生产环境使用安全的HTML模板
@@ -29,6 +32,7 @@ export default defineConfig(({ mode }) => ({
   // 开发服务器配置
   server: {
     port: 3000,
+    strictPort: true,
     hmr: {
       port: 3001
     },

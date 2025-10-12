@@ -4,6 +4,8 @@ import { UserService } from './UserService';
 import { WorkService } from './WorkService';
 import { ChapterService, IChapterService } from './ChapterService';
 import { ContentService, IContentService } from './ContentService';
+import { YjsCollaborationService } from './YjsCollaborationService';
+import { CollaborativeEditingIntegrationService } from './CollaborativeEditingIntegrationService';
 import { IUserService, IWorkService } from './interfaces';
 
 /**
@@ -20,6 +22,8 @@ export class ServiceContainer {
     private _workService?: IWorkService;
     private _chapterService?: IChapterService;
     private _contentService?: IContentService;
+    private _yjsCollaborationService?: YjsCollaborationService;
+    private _collaborativeEditingIntegrationService?: CollaborativeEditingIntegrationService;
 
     constructor(repositories: RepositoryContainer) {
         this.repositories = repositories;
@@ -64,6 +68,34 @@ export class ServiceContainer {
             this._contentService = new ContentService(this.repositories);
         }
         return this._contentService;
+    }
+
+    /**
+     * 获取 Yjs 协同编辑服务
+     */
+    get yjsCollaborationService(): YjsCollaborationService {
+        if (!this._yjsCollaborationService) {
+            this._yjsCollaborationService = new YjsCollaborationService(this.repositories, {
+                websocketUrl: 'ws://localhost:4001/signaling',
+                webrtcSignaling: ['ws://localhost:4001/signaling'],
+                maxConnections: 10,
+                autoSave: true,
+                saveInterval: 5000
+            });
+        }
+        return this._yjsCollaborationService;
+    }
+
+    /**
+     * 获取协同编辑集成服务
+     */
+    get collaborativeEditingIntegrationService(): CollaborativeEditingIntegrationService {
+        if (!this._collaborativeEditingIntegrationService) {
+            this._collaborativeEditingIntegrationService = new CollaborativeEditingIntegrationService(
+                this.yjsCollaborationService
+            );
+        }
+        return this._collaborativeEditingIntegrationService;
     }
 
     /**

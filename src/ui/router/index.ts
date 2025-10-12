@@ -8,7 +8,6 @@ import type { RouteRecordRaw } from 'vue-router'
 // 导入视图组件
 import HomeView from '../views/HomeView.vue'
 import EditorView from '../views/EditorView.vue'
-import EditorTestView from '../views/EditorTestView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import CharactersView from '../views/CharactersView.vue'
 import TimelineView from '../views/TimelineView.vue'
@@ -86,24 +85,6 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '写作台',
       icon: 'write'
-    }
-  },
-  {
-    path: '/writing-demo',
-    name: 'writing-demo',
-    component: () => import('../views/WritingDemoView.vue'),
-    meta: {
-      title: '写作台演示',
-      icon: 'demo'
-    }
-  },
-  {
-    path: '/editor-test',
-    name: 'editor-test',
-    component: EditorTestView,
-    meta: {
-      title: '编辑器测试',
-      icon: 'test'
     }
   },
   {
