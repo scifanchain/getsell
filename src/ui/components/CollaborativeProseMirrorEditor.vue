@@ -89,7 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始写作...',
   readonly: false,
   enableCollaboration: false,
-  userName: '匿名用户',
+  userName: 'unity',
   collaborationConfig: () => ({
     websocketUrl: 'ws://localhost:4001/signaling',
     webrtcSignaling: ['ws://localhost:4001/signaling'],
@@ -122,6 +122,16 @@ const menuContainer = ref<HTMLDivElement>()
 const collaborationEnabled = ref(props.enableCollaboration)
 const collaborators = ref<Collaborator[]>([])
 const connectionStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
+
+// 组件初始化日志
+console.log('🚀 CollaborativeProseMirrorEditor 初始化', {
+  userId: props.userId,
+  userName: props.userName,
+  contentId: props.contentId,
+  enableCollaboration: props.enableCollaboration,
+  hasUserId: !!props.userId,
+  hasUserName: !!props.userName
+})
 
 // Editor and Yjs instances
 let editorView: EditorView | null = null
@@ -189,32 +199,25 @@ const getConnectionStatusText = (): string => {
 }
 
 // 初始化 Yjs 协同编辑
-const initYjs = () => {
-  if (!props.contentId || !collaborationEnabled.value) return
+const initYjs = async () => {
+  if (!props.contentId || !collaborationEnabled.value) {
+    console.log('❌ Yjs 初始化跳过:', { contentId: props.contentId, collaborationEnabled: collaborationEnabled.value })
+    return
+  }
 
+  console.log('🚀 开始初始化 Yjs')
+  console.log('� props.contentId:', props.contentId)
+  
   // 创建 Yjs 文档
   ydoc = new Y.Doc()
   yxml = ydoc.getXmlFragment('prosemirror')
+  
+  console.log('📄 Yjs 文档和片段创建完成')
 
-  // 如果有初始内容，设置到 Yjs 文档中
-  if (props.modelValue && yxml.firstChild === null) {
-    try {
-      const parsed = JSON.parse(props.modelValue)
-      if (parsed.type === 'doc' && parsed.content) {
-        // 将 ProseMirror JSON 转换为 ProseMirror 文档然后设置到 YXmlFragment
-        const doc = schema.nodeFromJSON(parsed)
-        if (doc) {
-          // 使用 ySyncPlugin 的 sync 功能来设置初始内容
-          // 这里暂时跳过，让 Yjs 处理内容同步
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse initial content:', e)
-    }
-  }
-
-  // 设置网络提供者
-  setupNetworkProviders()
+  // 等待网络提供者设置完成
+  await setupNetworkProviders()
+  
+  console.log('✅ Yjs 初始化完成')
 }
 
 // 提取 ProseMirror JSON 中的纯文本
@@ -241,12 +244,19 @@ const extractTextFromProseMirrorJson = (doc: any): string => {
 
 // 设置网络提供者
 const setupNetworkProviders = async () => {
-  if (!ydoc || !props.contentId) return
+  if (!ydoc || !props.contentId) {
+    console.log('❌ 网络提供者设置跳过:', { ydoc: !!ydoc, contentId: props.contentId })
+    return
+  }
 
   const roomName = `gestell-${props.contentId}`
 
   try {
     console.log('🔄 开始设置网络提供者', { roomName, contentId: props.contentId })
+    console.log('🌐 使用的配置:', { 
+      websocket: props.collaborationConfig?.websocketUrl,
+      signaling: props.collaborationConfig?.webrtcSignaling
+    })
     
     // 动态导入网络提供者（避免 SSR 问题）
     const [WebrtcProvider, WebsocketProvider, Awareness] = await Promise.all([
@@ -261,15 +271,22 @@ const setupNetworkProviders = async () => {
     const awareness = new Awareness(ydoc)
     
     // 设置用户信息
+    console.log('📝 Props 中的用户信息:', {
+      userId: props.userId,
+      userName: props.userName,
+      hasUserId: !!props.userId,
+      hasUserName: !!props.userName
+    })
+    
     awareness.setLocalStateField('user', {
-      id: props.userId,
-      name: props.userName,
+      id: props.userId || 'anonymous',
+      name: props.userName || 'unity',
       color: getUserColor(props.userId || 'anonymous')
     })
 
-    console.log('👤 用户信息已设置', { 
-      userId: props.userId, 
-      userName: props.userName,
+    console.log('👤 用户信息已设置到 awareness', { 
+      userId: props.userId || 'anonymous', 
+      userName: props.userName || 'unity',
       color: getUserColor(props.userId || 'anonymous')
     })
 
@@ -286,7 +303,8 @@ const setupNetworkProviders = async () => {
 
     // WebSocket 提供者 (备用) - 现在使用支持 Yjs 协议的服务器
     if (props.collaborationConfig?.websocketUrl) {
-      console.log('🌐 创建 WebSocket 提供者', { url: props.collaborationConfig.websocketUrl })
+      // 使用基础 URL，y-websocket 会自动添加房间名称到路径
+      console.log('🌐 创建 WebSocket 提供者', { url: props.collaborationConfig.websocketUrl, roomName })
       
       websocketProvider = new WebsocketProvider(
         props.collaborationConfig.websocketUrl,
@@ -295,21 +313,42 @@ const setupNetworkProviders = async () => {
         { awareness }
       )
 
+      // 添加详细的事件监听
       websocketProvider.on('status', (event: any) => {
-        console.log('📡 WebSocket 状态变化:', event)
+        console.log('📡 WebSocket 状态:', event.status)
         updateConnectionStatus('websocket', event.status === 'connected')
+      })
+      
+      websocketProvider.on('connection-close', (event: any) => {
+        console.warn('⚠️ WebSocket 连接关闭:', event)
+      })
+      
+      websocketProvider.on('connection-error', (error: any) => {
+        console.error('❌ WebSocket 连接错误:', error)
+        connectionStatus.value = 'disconnected'
+      })
+      
+      websocketProvider.on('sync', (isSynced: boolean) => {
+        console.log('🔄 WebSocket 同步状态:', isSynced)
+        if (isSynced) {
+          console.log('✅ WebSocket 文档已完全同步')
+        }
       })
     }
 
     // 监听 WebRTC 连接状态
     webrtcProvider.on('status', (event: any) => {
-      console.log('🔗 WebRTC 状态变化:', event)
+      console.log('🔗 WebRTC 状态:', event.status)
       updateConnectionStatus('webrtc', event.status === 'connected')
     })
 
     // 监听协作者变化
-    webrtcProvider.on('peers', () => {
-      console.log('👥 协作者列表变化')
+    webrtcProvider.on('peers', (event: any) => {
+      console.log('👥 WebRTC 对等节点变化:', {
+        added: event.added,
+        removed: event.removed,
+        peers: event.webrtcPeers
+      })
       updateCollaborators(awareness)
     })
 
@@ -337,7 +376,7 @@ const updateCollaborators = (awareness: any) => {
     if (state.user && clientId !== awareness.clientID) {
       newCollaborators.push({
         userId: state.user.id || `client-${clientId}`,
-        name: state.user.name || '匿名用户',
+        name: state.user.name || 'unity',
         color: state.user.color || getUserColor(state.user.id || `client-${clientId}`),
         cursor: state.cursor
       })
@@ -350,7 +389,20 @@ const updateCollaborators = (awareness: any) => {
 
 // 初始化编辑器
 const initEditor = () => {
-  if (!editorContainer.value || !menuContainer.value) return
+  if (!editorContainer.value || !menuContainer.value) {
+    console.log('❌ 编辑器初始化跳过：容器不存在', { 
+      editorContainer: !!editorContainer.value, 
+      menuContainer: !!menuContainer.value 
+    })
+    return
+  }
+
+  console.log('📝 开始初始化编辑器', {
+    collaborationEnabled: collaborationEnabled.value,
+    hasYdoc: !!ydoc,
+    hasYxml: !!yxml,
+    contentId: props.contentId
+  })
 
   schema = createSchema()
 
@@ -358,31 +410,37 @@ const initEditor = () => {
   const plugins = collaborationEnabled.value && ydoc && yxml ? 
     createCollaborativePlugins() : createStandardPlugins()
 
+  console.log('🔌 插件类型:', collaborationEnabled.value && ydoc && yxml ? '协作插件' : '标准插件')
+
   // 创建初始文档
   let doc
-  if (collaborationEnabled.value && yxml) {
+  if (collaborationEnabled.value && ydoc && yxml) {
     // 协作模式：从 Yjs 创建文档
-    try {
-      // 使用 ySyncPlugin 创建文档
-      const yPlugin = ySyncPlugin(yxml)
-      if (yPlugin.spec?.init && typeof yPlugin.spec.init === 'function') {
-        doc = yPlugin.spec.init(schema)
-      } else {
-        // 备用方案：创建空文档，让 ySyncPlugin 自动同步
-        doc = createDocumentFromModelValue()
-      }
-    } catch (error) {
-      console.error('Failed to initialize collaborative document:', error)
-      doc = createDocumentFromModelValue()
-    }
+    console.log('🤝 协作模式：从 Yjs 创建文档')
+    
+    // 始终使用 ySyncPlugin 创建文档状态
+    const tempState = EditorState.create({
+      schema,
+      plugins: [ySyncPlugin(yxml)]
+    })
+    
+    doc = tempState.doc
+    console.log('✅ 使用 ySyncPlugin 创建文档成功')
   } else {
     // 标准模式：从 modelValue 创建文档
+    console.log('📄 标准模式：从 modelValue 创建文档')
     doc = createDocumentFromModelValue()
   }
 
+  console.log('📋 最终文档创建完成:', { 
+    docType: doc?.type?.name,
+    hasContent: !!doc?.content,
+    contentSize: doc?.content?.size 
+  })
+
   // 创建编辑器状态
   const state = EditorState.create({
-    doc: doc || schema.nodes.doc.createAndFill(),
+    doc: doc || schema.nodes.doc.createAndFill() || undefined,
     plugins
   })
 
@@ -409,20 +467,68 @@ const initEditor = () => {
     }
   })
 
+  // 协作模式：如果编辑器是空的但有本地内容，填充它
+  if (collaborationEnabled.value && editorView && props.modelValue) {
+    setTimeout(() => {
+      if (editorView && editorView.state.doc.content.size <= 2) { // 空文档大小通常是2
+        console.log('🔄 编辑器为空，尝试从modelValue填充')
+        try {
+          const localDoc = createDocumentFromModelValue()
+          if (localDoc && localDoc.content.size > 2) {
+            const tr = editorView.state.tr.replaceWith(
+              0,
+              editorView.state.doc.content.size,
+              localDoc.content
+            )
+            editorView.dispatch(tr)
+            console.log('✅ 成功填充本地内容到协作编辑器')
+          }
+        } catch (error) {
+          console.error('❌ 填充内容失败:', error)
+        }
+      }
+    }, 500) // 等待500ms确保Yjs同步完成
+  }
+
   // 移动菜单
   moveMenuToContainer()
 }
 
 // 创建协作插件
 const createCollaborativePlugins = () => {
-  if (!ydoc || !yxml) return createStandardPlugins()
+  console.log('🔌 创建协作插件')
+  
+  if (!ydoc || !yxml) {
+    console.log('❌ 无法创建协作插件: 缺少 Yjs 依赖', { ydoc: !!ydoc, yxml: !!yxml })
+    return createStandardPlugins()
+  }
 
   const awareness = webrtcProvider?.awareness || websocketProvider?.awareness
-  if (!awareness) return createStandardPlugins()
+  if (!awareness) {
+    console.log('❌ 无法创建协作插件: 缺少 awareness')
+    return createStandardPlugins()
+  }
+
+  console.log('✅ 创建协作插件成功')
+
+  // 自定义光标构建器
+  const cursorBuilder = (user: any) => {
+    const cursor = document.createElement('span')
+    cursor.classList.add('ProseMirror-yjs-cursor')
+    cursor.style.borderColor = user.color
+    
+    const cursorLabel = document.createElement('div')
+    cursorLabel.classList.add('yjs-cursor-label')
+    cursorLabel.style.backgroundColor = user.color
+    cursorLabel.textContent = user.name
+    cursor.appendChild(cursorLabel)
+    
+    return cursor
+  }
 
   return [
     ySyncPlugin(yxml),
-    yCursorPlugin(awareness),
+    yCursorPlugin(awareness, { cursorBuilder }),
     yUndoPlugin(),
     keymap({
       'Mod-z': yUndo,
@@ -495,10 +601,22 @@ const moveMenuToContainer = () => {
     menuBar.style.flexWrap = 'wrap'
     menuBar.style.alignItems = 'center'
     menuBar.style.gap = '4px'
-    menuBar.style.padding = '8px'
+    menuBar.style.padding = '8px 12px'
     menuBar.style.border = 'none'
     menuBar.style.borderBottom = '1px solid #e5e7eb'
     menuBar.style.backgroundColor = '#f9fafb'
+    menuBar.style.maxWidth = '100%'
+    menuBar.style.overflow = 'hidden'
+    
+    // 限制按钮尺寸
+    const buttons = menuBar.querySelectorAll('.ProseMirror-menu-item')
+    buttons.forEach((button: any) => {
+      button.style.margin = '1px'
+      button.style.padding = '4px 6px'
+      button.style.fontSize = '12px'
+      button.style.minWidth = 'auto'
+      button.style.width = 'auto'
+    })
   }
 }
 
@@ -517,25 +635,35 @@ const getContent = (): string => {
 
 // 切换协作模式
 const toggleCollaboration = async () => {
+  console.log('🔄 切换协作模式', { 
+    contentId: props.contentId, 
+    currentState: collaborationEnabled.value 
+  })
+  
   if (!props.contentId) {
-    console.warn('Cannot enable collaboration without contentId')
+    console.warn('❌ 无法启用协作：缺少 contentId')
     return
   }
 
   collaborationEnabled.value = !collaborationEnabled.value
+  console.log('🔄 协作模式已切换为:', collaborationEnabled.value)
+  
   emit('collaboration-changed', collaborationEnabled.value)
 
   // 重新初始化编辑器
   cleanup()
   
   if (collaborationEnabled.value) {
-    initYjs()
+    console.log('🚀 启用协作模式，初始化 Yjs')
+    await initYjs()
+  } else {
+    console.log('🔌 禁用协作模式')
   }
   
   // 延迟重新初始化编辑器以确保 Yjs 设置完成
   setTimeout(() => {
     initEditor()
-  }, 100)
+  }, 50)
 }
 
 // 处理内容点击
@@ -594,9 +722,9 @@ watch(() => props.readonly, (newReadonly) => {
 })
 
 // 组件生命周期
-onMounted(() => {
+onMounted(async () => {
   if (collaborationEnabled.value) {
-    initYjs()
+    await initYjs()
   }
   initEditor()
 })
@@ -616,6 +744,158 @@ defineExpose({
 </script>
 
 <style scoped>
+/* ProseMirror 编辑器基础样式 */
+:deep(.ProseMirror) {
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  -webkit-font-variant-ligatures: none !important;
+  font-variant-ligatures: none !important;
+  font-feature-settings: "liga" 0 !important;
+  position: relative !important;
+  outline: none !important;
+  line-height: 1.6 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  padding: 16px !important;
+  min-height: 300px !important;
+}
+
+:deep(.ProseMirror p) {
+  margin: 1em 0 !important;
+}
+
+:deep(.ProseMirror p:first-child) {
+  margin-top: 0 !important;
+}
+
+:deep(.ProseMirror p:last-child) {
+  margin-bottom: 0 !important;
+}
+
+:deep(.ProseMirror h1, .ProseMirror h2, .ProseMirror h3, .ProseMirror h4, .ProseMirror h5, .ProseMirror h6) {
+  line-height: 1.2 !important;
+  margin-top: 1em !important;
+  margin-bottom: 0.5em !important;
+  font-weight: bold !important;
+}
+
+:deep(.ProseMirror h1) { font-size: 2em !important; }
+:deep(.ProseMirror h2) { font-size: 1.5em !important; }
+:deep(.ProseMirror h3) { font-size: 1.3em !important; }
+:deep(.ProseMirror h4) { font-size: 1.1em !important; }
+:deep(.ProseMirror h5) { font-size: 1em !important; }
+:deep(.ProseMirror h6) { font-size: 0.9em !important; }
+
+:deep(.ProseMirror ul, .ProseMirror ol) {
+  padding-left: 1.5em !important;
+  margin: 1em 0 !important;
+}
+
+:deep(.ProseMirror li) {
+  margin: 0.25em 0 !important;
+}
+
+:deep(.ProseMirror strong) {
+  font-weight: bold !important;
+}
+
+:deep(.ProseMirror em) {
+  font-style: italic !important;
+}
+
+:deep(.ProseMirror code) {
+  background: #f1f5f9 !important;
+  padding: 0.1em 0.3em !important;
+  border-radius: 3px !important;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+}
+
+:deep(.ProseMirror pre) {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  padding: 1em !important;
+  margin: 1em 0 !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+}
+
+:deep(.ProseMirror pre code) {
+  background: none !important;
+  padding: 0 !important;
+  font-size: 0.9em !important;
+}
+
+:deep(.ProseMirror blockquote) {
+  border-left: 4px solid #d1d5db !important;
+  margin: 1em 0 !important;
+  padding-left: 1em !important;
+  color: #6b7280 !important;
+  font-style: italic !important;
+}
+
+:deep(.ProseMirror hr) {
+  border: none !important;
+  border-top: 2px solid #e5e7eb !important;
+  margin: 2em 0 !important;
+}
+
+/* ProseMirror 选择样式 */
+:deep(.ProseMirror-selectednode) {
+  outline: 2px solid #68d391 !important;
+}
+
+:deep(.ProseMirror-gapcursor) {
+  display: none !important;
+  pointer-events: none !important;
+  position: absolute !important;
+}
+
+:deep(.ProseMirror-gapcursor:after) {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  top: -2px !important;
+  width: 20px !important;
+  border-top: 1px solid black !important;
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite !important;
+}
+
+@keyframes ProseMirror-cursor-blink {
+  to {
+    visibility: hidden !important;
+  }
+}
+
+:deep(.ProseMirror-focused .ProseMirror-gapcursor) {
+  display: block !important;
+}
+
+/* Yjs 协作光标样式 */
+:deep(.ProseMirror .collaboration-cursor__caret) {
+  position: relative !important;
+  margin-left: -1px !important;
+  margin-right: -1px !important;
+  border-left: 1px solid #0D0D0D !important;
+  border-right: 1px solid #0D0D0D !important;
+  word-break: normal !important;
+  pointer-events: none !important;
+}
+
+:deep(.ProseMirror .collaboration-cursor__label) {
+  position: absolute !important;
+  top: -1.4em !important;
+  left: -1px !important;
+  font-size: 12px !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  line-height: normal !important;
+  user-select: none !important;
+  color: #0D0D0D !important;
+  padding: 0.1rem 0.3rem !important;
+  border-radius: 3px !important;
+  white-space: nowrap !important;
+}
+
 .collaborative-editor {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -690,6 +970,73 @@ defineExpose({
 
 .editor-menu {
   border-bottom: 1px solid #e5e7eb;
+  max-width: 100%;
+  overflow-x: auto;
+  min-height: auto;
+  height: auto;
+}
+
+/* 工具栏按钮样式 */
+:deep(.editor-menu .ProseMirror-menubar) {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  padding: 8px !important;
+  min-height: auto !important;
+  height: auto !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 2px !important;
+}
+
+:deep(.editor-menu .ProseMirror-menu-item) {
+  margin: 1px !important;
+  padding: 6px 8px !important;
+  font-size: 13px !important;
+  min-width: auto !important;
+  width: auto !important;
+  height: 32px !important;
+  border-radius: 4px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #374151 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+}
+
+:deep(.editor-menu .ProseMirror-menu-item:hover) {
+  background: #f3f4f6 !important;
+  border-color: #d1d5db !important;
+}
+
+:deep(.editor-menu .ProseMirror-menu-item.ProseMirror-menu-active) {
+  background: #e0e7ff !important;
+  border-color: #6366f1 !important;
+  color: #4f46e5 !important;
+}
+
+/* 工具栏分隔符样式 */
+:deep(.editor-menu .ProseMirror-menu-separator) {
+  margin: 0 4px !important;
+  border-left: 1px solid #d1d5db !important;
+  height: 24px !important;
+  width: 1px !important;
+}
+
+/* 下拉菜单样式 */
+:deep(.editor-menu .ProseMirror-dropdown) {
+  position: relative !important;
+}
+
+:deep(.editor-menu .ProseMirror-dropdown-menu) {
+  background: white !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  z-index: 1000 !important;
 }
 
 .editor-content {
@@ -736,6 +1083,8 @@ defineExpose({
   padding: 16px;
   outline: none;
   min-height: 300px;
+  background: white;
+  color: #1f2937;
 }
 
 /* ProseMirror 必需的基础样式 */
@@ -747,6 +1096,10 @@ defineExpose({
   outline: none;
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0; /* the above doesn't seem to work in Edge */
+  background: white !important;
+  color: #1f2937 !important;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 :deep(.prose-editor .ProseMirror pre) {
@@ -787,21 +1140,31 @@ defineExpose({
   position: relative;
   margin-left: -1px;
   margin-right: -1px;
-  border-left: 1px solid;
-  border-right: 1px solid;
+  border-left: 2px solid;
+  border-right: none;
+  border-color: orange;
   word-break: normal;
   pointer-events: none;
+  height: 1.2em;
+  display: inline;
 }
 
-:deep(.ProseMirror-yjs-cursor:after) {
-  content: '';
-  display: block;
+/* 光标标签 */
+:deep(.yjs-cursor-label) {
   position: absolute;
-  top: -2px;
-  width: 20px;
-  height: 20px;
-  background: currentColor;
-  z-index: 10;
+  top: -1.6em;
+  left: -1px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.3;
+  user-select: none;
+  color: white;
+  padding: 2px 4px;
+  border-radius: 3px 3px 3px 0;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
 }
 
 /* 占位符样式 */

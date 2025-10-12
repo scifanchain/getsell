@@ -136,10 +136,10 @@ export class UserService implements IUserService {
         // 确保默认用户存在
         await this.repositories.userRepository.ensureDefaultUser();
         
-        // 获取默认用户
-        const defaultUser = await this.repositories.userRepository.findByUsername('默认用户');
+        // 获取真实的默认用户（使用正确的用户ID）
+        const defaultUser = await this.repositories.userRepository.findById('01K74VN2BS7BY4QXYJNYZNMMRR');
         if (!defaultUser) {
-            throw new Error('无法创建默认用户');
+            throw new Error('无法找到默认用户');
         }
 
         return this.mapToUserInfo(defaultUser);

@@ -56,9 +56,12 @@ export class UserIPCHandler {
         // 初始化默认用户
         ipcMain.handle('user:initializeDefault', async (event) => {
             try {
-                return await this.services.userService.initializeDefaultUser();
+                console.log('🔄 IPC: 收到初始化默认用户请求');
+                const result = await this.services.userService.initializeDefaultUser();
+                console.log('✅ IPC: 默认用户初始化成功:', result?.id, result?.email);
+                return result;
             } catch (error) {
-                console.error('Initialize default user error:', error);
+                console.error('❌ IPC: Initialize default user error:', error);
                 throw error;
             }
         });

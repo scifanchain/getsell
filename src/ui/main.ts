@@ -21,11 +21,38 @@ async function initializeApp() {
   const userStore = useUserStore()
   
   try {
+    console.log('🚀 开始应用初始化')
+    
     // 初始化应用状态
     await appStore.initialize()
+    console.log('✅ 应用状态初始化完成')
     
     // 尝试从本地存储恢复用户登录状态
     await userStore.loadUserFromStorage()
+    console.log('📄 localStorage用户加载完成，当前用户:', userStore.currentUser?.id || 'null')
+    
+    // 如果没有登录用户，初始化并登录默认用户
+    if (!userStore.currentUser) {
+      console.log('📝 没有登录用户，初始化默认用户')
+      try {
+        // 初始化默认用户
+        const defaultUser = await window.electronAPI.invoke('user:initializeDefault')
+        console.log('🔍 默认用户初始化结果:', defaultUser)
+        if (defaultUser) {
+          userStore.currentUser = defaultUser
+          userStore.isLoggedIn = true
+          // 保存到本地存储
+          localStorage.setItem('currentUserId', defaultUser.id)
+          console.log('✅ 默认用户登录成功:', defaultUser.name, 'ID:', defaultUser.id)
+        } else {
+          console.warn('⚠️ 默认用户初始化返回null')
+        }
+      } catch (error) {
+        console.warn('⚠️ 默认用户初始化失败:', error)
+      }
+    } else {
+      console.log('✅ 从localStorage恢复用户:', userStore.currentUser.name, 'ID:', userStore.currentUser.id)
+    }
     
     console.log('✅ 应用初始化完成')
   } catch (error) {

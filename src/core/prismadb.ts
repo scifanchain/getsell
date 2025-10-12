@@ -79,10 +79,13 @@ export class GestallPrismaDatabase {
     private prisma: PrismaClient;
 
     constructor() {
-        // 获取应用根目录的绝对路径
-        const appRoot = process.cwd();
-        const defaultDbPath = path.join(appRoot, 'data', 'gestell.db');
-        const databaseUrl = process.env.DATABASE_URL || `file:${defaultDbPath}`;
+        // 使用固定的绝对路径，避免工作目录影响
+        const fixedDbPath = 'D:/gestell/data/gestell.db';
+        const databaseUrl = process.env.DATABASE_URL || `file:${fixedDbPath}`;
+        
+        console.log('📍 Prisma数据库路径信息:');
+        console.log('   DATABASE_URL from env:', process.env.DATABASE_URL);
+        console.log('   最终使用的 databaseUrl:', databaseUrl);
         
         // 初始化Prisma客户端
         this.prisma = new PrismaClient({

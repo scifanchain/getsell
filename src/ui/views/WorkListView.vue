@@ -279,7 +279,7 @@ const works = ref<any[]>([])
 
 // 获取当前用户ID（使用默认用户ID，如果没有登录用户）
 const getCurrentUserId = () => {
-  return userStore.currentUser?.id || 'user_default_001'
+  return userStore.currentUser?.id || '01K74VN2BS7BY4QXYJNYZNMMRR'
 }
 
 // 计算属性：筛选后的作品

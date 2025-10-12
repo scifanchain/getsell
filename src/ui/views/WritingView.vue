@@ -286,7 +286,16 @@ const todayStats = ref<TodayStats>({
 })
 
 // Computed properties
-const currentUser = computed(() => userStore.currentUser)
+const currentUser = computed(() => {
+  const user = userStore.currentUser
+  console.log('👤 WritingView currentUser:', {
+    user,
+    hasUser: !!user,
+    userId: user?.id,
+    userName: user?.name
+  })
+  return user
+})
 const selectedChapter = computed(() => {
   if (!Array.isArray(chapters.value)) return null
   return chapters.value.find(ch => ch.id === selectedChapterId.value) || null
