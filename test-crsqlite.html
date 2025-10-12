@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CR-SQLite 测试</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #results {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px 10px;
+      border-left: 3px solid #ccc;
+    }
+    .log-entry.info {
+      border-left-color: #17a2b8;
+      background: #d1ecf1;
+    }
+    .log-entry.success {
+      border-left-color: #28a745;
+      background: #d4edda;
+    }
+    .log-entry.error {
+      border-left-color: #dc3545;
+      background: #f8d7da;
+    }
+    .log-data {
+      margin-left: 20px;
+      color: #666;
+      font-size: 12px;
+    }
+    .summary {
+      margin-top: 20px;
+      padding: 15px;
+      background: #d4edda;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 CR-SQLite 功能测试</h1>
+    
+    <div>
+      <button id="runBasicTest">运行基础测试</button>
+      <button id="getStats">获取统计信息</button>
+      <button id="clearResults">清除结果</button>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const resultsDiv = document.getElementById('results');
+    const runBasicTestBtn = document.getElementById('runBasicTest');
+    const getStatsBtn = document.getElementById('getStats');
+    const clearResultsBtn = document.getElementById('clearResults');
+
+    function addLog(message, type = 'info', data = null) {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = message;
+      
+      if (data) {
+        const dataDiv = document.createElement('div');
+        dataDiv.className = 'log-data';
+        dataDiv.textContent = JSON.stringify(data, null, 2);
+        entry.appendChild(dataDiv);
+      }
+      
+      resultsDiv.appendChild(entry);
+      resultsDiv.scrollTop = resultsDiv.scrollHeight;
+    }
+
+    function clearResults() {
+      resultsDiv.innerHTML = '';
+    }
+
+    runBasicTestBtn.addEventListener('click', async () => {
+      runBasicTestBtn.disabled = true;
+      runBasicTestBtn.innerHTML = '<span class="loading"></span> 运行中...';
+      clearResults();
+
+      try {
+        addLog('开始运行 CR-SQLite 基础测试...', 'info');
+        
+        const result = await window.electron.invoke('test:crsqlite:basic');
+        
+        if (result.success) {
+          result.results.forEach(item => {
+            addLog(item.message, item.status, item.data);
+          });
+        } else {
+          addLog('测试失败: ' + result.error, 'error');
+        }
+      } catch (error) {
+        addLog('调用测试失败: ' + error.message, 'error');
+      } finally {
+        runBasicTestBtn.disabled = false;
+        runBasicTestBtn.textContent = '运行基础测试';
+      }
+    });
+
+    getStatsBtn.addEventListener('click', async () => {
+      try {
+        addLog('获取 CR-SQLite 统计信息...', 'info');
+        
+        const result = await window.electron.invoke('test:crsqlite:stats');
+        
+        if (result.success) {
+          addLog('统计信息获取成功', 'success', result.stats);
+        } else {
+          addLog('获取失败: ' + result.error, 'error');
+        }
+      } catch (error) {
+        addLog('调用失败: ' + error.message, 'error');
+      }
+    });
+
+    clearResultsBtn.addEventListener('click', clearResults);
+  </script>
+</body>
+</html>

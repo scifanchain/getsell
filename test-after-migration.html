@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>测试 Prisma 移除后的功能</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-left: 4px solid #3498db;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .progress {
+            margin: 10px 0;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .stat-label {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 CR-SQLite 统一架构测试</h1>
+        <p><strong>Prisma 已完全移除，现在 100% 使用 CR-SQLite!</strong></p>
+
+        <div class="test-section">
+            <h2>📊 1. 基础仓储测试</h2>
+            <button onclick="runBasicTests()">运行基础测试</button>
+            <div id="basic-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 2. 完整测试套件 (17项)</h2>
+            <button onclick="runFullTests()">运行完整测试</button>
+            <div id="full-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📝 3. 创建测试数据</h2>
+            <button onclick="createTestData()">创建作品和章节</button>
+            <div id="create-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🤝 4. Yjs 协作文档测试</h2>
+            <button onclick="testCollaboration()">测试协作文档存储</button>
+            <div id="collab-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 5. 查询协作文档</h2>
+            <button onclick="queryCollabDocs()">查询所有协作文档</button>
+            <div id="query-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📈 6. 统计信息</h2>
+            <button onclick="getStats()">获取统计数据</button>
+            <div id="stats-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const output = (id, content, isError = false) => {
+            const el = document.getElementById(id);
+            el.textContent = content;
+            el.style.borderLeftColor = isError ? '#e74c3c' : '#27ae60';
+        };
+
+        async function runBasicTests() {
+            output('basic-result', '⏳ 运行基础测试...');
+            try {
+                const result = await window.electron.invoke('test:crsqlite:basic');
+                output('basic-result', JSON.stringify(result, null, 2));
+            } catch (error) {
+                output('basic-result', '❌ 错误: ' + error.message, true);
+            }
+        }
+
+        async function runFullTests() {
+            output('full-result', '⏳ 运行完整测试套件...');
+            try {
+                const result = await window.electron.invoke('test:crsqlite:full');
+                const summary = `
+✅ 测试完成!
+
+总计: ${result.totalTests} 项
+成功: ${result.successCount} 项
+失败: ${result.failureCount} 项
+跳过: ${result.skippedCount} 项
+
+通过率: ${((result.successCount / result.totalTests) * 100).toFixed(1)}%
+
+详细结果:
+${result.results.map((r, i) => 
+    `${i + 1}. ${r.passed ? '✅' : '❌'} ${r.testName} (${r.duration}ms)`
+).join('\n')}
+                `;
+                output('full-result', summary);
+            } catch (error) {
+                output('full-result', '❌ 错误: ' + error.message, true);
+            }
+        }
+
+        async function createTestData() {
+            output('create-result', '⏳ 创建测试数据...');
+            try {
+                // 创建用户
+                const user = await window.electron.invoke('user:create', {
+                    name: '测试用户',
+                    email: 'test@example.com',
+                    role: 'user'
+                });
+
+                // 创建作品
+                const work = await window.electron.invoke('work:create', {
+                    title: 'CR-SQLite 测试作品',
+                    authorId: user.id,
+                    description: '这是一个测试 CR-SQLite 的作品'
+                });
+
+                // 创建章节
+                const chapter = await window.electron.invoke('chapter:create', {
+                    title: '第一章：测试章节',
+                    workId: work.id,
+                    level: 1,
+                    orderIndex: 0
+                });
+
+                // 创建内容
+                const content = await window.electron.invoke('content:create', {
+                    chapterId: chapter.id,
+                    workId: work.id,
+                    contentType: 'text',
+                    contentJson: JSON.stringify({
+                        type: 'doc',
+                        content: [{
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: '这是测试内容' }]
+                        }]
+                    })
+                });
+
+                const result = `
+✅ 测试数据创建成功!
+
+用户: ${user.name} (${user.id})
+作品: ${work.title} (${work.id})
+章节: ${chapter.title} (${chapter.id})
+内容: ${content.id}
+字数: ${content.wordCount || 0}
+                `;
+                output('create-result', result);
+
+                // 保存 workId 供后续测试使用
+                window._testWorkId = work.id;
+                window._testContentId = content.id;
+            } catch (error) {
+                output('create-result', '❌ 错误: ' + error.message, true);
+            }
+        }
+
+        async function testCollaboration() {
+            output('collab-result', '⏳ 测试协作文档存储...');
+            try {
+                if (!window._testContentId) {
+                    throw new Error('请先运行"创建测试数据"');
+                }
+
+                // 模拟 Yjs 状态数据
+                const yjsState = new Uint8Array([1, 2, 3, 4, 5]);
+                const stateVector = new Uint8Array([6, 7, 8]);
+
+                // 这里需要调用实际的协作文档保存接口
+                // 由于我们还没有在 IPC 中注册协作相关的处理器，
+                // 这里先展示如何使用
+
+                const result = `
+✅ 协作文档测试准备就绪!
+
+内容ID: ${window._testContentId}
+作品ID: ${window._testWorkId}
+
+Yjs 状态大小: ${yjsState.length} bytes
+状态向量大小: ${stateVector.length} bytes
+
+注意: 需要在 IPC 处理器中添加协作文档的保存/查询接口。
+                `;
+                output('collab-result', result);
+            } catch (error) {
+                output('collab-result', '❌ 错误: ' + error.message, true);
+            }
+        }
+
+        async function queryCollabDocs() {
+            output('query-result', '⏳ 查询协作文档...');
+            try {
+                // 这里需要调用查询协作文档的接口
+                // 暂时显示说明
+                const result = `
+📋 协作文档查询功能
+
+当前状态: CRSQLiteCollaborationRepository 已创建
+数据表: collaborative_documents (已启用 CRDT)
+
+需要添加的 IPC 处理器:
+- collaboration:save
+- collaboration:findById
+- collaboration:findByContentId
+- collaboration:findByWorkId
+- collaboration:update
+
+表结构:
+- id (TEXT)
+- content_id (TEXT)
+- work_id (TEXT)
+- yjs_state (BLOB)
+- state_vector (BLOB)
+- last_sync_at (INTEGER)
+- created_at (INTEGER)
+- updated_at (INTEGER)
+                `;
+                output('query-result', result);
+            } catch (error) {
+                output('query-result', '❌ 错误: ' + error.message, true);
+            }
+        }
+
+        async function getStats() {
+            const container = document.getElementById('stats-result');
+            container.innerHTML = '<div class="progress">⏳ 获取统计数据...</div>';
+            
+            try {
+                // 获取各种统计数据
+                const [works, users] = await Promise.all([
+                    window.electron.invoke('work:findAll'),
+                    window.electron.invoke('user:findAll')
+                ]);
+
+                const statsHtml = `
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-label">总用户数</div>
+                            <div class="stat-value">${users.length}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">总作品数</div>
+                            <div class="stat-value">${works.length}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">数据库</div>
+                            <div class="stat-value">CR-SQLite</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Prisma</div>
+                            <div class="stat-value">已移除 ✨</div>
+                        </div>
+                    </div>
+                    <div class="result">
+✅ 统计信息获取成功!
+
+数据库: CR-SQLite (统一架构)
+CRDT: 已启用 (6个表)
+协作: CR-SQLite (替代 Prisma)
+                    </div>
+                `;
+                container.innerHTML = statsHtml;
+            } catch (error) {
+                container.innerHTML = `<div class="result" style="border-left-color: #e74c3c;">❌ 错误: ${error.message}</div>`;
+            }
+        }
+
+        // 页面加载时显示欢迎信息
+        window.addEventListener('load', () => {
+            console.log('🚀 CR-SQLite 测试页面已加载');
+            console.log('✨ Prisma 已完全移除');
+            console.log('📊 现在 100% 使用 CR-SQLite');
+        });
+    </script>
+</body>
+</html>

@@ -4,11 +4,12 @@ import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 // 导入TypeScript模块
-import GestallPrismaDatabase from './core/prismadb';
-import { DatabaseManager } from './core/database';
-import { RepositoryContainer } from './data/RepositoryContainer';
+import { CRSQLiteManager } from './core/crsqlite-manager';
+import { CRSQLiteRepositoryContainer } from './data/CRSQLiteRepositoryContainer';
 import { ServiceContainer } from './services/ServiceContainer';
 import { IPCManager } from './ipc/IPCManager';
+import { registerCRSQLiteTestHandlers } from './ipc/test-crsqlite-handlers';
+import { registerCRSQLiteFullTestHandlers } from './ipc/test-crsqlite-full-handlers';
 import ulidGenerator from './core/ulid';
 import GestallCrypto from './crypto/crypto';
 
@@ -35,13 +36,12 @@ console.log('🟢 Node.js版本:', process.versions.node);
 console.log('🔧 Chrome版本:', process.versions.chrome);
 
 // 核心实例
-let db: any; // 保持旧实例向后兼容
 let crypto: any;
 let mainWindow: BrowserWindow | null = null;
 
-// 新架构实例
-let databaseManager: DatabaseManager;
-let repositories: RepositoryContainer;
+// CR-SQLite 架构实例
+let crsqliteManager: CRSQLiteManager;
+let repositories: CRSQLiteRepositoryContainer;
 let services: ServiceContainer;
 let ipcManager: IPCManager;
 
@@ -120,33 +120,48 @@ function createWindow(): void {
 
 async function initCore(): Promise<void> {
   try {
-    // 初始化新架构
-    console.log('🔍 初始化新的Repository架构');
-    databaseManager = new DatabaseManager();
-    await databaseManager.connect();
+    // � 完全使用 CR-SQLite 作为唯一数据库
+    console.log('🔍 初始化 CR-SQLite 数据库 (统一架构)');
+    const appDataPath = app.getPath('userData');
+    const dbPath = path.join(appDataPath, 'gestell-crsqlite.db');
     
-    repositories = new RepositoryContainer(databaseManager);
+    crsqliteManager = new CRSQLiteManager({
+      dbPath,
+      enableWal: true,
+      enableForeignKeys: false // CR-SQLite 限制
+    });
+    await crsqliteManager.initialize();
+    console.log('✅ CR-SQLite 数据库初始化成功:', dbPath);
+    
+    // 创建仓储容器 (完全使用 CR-SQLite)
+    repositories = new CRSQLiteRepositoryContainer(crsqliteManager);
+    console.log('✅ CR-SQLite 仓储容器创建成功 (包含 Yjs 协作)');
     
     // 初始化服务层
     console.log('🔧 初始化服务层');
-    services = new ServiceContainer(repositories);
+    services = new ServiceContainer(repositories as any);
+    console.log('✅ 服务层初始化成功');
     
     // 初始化IPC处理器
     console.log('📡 初始化IPC处理器');
     ipcManager = new IPCManager(services, mainWindow);
     ipcManager.initialize();
+    console.log('✅ IPC 处理器初始化成功');
     
-    // 保持旧架构向后兼容
-    console.log('🔍 使用Prisma数据库模式');
-    db = new GestallPrismaDatabase();
-    await db.connect();
+    // 注册测试 handlers
+    console.log('🧪 注册 CR-SQLite 测试处理器');
+    registerCRSQLiteTestHandlers();
+    registerCRSQLiteFullTestHandlers();
     
     // 初始化加密模块
     crypto = new GestallCrypto();
     
     console.log('🚀 Gestell核心模块初始化成功');
+    console.log('📊 完全使用 CR-SQLite (包括 Yjs 协作)');
+    console.log('✨ Prisma 已完全移除');
   } catch (error) {
     console.error('❌ 核心模块初始化失败:', error);
+    throw error;
   }
 }
 
@@ -168,8 +183,8 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', async function () {
   if (process.platform !== 'darwin') {
     // 关闭数据库连接
-    if (db) {
-      await db.disconnect();
+    if (crsqliteManager) {
+      crsqliteManager.close();
     }
     app.quit();
   }
@@ -177,7 +192,7 @@ app.on('window-all-closed', async function () {
 
 // 应用即将退出时清理
 app.on('before-quit', async () => {
-  if (db) {
-    await db.disconnect();
+  if (crsqliteManager) {
+    crsqliteManager.close();
   }
 });

@@ -63,6 +63,10 @@
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@vlcn.io/crsqlite": "^0.16.3",
+    "@vlcn.io/rx-tbl": "^0.15.0",
+    "better-sqlite3": "^12.4.1",
     "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
     "electron-store": "^10.0.0",

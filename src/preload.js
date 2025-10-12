@@ -67,6 +67,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }
 });
 
+// 也暴露为 electron（简化API）
+contextBridge.exposeInMainWorld('electron', {
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+});
+
 // 兼容旧的 gestell API
 contextBridge.exposeInMainWorld('gestell', {
   // 用户管理API
