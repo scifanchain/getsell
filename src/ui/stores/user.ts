@@ -6,6 +6,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User } from '../types/models'
 import { userApi } from '../services/api'
+import { userActivityWatcher } from '../utils/UserActivityWatcher'
 
 export const useUserStore = defineStore('user', () => {
   // State
@@ -38,8 +39,12 @@ export const useUserStore = defineStore('user', () => {
       const user = await userApi.register(userData)
       currentUser.value = user
       isLoggedIn.value = true
-      // 保存到本地存储
-      localStorage.setItem('currentUserId', user.id)
+      // 使用 IPC 保存到主进程的配置存储
+      await userApi.saveAuthorConfig({ currentAuthorId: user.id })
+      
+      // 启动用户活动监听（自动续期）
+      console.log('🎯 启动用户活动监听')
+      
       return user
     } catch (err) {
       error.value = err instanceof Error ? err.message : '注册失败'
@@ -60,10 +65,13 @@ export const useUserStore = defineStore('user', () => {
         currentUser.value = result.user
         isLoggedIn.value = true
         
-        // 根据 rememberMe 决定是否保存到本地存储
+        // 使用 IPC 保存到主进程的配置存储
         if (rememberMe) {
-          localStorage.setItem('currentUserId', result.user.id)
+          await userApi.saveAuthorConfig({ currentAuthorId: result.user.id })
         }
+        
+        // 启动用户活动监听（自动续期）
+        console.log('🎯 启动用户活动监听')
         
         return result.user
       } else {
@@ -88,24 +96,27 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function loadUserFromStorage() {
-    const userId = localStorage.getItem('currentUserId')
-    if (userId) {
-      loading.value = true
-      try {
-        const user = await userApi.find(userId)
+    try {
+      const configResult = await userApi.loadAuthorConfig()
+      if (configResult.success && configResult.data.currentAuthorId && !configResult.data.isExpired) {
+        loading.value = true
+        const user = await userApi.find(configResult.data.currentAuthorId)
         if (user) {
           currentUser.value = user
           isLoggedIn.value = true
+          
+          // 启动用户活动监听（自动续期）
+          console.log('🎯 从存储恢复登录状态，启动用户活动监听')
         } else {
-          // 用户不存在，清除本地存储
-          localStorage.removeItem('currentUserId')
+          // 用户不存在，清除配置
+          await userApi.clearAuthorConfig()
         }
-      } catch (err) {
-        console.error('加载用户信息失败:', err)
-        localStorage.removeItem('currentUserId')
-      } finally {
-        loading.value = false
       }
+    } catch (err) {
+      console.error('加载用户信息失败:', err)
+      await userApi.clearAuthorConfig()
+    } finally {
+      loading.value = false
     }
   }
 
@@ -113,7 +124,10 @@ export const useUserStore = defineStore('user', () => {
     currentUser.value = null
     isLoggedIn.value = false
     error.value = null
-    localStorage.removeItem('currentUserId')
+    // 使用 IPC 清除配置
+    userApi.clearAuthorConfig().catch(err => {
+      console.error('清除作者配置失败:', err)
+    })
   }
 
   function clearError() {

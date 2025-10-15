@@ -44,7 +44,7 @@
             </div>
             <div class="tech-item">
               <strong>数据库</strong>
-              <p>Prisma + SQLite</p>
+              <p>CR-SQLite (分布式)</p>
             </div>
             <div class="tech-item">
               <strong>构建工具</strong>

@@ -65,6 +65,7 @@
           :content-id="currentContent.id"
           :user-id="currentUser.id"
           :user-name="currentUser.name"
+          :initial-title="currentContent.title"
           :enable-collaboration="true"
           :collaboration-config="{
             websocketUrl: 'ws://localhost:4001/signaling',
@@ -74,6 +75,7 @@
           @update:modelValue="handleContentUpdate"
           @collaboration-changed="handleCollaborationChanged"
           @collaborators-updated="handleCollaboratorsUpdated"
+          @title-updated="handleTitleUpdated"
         />
 
         <!-- 原始增强编辑器 -->
@@ -89,6 +91,13 @@
           @content-error="handleContentError"
           @title-updated="handleTitleUpdated"
         />
+      </div>
+      
+      <div v-else-if="isLoadingContent" class="loading-content">
+        <div class="loading-spinner">
+          <div class="spinner"></div>
+          <p>正在加载内容...</p>
+        </div>
       </div>
       
       <div v-else-if="selectedChapterId && !currentContent" class="create-content">
@@ -196,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import ChapterTree from '../components/ChapterTree/index.vue'
@@ -281,6 +290,9 @@ const showWorkModal = ref(false)
 const editingChapter = ref<EditingChapter | null>(null)
 const isNewChapter = ref(false)
 
+// Loading states
+const isLoadingContent = ref(false)
+
 // Statistics
 const todayStats = ref<TodayStats>({
   wordsWritten: 0,
@@ -309,12 +321,22 @@ onMounted(async () => {
 })
 
 // Watchers
-watch(selectedChapterId, async (newChapterId) => {
+watch(selectedChapterId, async (newChapterId, oldChapterId) => {
+  console.log('👁️ selectedChapterId watcher 触发:', {
+    from: oldChapterId,
+    to: newChapterId,
+    hasCurrentContent: !!currentContent.value
+  })
+  
   if (newChapterId) {
+    console.log('👁️ 将加载章节内容:', newChapterId)
     await loadChapterContent(newChapterId)
   } else {
-    currentContent.value = null
+    console.log('👁️ selectedChapterId 被清空，但保持 currentContent 不变')
   }
+  // 移除自动清空 currentContent 的逻辑
+  // 因为根目录内容 (chapterId 为 null) 也是有效内容
+  // 只有在明确选择了章节但加载失败时才应该清空
 })
 
 // Methods
@@ -331,6 +353,20 @@ const handleContentUpdate = async (content: string) => {
   if (currentContent.value) {
     // 在协同模式下，简单更新本地内容（Yjs 会处理持久化）
     currentContent.value = { ...currentContent.value, content }
+    
+    // 记录最后编辑的内容（协同模式下也需要记录）
+    if (currentWork.value) {
+      try {
+        await (window as any).electronAPI.invoke('author:setLastEditedContent', {
+          workId: currentWork.value.id,
+          chapterId: currentContent.value.chapterId,
+          contentId: currentContent.value.id
+        })
+        console.log('已记录最后编辑的内容 (协同模式):', currentContent.value.id)
+      } catch (error) {
+        console.error('记录最后编辑内容失败 (协同模式):', error)
+      }
+    }
   }
 }
 
@@ -421,6 +457,9 @@ const loadWork = async (workId: string) => {
       selectedChapterId.value = chapters.value[0].id
     }
     
+    // 尝试自动加载最后编辑的内容
+    await tryLoadLastEditedContent(workId)
+    
     console.log('加载作品完成:', {
       work: work.title,
       chapters: chapters.value.length,
@@ -501,6 +540,15 @@ const handleContentSelect = async (contentId: string) => {
     }
 
     console.log('🔍 用户选择内容:', contentId)
+    console.log('🔍 当前状态 - 选择前:', {
+      selectedChapterId: selectedChapterId.value,
+      hasCurrentContent: !!currentContent.value,
+      currentContentId: currentContent.value?.id
+    })
+    
+    // 立即清空当前内容并设置加载状态，防止显示欢迎界面
+    currentContent.value = null
+    isLoadingContent.value = true
     
     // 直接加载指定的内容
     const content = await contentApi.get(contentId, currentUser.value.id)
@@ -515,10 +563,30 @@ const handleContentSelect = async (contentId: string) => {
       contentLength: content.content?.length || 0
     })
     
+    // 先设置内容，确保编辑器能够显示
     currentContent.value = content
     
     console.log('✅ 已设置 currentContent.value')
-    console.log('📊 当前状态检查:', {
+    
+    // 使用 nextTick 确保响应式更新完成后再更新章节ID
+    await nextTick()
+    
+    // 然后更新选中的章节ID（避免在设置内容前触发watcher）
+    if (content.chapterId) {
+      if (selectedChapterId.value !== content.chapterId) {
+        console.log('🔄 更新 selectedChapterId 从', selectedChapterId.value, '到', content.chapterId)
+        selectedChapterId.value = content.chapterId
+      }
+    } else {
+      // 如果是根级别内容（chapterId 为 null），清空 selectedChapterId
+      console.log('ℹ️ 这是根级别内容（无章节关联）')
+      if (selectedChapterId.value) {
+        console.log('🔄 清空 selectedChapterId 从', selectedChapterId.value, '到空字符串')
+        selectedChapterId.value = ''
+      }
+    }
+    
+    console.log('📊 最终状态检查:', {
       selectedChapterId: selectedChapterId.value,
       hasCurrentContent: !!currentContent.value,
       currentContentId: currentContent.value?.id,
@@ -526,22 +594,72 @@ const handleContentSelect = async (contentId: string) => {
       shouldShowEditor: !!currentContent.value
     })
     
-    // 更新选中的章节ID（如果需要）
-    if (content.chapterId) {
-      if (selectedChapterId.value !== content.chapterId) {
-        selectedChapterId.value = content.chapterId
-        console.log('🔄 已更新 selectedChapterId 为:', content.chapterId)
-      }
-    } else {
-      // 如果是根级别内容（chapterId 为 null），清空 selectedChapterId
-      console.log('ℹ️ 这是根级别内容（无章节关联）')
-      if (selectedChapterId.value) {
-        selectedChapterId.value = ''
+    // 记录最后访问的内容
+    if (currentWork.value) {
+      try {
+        await (window as any).electronAPI.invoke('author:setLastEditedContent', {
+          workId: currentWork.value.id,
+          chapterId: content.chapterId,
+          contentId: content.id
+        })
+        console.log('已记录最后访问的内容:', content.id)
+      } catch (error) {
+        console.error('记录最后访问内容失败:', error)
       }
     }
   } catch (error: any) {
     console.error('❌ Load content failed:', error)
     showNotification(`加载内容失败: ${error.message || '未知错误'}`, 'error')
+  } finally {
+    // 清除加载状态
+    isLoadingContent.value = false
+  }
+}
+
+// 尝试自动加载最后编辑的内容
+const tryLoadLastEditedContent = async (workId: string) => {
+  try {
+    // 通过 IPC 获取最后编辑的内容
+    const response = await (window as any).electronAPI.invoke('author:getLastEditedContent')
+    if (!response.success || !response.data) {
+      console.log('没有找到最后编辑的内容记录')
+      return
+    }
+
+    const lastEditedContent = response.data
+    console.log('找到最后编辑的内容:', lastEditedContent)
+
+    // 检查是否是当前作品的内容
+    if (lastEditedContent.workId !== workId) {
+      console.log('最后编辑的内容不属于当前作品，忽略')
+      return
+    }
+
+    // 检查内容是否过期（7天）
+    const now = Date.now()
+    const sevenDays = 7 * 24 * 60 * 60 * 1000
+    if ((now - lastEditedContent.timestamp) > sevenDays) {
+      console.log('最后编辑的内容已过期，清除记录')
+      await (window as any).electronAPI.invoke('author:clearLastEditedContent')
+      return
+    }
+
+    // 检查内容是否仍然存在
+    const contentExists = contents.value.some(content => content.id === lastEditedContent.contentId)
+    if (!contentExists) {
+      console.log('最后编辑的内容已不存在，清除记录')
+      await (window as any).electronAPI.invoke('author:clearLastEditedContent')
+      return
+    }
+
+    // 自动选择并加载该内容
+    console.log('自动加载最后编辑的内容:', lastEditedContent.contentId)
+    await handleContentSelect(lastEditedContent.contentId)
+    
+    showNotification('已自动加载上次编辑的内容', 'info')
+  } catch (error) {
+    console.error('尝试加载最后编辑内容失败:', error)
+    // 不显示错误提示，静默失败
   }
 }
 
@@ -669,12 +787,21 @@ const handleAddContent = async (data: { title?: string, type?: string, workId?: 
         allKeys: Object.keys(response)
       })
       
-      // 刷新章节数据
-      if (currentWork.value) {
-        await loadWork(currentWork.value.id)
-      }
+      // 🔄 延迟刷新以确保数据已写入数据库
+      setTimeout(async () => {
+        console.log('🔄 开始刷新作品数据...')
+        if (currentWork.value) {
+          await loadWork(currentWork.value.id)
+          console.log('🔄 作品数据刷新完成，当前内容数量:', contents.value.length)
+          
+          // 强制触发响应式更新
+          contents.value = [...contents.value]
+          
+          console.log('🔄 强制响应式更新完成')
+        }
+      }, 100)
       
-      // 🎯 新增：自动加载新创建的内容到编辑器
+      // 🎯 自动加载新创建的内容到编辑器
       if (response && response.id) {
         currentContent.value = response
         
@@ -885,12 +1012,25 @@ const createNewContent = async () => {
       content: []
     })
 
+    // 生成内容标题
+    let contentTitle = '新内容'
+    if (selectedChapter.value) {
+      // 如果是在章节下创建，获取该章节下已有内容的数量
+      const existingContents = contents.value.filter(content => content.chapterId === selectedChapter.value?.id) || []
+      const contentIndex = existingContents.length + 1
+      contentTitle = `${selectedChapter.value.title} - 第${contentIndex}节`
+    } else {
+      // 如果是根目录，使用作品标题
+      const rootContents = contents.value.filter(content => !content.chapterId) || []
+      contentTitle = `${currentWork.value.title} - 内容${rootContents.length + 1}`
+    }
+
     const newContent = await contentApi.create(currentUser.value.id, {
       workId: currentWork.value.id,
       chapterId: selectedChapterId.value,
       content: emptyProseMirrorDoc,
       format: 'prosemirror',
-      title: selectedChapter.value?.title || '新内容'
+      title: contentTitle
     })
 
     console.log('内容创建成功:', newContent)
@@ -908,9 +1048,23 @@ const createNewContent = async () => {
   }
 }
 
-const handleContentSaved = (result: any) => {
+const handleContentSaved = async (result: any) => {
   showNotification('内容已保存', 'success')
   todayStats.value.wordsWritten += result.wordCount || 0
+  
+  // 记录最后编辑的内容
+  if (currentContent.value && currentWork.value) {
+    try {
+      await (window as any).electronAPI.invoke('author:setLastEditedContent', {
+        workId: currentWork.value.id,
+        chapterId: currentContent.value.chapterId,
+        contentId: currentContent.value.id
+      })
+      console.log('已记录最后编辑的内容:', currentContent.value.id)
+    } catch (error) {
+      console.error('记录最后编辑内容失败:', error)
+    }
+  }
 }
 
 const handleContentError = (error: Error) => {
@@ -919,7 +1073,20 @@ const handleContentError = (error: Error) => {
 
 const handleTitleUpdated = (title: string) => {
   if (currentContent.value) {
+    // 更新当前内容的标题
     currentContent.value.title = title
+    
+    // 同时更新 contents 数组中对应的内容项，确保章节树实时刷新
+    const contentIndex = contents.value.findIndex(content => content.id === currentContent.value.id)
+    if (contentIndex !== -1) {
+      contents.value[contentIndex] = {
+        ...contents.value[contentIndex],
+        title: title
+      }
+      
+      // 强制触发响应式更新
+      contents.value = [...contents.value]
+    }
   }
 }
 
@@ -1044,11 +1211,41 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
 }
 
 .create-content,
+.loading-content,
 .welcome-screen {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.loading-content {
+  flex-direction: column;
+}
+
+.loading-spinner {
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner p {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
 }
 
 .empty-chapter,

@@ -1,5 +1,5 @@
 import { ServiceContainer } from '../services/ServiceContainer';
-import { UserIPCHandler } from './UserIPCHandler';
+import { AuthorIPCHandler } from './AuthorIPCHandler';
 import { WorkIPCHandler } from './WorkIPCHandler';
 import { SystemIPCHandler } from './SystemIPCHandler';
 import { ChapterIPCHandler } from './ChapterIPCHandler';
@@ -10,16 +10,16 @@ import { ContentIPCHandler } from './ContentIPCHandler';
  * 负责注册所有 IPC 处理器
  */
 export class IPCManager {
-    private userHandler: UserIPCHandler;
+    private authorHandler: AuthorIPCHandler;
     private workHandler: WorkIPCHandler;
     private systemHandler: SystemIPCHandler;
     private chapterHandler: ChapterIPCHandler;
     private contentHandler: ContentIPCHandler;
 
-    constructor(services: ServiceContainer, mainWindow: any) {
-        this.userHandler = new UserIPCHandler(services);
+    constructor(services: ServiceContainer, mainWindow: any, crsqliteManager?: any) {
+        this.authorHandler = new AuthorIPCHandler(services);
         this.workHandler = new WorkIPCHandler(services);
-        this.systemHandler = new SystemIPCHandler(services, mainWindow);
+        this.systemHandler = new SystemIPCHandler(services, mainWindow, crsqliteManager);
         this.chapterHandler = new ChapterIPCHandler(services);
         this.contentHandler = new ContentIPCHandler(services);
     }
@@ -31,7 +31,7 @@ export class IPCManager {
         console.log('✅ IPC 处理器已初始化');
         
         // 实际初始化各个处理器
-        this.userHandler.initialize();
+        this.authorHandler.initialize();
         this.workHandler.initialize();
         this.chapterHandler.initialize();
         this.contentHandler.initialize();

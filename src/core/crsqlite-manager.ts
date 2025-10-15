@@ -165,24 +165,18 @@ export class CRSQLiteManager {
 
   /**
    * 创建数据库表结构
-   * 基于 Prisma schema 的定义
+   * 基于项目数据模型的定义
    */
   private async createTables(): Promise<void> {
     if (!this.db) {
       throw new Error('Database not opened')
     }
 
-    // 先删除已存在的表（仅用于测试/开发）
-    this.db.exec(`
-      DROP TABLE IF EXISTS content_versions;
-      DROP TABLE IF EXISTS collaborative_documents;
-      DROP TABLE IF EXISTS contents;
-      DROP TABLE IF EXISTS chapters;
-      DROP TABLE IF EXISTS works;
-      DROP TABLE IF EXISTS authors;
-    `)
+    // 注意：不要删除已存在的表，以保持数据持久性
+    // 只有在开发时需要重置数据结构时才手动删除表
 
     // 创建 authors 表
+    // 统一使用 camelCase 字段命名，不再做映射转换
     // 注意: CR-SQLite 要求:
     // 1. 不支持除主键外的 UNIQUE 约束（唯一性在应用层检查）
     // 2. 所有 NOT NULL 列必须有 DEFAULT 值（确保模式兼容性）
@@ -190,21 +184,21 @@ export class CRSQLiteManager {
       CREATE TABLE IF NOT EXISTS authors (
         id TEXT PRIMARY KEY NOT NULL,
         username TEXT NOT NULL DEFAULT '',
-        password_hash TEXT,
-        display_name TEXT,
+        passwordHash TEXT,
+        displayName TEXT,
         email TEXT,
         bio TEXT,
-        avatar_url TEXT,
-        wallet_address TEXT,
-        public_key TEXT,
-        private_key_encrypted TEXT,
-        total_works INTEGER NOT NULL DEFAULT 0,
-        total_words INTEGER NOT NULL DEFAULT 0,
+        avatarUrl TEXT,
+        walletAddress TEXT,
+        publicKey TEXT,
+        privateKeyEncrypted TEXT,
+        totalWorks INTEGER NOT NULL DEFAULT 0,
+        totalWords INTEGER NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'active',
         preferences TEXT,
-        last_active_at INTEGER,
-        created_at INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL DEFAULT 0
+        lastActiveAt INTEGER,
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
       )
     `)
 
@@ -215,29 +209,29 @@ export class CRSQLiteManager {
         title TEXT NOT NULL DEFAULT '',
         subtitle TEXT,
         description TEXT,
-        cover_image_url TEXT,
+        coverImageUrl TEXT,
         genre TEXT,
         tags TEXT,
-        author_id TEXT NOT NULL DEFAULT '',
-        collaboration_mode TEXT NOT NULL DEFAULT 'solo',
+        authorId TEXT NOT NULL DEFAULT '',
+        collaborationMode TEXT NOT NULL DEFAULT 'solo',
         collaborators TEXT,
         status TEXT NOT NULL DEFAULT 'draft',
-        progress_percentage REAL NOT NULL DEFAULT 0.0,
-        total_words INTEGER NOT NULL DEFAULT 0,
-        total_characters INTEGER NOT NULL DEFAULT 0,
-        chapter_count INTEGER NOT NULL DEFAULT 0,
-        target_words INTEGER,
-        target_completion_date INTEGER,
-        blockchain_hash TEXT,
-        nft_token_id TEXT,
-        nft_contract_address TEXT,
-        copyright_hash TEXT,
-        is_public INTEGER NOT NULL DEFAULT 0,
-        license_type TEXT NOT NULL DEFAULT 'all_rights_reserved',
-        published_at INTEGER,
+        progressPercentage REAL NOT NULL DEFAULT 0.0,
+        totalWords INTEGER NOT NULL DEFAULT 0,
+        totalCharacters INTEGER NOT NULL DEFAULT 0,
+        chapterCount INTEGER NOT NULL DEFAULT 0,
+        targetWords INTEGER,
+        targetCompletionDate INTEGER,
+        blockchainHash TEXT,
+        nftTokenId TEXT,
+        nftContractAddress TEXT,
+        copyrightHash TEXT,
+        isPublic INTEGER NOT NULL DEFAULT 0,
+        licenseType TEXT NOT NULL DEFAULT 'all_rights_reserved',
+        publishedAt INTEGER,
         metadata TEXT,
-        created_at INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL DEFAULT 0
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
       )
     `)
 
@@ -246,31 +240,31 @@ export class CRSQLiteManager {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS chapters (
         id TEXT PRIMARY KEY NOT NULL,
-        work_id TEXT NOT NULL DEFAULT '',
-        parent_id TEXT,
+        workId TEXT NOT NULL DEFAULT '',
+        parentId TEXT,
         level INTEGER NOT NULL DEFAULT 1,
-        order_index INTEGER NOT NULL DEFAULT 0,
+        orderIndex INTEGER NOT NULL DEFAULT 0,
         title TEXT NOT NULL DEFAULT '',
         subtitle TEXT,
         description TEXT,
         type TEXT NOT NULL DEFAULT 'chapter',
         status TEXT NOT NULL DEFAULT 'draft',
-        word_count INTEGER NOT NULL DEFAULT 0,
-        character_count INTEGER NOT NULL DEFAULT 0,
-        content_count INTEGER NOT NULL DEFAULT 0,
-        child_chapter_count INTEGER NOT NULL DEFAULT 0,
-        progress_percentage REAL NOT NULL DEFAULT 0.0,
-        target_words INTEGER,
-        author_id TEXT NOT NULL DEFAULT '',
-        story_timeline_start TEXT,
-        story_timeline_end TEXT,
+        wordCount INTEGER NOT NULL DEFAULT 0,
+        characterCount INTEGER NOT NULL DEFAULT 0,
+        contentCount INTEGER NOT NULL DEFAULT 0,
+        childChapterCount INTEGER NOT NULL DEFAULT 0,
+        progressPercentage REAL NOT NULL DEFAULT 0.0,
+        targetWords INTEGER,
+        authorId TEXT NOT NULL DEFAULT '',
+        storyTimelineStart TEXT,
+        storyTimelineEnd TEXT,
         tags TEXT,
-        blockchain_hash TEXT,
-        is_public INTEGER NOT NULL DEFAULT 0,
-        published_at INTEGER,
+        blockchainHash TEXT,
+        isPublic INTEGER NOT NULL DEFAULT 0,
+        publishedAt INTEGER,
         metadata TEXT,
-        created_at INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL DEFAULT 0
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
       )
     `)
 
@@ -278,85 +272,85 @@ export class CRSQLiteManager {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS contents (
         id TEXT PRIMARY KEY NOT NULL,
-        work_id TEXT NOT NULL DEFAULT '',
-        chapter_id TEXT,
-        order_index INTEGER NOT NULL DEFAULT 0,
+        workId TEXT NOT NULL DEFAULT '',
+        chapterId TEXT,
+        orderIndex INTEGER NOT NULL DEFAULT 0,
         title TEXT,
         type TEXT NOT NULL DEFAULT 'text',
-        content_json TEXT,
-        word_count INTEGER NOT NULL DEFAULT 0,
-        character_count INTEGER NOT NULL DEFAULT 0,
-        paragraph_count INTEGER NOT NULL DEFAULT 0,
+        contentJson TEXT,
+        wordCount INTEGER NOT NULL DEFAULT 0,
+        characterCount INTEGER NOT NULL DEFAULT 0,
+        paragraphCount INTEGER NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'draft',
         version INTEGER NOT NULL DEFAULT 1,
-        author_id TEXT NOT NULL DEFAULT '',
-        is_collaborative INTEGER NOT NULL DEFAULT 0,
+        authorId TEXT NOT NULL DEFAULT '',
+        isCollaborative INTEGER NOT NULL DEFAULT 0,
         contributors TEXT,
-        story_timeline TEXT,
-        characters_involved TEXT,
+        storyTimeline TEXT,
+        charactersInvolved TEXT,
         location TEXT,
-        scene_description TEXT,
+        sceneDescription TEXT,
         tags TEXT,
-        emotion_tone TEXT,
-        importance_level INTEGER NOT NULL DEFAULT 3,
-        content_hash TEXT,
-        blockchain_timestamp INTEGER,
-        copyright_status TEXT NOT NULL DEFAULT 'draft',
-        is_public INTEGER NOT NULL DEFAULT 0,
-        published_at INTEGER,
-        writing_duration INTEGER NOT NULL DEFAULT 0,
-        last_edited_at INTEGER NOT NULL DEFAULT 0,
-        last_editor_id TEXT NOT NULL DEFAULT '',
+        emotionTone TEXT,
+        importanceLevel INTEGER NOT NULL DEFAULT 3,
+        contentHash TEXT,
+        blockchainTimestamp INTEGER,
+        copyrightStatus TEXT NOT NULL DEFAULT 'draft',
+        isPublic INTEGER NOT NULL DEFAULT 0,
+        publishedAt INTEGER,
+        writingDuration INTEGER NOT NULL DEFAULT 0,
+        lastEditedAt INTEGER NOT NULL DEFAULT 0,
+        lastEditorId TEXT NOT NULL DEFAULT '',
         notes TEXT,
         metadata TEXT,
-        created_at INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL DEFAULT 0
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
       )
     `)
 
     // 创建 content_versions 表
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS content_versions (
+      CREATE TABLE IF NOT EXISTS contentVersions (
         id TEXT PRIMARY KEY NOT NULL,
-        content_id TEXT NOT NULL DEFAULT '',
-        content_json TEXT NOT NULL DEFAULT '',
-        content_html TEXT,
-        content_text TEXT,
-        word_count INTEGER NOT NULL DEFAULT 0,
-        character_count INTEGER NOT NULL DEFAULT 0,
-        version_number INTEGER NOT NULL DEFAULT 1,
-        change_summary TEXT,
-        author_id TEXT NOT NULL DEFAULT '',
-        blockchain_hash TEXT,
-        created_at INTEGER NOT NULL DEFAULT 0
+        contentId TEXT NOT NULL DEFAULT '',
+        contentJson TEXT NOT NULL DEFAULT '',
+        contentHtml TEXT,
+        contentText TEXT,
+        wordCount INTEGER NOT NULL DEFAULT 0,
+        characterCount INTEGER NOT NULL DEFAULT 0,
+        versionNumber INTEGER NOT NULL DEFAULT 1,
+        changeSummary TEXT,
+        authorId TEXT NOT NULL DEFAULT '',
+        blockchainHash TEXT,
+        createdAt INTEGER NOT NULL DEFAULT 0
       )
     `)
 
     // 创建 collaborative_documents 表（用于 Yjs 协作）
     // 注意: CR-SQLite 不支持除主键外的 UNIQUE 约束
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS collaborative_documents (
+      CREATE TABLE IF NOT EXISTS collaborativeDocuments (
         id TEXT PRIMARY KEY NOT NULL,
-        content_id TEXT NOT NULL DEFAULT '',
-        work_id TEXT NOT NULL DEFAULT '',
-        document_type TEXT NOT NULL DEFAULT 'text',
-        yjs_state BLOB,
-        state_vector BLOB,
-        max_connections INTEGER NOT NULL DEFAULT 10,
-        last_sync_at INTEGER,
-        created_at INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL DEFAULT 0
+        contentId TEXT NOT NULL DEFAULT '',
+        workId TEXT NOT NULL DEFAULT '',
+        documentType TEXT NOT NULL DEFAULT 'text',
+        yjsState BLOB,
+        stateVector BLOB,
+        maxConnections INTEGER NOT NULL DEFAULT 10,
+        lastSyncAt INTEGER,
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
       )
     `)
 
     // 创建索引以提高查询性能
     this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_works_author ON works(author_id);
-      CREATE INDEX IF NOT EXISTS idx_chapters_work ON chapters(work_id);
-      CREATE INDEX IF NOT EXISTS idx_chapters_parent ON chapters(parent_id);
-      CREATE INDEX IF NOT EXISTS idx_contents_work ON contents(work_id);
-      CREATE INDEX IF NOT EXISTS idx_contents_chapter ON contents(chapter_id);
-      CREATE INDEX IF NOT EXISTS idx_content_versions_content ON content_versions(content_id);
+      CREATE INDEX IF NOT EXISTS idx_works_author ON works(authorId);
+      CREATE INDEX IF NOT EXISTS idx_chapters_work ON chapters(workId);
+      CREATE INDEX IF NOT EXISTS idx_chapters_parent ON chapters(parentId);
+      CREATE INDEX IF NOT EXISTS idx_contents_work ON contents(workId);
+      CREATE INDEX IF NOT EXISTS idx_contents_chapter ON contents(chapterId);
+      CREATE INDEX IF NOT EXISTS idx_content_versions_content ON contentVersions(contentId);
     `)
 
     console.log('[CRSQLite] Tables created successfully')
@@ -375,20 +369,73 @@ export class CRSQLiteManager {
       'works',
       'chapters',
       'contents',
-      'content_versions',
-      'collaborative_documents'
+      'contentVersions',
+      'collaborativeDocuments'
     ]
+
+    console.log(`[CRSQLite] 开始为 ${tables.length} 个表启用 CRDT 功能`)
 
     for (const table of tables) {
       try {
-        // 将表标记为 CRDT 表（Clock-Replicated Table）
-        this.db.exec(`SELECT crsql_as_crr('${table}')`)
-        console.log(`[CRSQLite] CRDT enabled for table: ${table}`)
+        console.log(`[CRSQLite] 正在检查表 ${table}...`)
+        
+        // 首先检查表是否存在
+        const tableExists = this.db.prepare(`
+          SELECT COUNT(*) as count 
+          FROM sqlite_master 
+          WHERE type='table' AND name=?
+        `).get(table) as { count: number }
+
+        if (tableExists.count === 0) {
+          console.log(`[CRSQLite] 表 ${table} 不存在，跳过 CRDT 设置`)
+          continue
+        }
+
+        // 检查表是否已经是 CRDT 表
+        let isCRDTTable = false
+        try {
+          const result = this.db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM crsql_master 
+            WHERE tbl_name = ?
+          `).get(table) as { count: number }
+          
+          isCRDTTable = result.count > 0
+        } catch (masterTableError) {
+          // crsql_master 可能不存在，说明还没有任何 CRDT 表
+          console.log(`[CRSQLite] crsql_master 表不存在，${table} 需要设置为 CRDT 表`)
+          isCRDTTable = false
+        }
+
+        if (!isCRDTTable) {
+          // 表还不是 CRDT 表，将其标记为 CRDT 表（Clock-Replicated Table）
+          console.log(`[CRSQLite] 正在为表 ${table} 启用 CRDT...`)
+          this.db.exec(`SELECT crsql_as_crr('${table}')`)
+          console.log(`[CRSQLite] ✅ CRDT 已为表 ${table} 启用`)
+        } else {
+          console.log(`[CRSQLite] ✅ 表 ${table} 已经是 CRDT 表`)
+        }
       } catch (error) {
-        console.error(`[CRSQLite] Failed to enable CRDT for table ${table}:`, error)
-        throw error
+        // 更详细的错误处理
+        if (error instanceof Error) {
+          const errorMessage = error.message.toLowerCase()
+          
+          if (errorMessage.includes('already a crr') || 
+              errorMessage.includes('table is already') ||
+              errorMessage.includes('already has clock')) {
+            console.log(`[CRSQLite] ✅ 表 ${table} 已经是 CRDT 表 (通过错误确认)`)
+          } else {
+            console.error(`[CRSQLite] ❌ 为表 ${table} 启用 CRDT 失败:`, error.message)
+            // 不要抛出错误，继续处理其他表
+            console.error(`[CRSQLite] 继续处理其他表...`)
+          }
+        } else {
+          console.error(`[CRSQLite] ❌ 为表 ${table} 启用 CRDT 时出现未知错误:`, error)
+        }
       }
     }
+
+    console.log(`[CRSQLite] ✅ CRDT 表设置完成`)
   }
 
   /**

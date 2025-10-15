@@ -1,5 +1,16 @@
 <template>
   <div class="collaborative-editor">
+    <!-- 标题编辑器 -->
+    <div class="title-editor" v-if="!readonly">
+      <input 
+        v-model="localTitle"
+        placeholder="章节标题"
+        class="title-input"
+        @blur="updateTitle"
+        @keydown.enter="updateTitle"
+      />
+    </div>
+
     <!-- 协作状态栏 -->
     <div class="collaboration-status" v-if="collaborationEnabled">
       <div class="status-indicators">
@@ -76,6 +87,7 @@ interface Props {
   contentId?: string // 用于协同编辑的内容ID
   userId?: string    // 当前用户ID
   userName?: string  // 当前用户名
+  initialTitle?: string // 初始标题
   enableCollaboration?: boolean // 是否启用协作模式
   collaborationConfig?: {
     websocketUrl?: string
@@ -103,6 +115,7 @@ const emit = defineEmits<{
   'change': [content: string]
   'collaboration-changed': [enabled: boolean]
   'collaborators-updated': [collaborators: Collaborator[]]
+  'title-updated': [title: string]
 }>()
 
 // 协作者信息类型
@@ -122,16 +135,10 @@ const menuContainer = ref<HTMLDivElement>()
 const collaborationEnabled = ref(props.enableCollaboration)
 const collaborators = ref<Collaborator[]>([])
 const connectionStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
+const localTitle = ref(props.initialTitle || '')
 
 // 组件初始化日志
-console.log('🚀 CollaborativeProseMirrorEditor 初始化', {
-  userId: props.userId,
-  userName: props.userName,
-  contentId: props.contentId,
-  enableCollaboration: props.enableCollaboration,
-  hasUserId: !!props.userId,
-  hasUserName: !!props.userName
-})
+console.log('CollaborativeProseMirrorEditor 初始化')
 
 // Editor and Yjs instances
 let editorView: EditorView | null = null
@@ -195,6 +202,24 @@ const getConnectionStatusText = (): string => {
     case 'connecting': return '连接中...'
     case 'disconnected': return '未连接'
     default: return '未知状态'
+  }
+}
+
+// 处理标题更新
+const updateTitle = async () => {
+  if (!props.contentId) return
+  if (localTitle.value === props.initialTitle) return
+  if (!props.userId) return
+  
+  try {
+    // 导入 contentApi
+    const { contentApi } = await import('../services/api')
+    await contentApi.update(props.contentId, props.userId, {
+      title: localTitle.value
+    })
+    emit('title-updated', localTitle.value)
+  } catch (error) {
+    console.error('协同编辑器标题更新失败:', error)
   }
 }
 
@@ -721,6 +746,13 @@ watch(() => props.readonly, (newReadonly) => {
   }
 })
 
+// 监听 initialTitle 变化
+watch(() => props.initialTitle, (newTitle) => {
+  if (newTitle !== undefined && newTitle !== localTitle.value) {
+    localTitle.value = newTitle
+  }
+})
+
 // 组件生命周期
 onMounted(async () => {
   if (collaborationEnabled.value) {
@@ -744,7 +776,31 @@ defineExpose({
 </script>
 
 <style scoped>
-/* ProseMirror 编辑器基础样式 */
+/* 标题编辑器样式 */
+.title-editor {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e1e5e9;
+  background: #fafafa;
+}
+
+.title-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 协同编辑器基础样式 */
 :deep(.ProseMirror) {
   white-space: pre-wrap !important;
   word-wrap: break-word !important;

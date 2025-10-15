@@ -1,6 +1,6 @@
 import { IWorkService, CreateWorkData, WorkInfo, WorkQueryOptions, UpdateWorkData, WorkStats, PublishResult } from './interfaces';
 import { getCurrentTimestamp } from '../utils/timestamp';
-import { RepositoryContainer } from '../data/RepositoryContainer';
+import { RepositoryContainer } from '../repositories/RepositoryContainer';
 import { ulid } from 'ulid';
 
 /**
@@ -15,7 +15,7 @@ export class WorkService implements IWorkService {
      */
     async createWork(authorId: string, workData: CreateWorkData): Promise<WorkInfo> {
         // 验证作者是否存在
-        const author = await this.repositories.userRepository.findById(authorId);
+        const author = await this.repositories.authorRepository.findById(authorId);
         if (!author) {
             throw new Error('作者不存在');
         }

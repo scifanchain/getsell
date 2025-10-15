@@ -7,6 +7,7 @@
           placeholder="章节标题"
           class="title-input"
           @blur="updateTitle"
+          @keydown.enter="updateTitle"
         />
       </div>
       
@@ -71,8 +72,10 @@ const editorStore = useEditorStore()
 
 // 本地状态
 const localTitle = ref(props.initialTitle || '')
-const editorContent = ref(props.initialContent || '')
+// 始终以字符串存储内容，避免类型混乱
+const editorContent = ref(typeof props.initialContent === 'string' ? props.initialContent : JSON.stringify(props.initialContent || ''))
 const stats = ref({ wordCount: 0, characterCount: 0 })
+const isInternalUpdate = ref(false) // 🔧 添加内部更新标记防止循环
 
 // 🎯 监听 props 变化，更新本地状态（修复内容切换问题）
 watch(() => props.contentId, (newContentId, oldContentId) => {
@@ -81,10 +84,12 @@ watch(() => props.contentId, (newContentId, oldContentId) => {
       old: oldContentId, 
       new: newContentId 
     })
+    // 🔧 标记为内部更新，防止触发自动保存
+    isInternalUpdate.value = true
     // 更新本地状态
     localTitle.value = props.initialTitle || ''
-    editorContent.value = props.initialContent || ''
-    updateStats(editorContent.value)
+  editorContent.value = typeof props.initialContent === 'string' ? props.initialContent : JSON.stringify(props.initialContent || '')
+  updateStats(editorContent.value)
     
     // 更新全局状态
     editorStore.updateEditorStatus({ currentContentId: newContentId })
@@ -95,8 +100,9 @@ watch(() => props.contentId, (newContentId, oldContentId) => {
 watch(() => props.initialContent, (newContent) => {
   if (newContent !== undefined && newContent !== editorContent.value) {
     console.log('EnhancedEditor: initialContent 变化')
-    editorContent.value = newContent
-    updateStats(newContent)
+    isInternalUpdate.value = true // 🔧 防止触发自动保存
+  editorContent.value = typeof newContent === 'string' ? newContent : JSON.stringify(newContent || '')
+  updateStats(editorContent.value)
   }
 })
 
@@ -122,13 +128,14 @@ const { isSaving, lastSavedAt, hasUnsavedChanges, triggerAutoSave, saveNow: save
   contentIdRef,  // ← 传入响应式 computed
   userIdRef,     // ← 传入响应式 computed
   {
-    interval: 5000, // 5秒自动保存
+    interval: 30000, // 🔧 修复：30秒自动保存（而不是5秒）
     onSaved: (result) => {
       emit('content-saved', result)
       updateStats(editorContent.value)
       editorStore.markSaved() // 更新全局状态
     },
     onError: (error) => {
+      console.error('EnhancedEditor自动保存失败:', error)
       emit('content-error', error)
       editorStore.setSaving(false) // 保存失败，停止保存状态
     }
@@ -146,27 +153,74 @@ watch(hasUnsavedChanges, (newValue) => {
   editorStore.setUnsaved(newValue)
 })
 
-// 监听内容变化，触发自动保存
+// 监听内容变化，智能触发自动保存
+let lastContentLength = 0
+let inputActivityTimer: ReturnType<typeof setTimeout> | null = null
+let lastSaveContent = ''
+let lastAutoSaveTime = 0
+let significantChangeThreshold = 50 // 至少输入50个字符才触发立即保存
+const MIN_AUTO_SAVE_INTERVAL = 15000 // 最小自动保存间隔：15秒
+
 watch(editorContent, (newContent) => {
-  if (props.contentId && newContent !== props.initialContent) {
-    console.log('🔄 EnhancedEditor: 内容变化，触发自动保存', {
-      contentId: props.contentId,
-      contentIdRef: contentIdRef.value,
-      contentLength: newContent.length
-    })
-    triggerAutoSave(newContent)
+  // 🔧 防止内部更新触发自动保存循环
+  if (isInternalUpdate.value) {
+    isInternalUpdate.value = false
+    updateStats(typeof newContent === 'string' ? newContent : JSON.stringify(newContent || ''))
+    return
   }
-  updateStats(newContent)
+  const contentStr = typeof newContent === 'string' ? newContent : JSON.stringify(newContent || '')
+  if (props.contentId && contentStr !== (typeof props.initialContent === 'string' ? props.initialContent : JSON.stringify(props.initialContent || ''))) {
+    const currentLength = contentStr.length
+    const lengthDiffFromLast = Math.abs(currentLength - lastContentLength)
+    const lengthDiffFromSaved = Math.abs(currentLength - lastSaveContent.length)
+    const now = Date.now()
+    const timeSinceLastSave = now - lastAutoSaveTime
+    if (inputActivityTimer) {
+      clearTimeout(inputActivityTimer)
+    }
+    if (lengthDiffFromSaved >= significantChangeThreshold && timeSinceLastSave >= MIN_AUTO_SAVE_INTERVAL) {
+      console.log('🔄 EnhancedEditor: 内容显著变化，触发自动保存', {
+        contentId: props.contentId,
+        lengthDiff: lengthDiffFromSaved,
+        contentLength: currentLength,
+        timeSinceLastSave: Math.round(timeSinceLastSave / 1000) + 's'
+      })
+      triggerAutoSave(contentStr)
+      lastSaveContent = contentStr
+      lastContentLength = currentLength
+      lastAutoSaveTime = now
+    } else {
+      inputActivityTimer = setTimeout(() => {
+        if (contentStr !== lastSaveContent && lengthDiffFromLast > 0) {
+          console.log('🔄 EnhancedEditor: 用户停止输入，触发自动保存', {
+            contentId: props.contentId,
+            lengthDiff: lengthDiffFromSaved,
+            contentLength: currentLength
+          })
+          triggerAutoSave(contentStr)
+          lastSaveContent = contentStr
+          lastContentLength = currentLength
+          lastAutoSaveTime = Date.now()
+        }
+      }, 8000)
+    }
+  } else if (!props.contentId) {
+    console.warn('⚠️ EnhancedEditor: contentId 为空，跳过自动保存')
+  }
+  updateStats(contentStr)
 })
 
 // 处理编辑器更新
-const handleEditorUpdate = (content: string) => {
-  editorContent.value = content
+const handleEditorUpdate = (content: string | object) => {
+  // 🔧 标记为内部更新，防止触发自动保存循环
+  isInternalUpdate.value = true
+  editorContent.value = typeof content === 'string' ? content : JSON.stringify(content || '')
 }
 
 // 处理标题更新
 const updateTitle = async () => {
-  if (!props.contentId || localTitle.value === props.initialTitle) return
+  if (!props.contentId) return
+  if (localTitle.value === props.initialTitle) return
   
   try {
     await contentApi.update(props.contentId, props.userId, {
@@ -174,32 +228,30 @@ const updateTitle = async () => {
     })
     emit('title-updated', localTitle.value)
   } catch (error) {
-    console.error('Update title failed:', error)
+    console.error('标题更新失败:', error)
   }
 }
 
 // 立即保存
 const saveNow = async () => {
+  const contentStr = typeof editorContent.value === 'string' ? editorContent.value : JSON.stringify(editorContent.value || '')
   if (!props.contentId) {
-    // 如果没有 contentId，说明是新内容，需要先创建
     await createNewContent()
   } else {
-    await saveContentNow(editorContent.value)
+    await saveContentNow(contentStr)
   }
 }
 
 // 创建新内容
 const createNewContent = async () => {
   try {
+    const contentStr = typeof editorContent.value === 'string' ? editorContent.value : JSON.stringify(editorContent.value || '')
     const result = await contentApi.create(props.userId, {
       chapterId: props.chapterId,
-      content: editorContent.value,
+      content: contentStr,
       format: 'prosemirror',
       title: localTitle.value
     })
-    
-    // 更新 contentId 以便后续自动保存
-    // 这里需要通知父组件更新 contentId
     emit('content-saved', result)
   } catch (error) {
     emit('content-error', error as Error)
@@ -207,14 +259,32 @@ const createNewContent = async () => {
 }
 
 // 更新统计信息
-const updateStats = (content: string) => {
-  if (!content) {
+const updateStats = (content: string | object) => {
+  let plainText = ''
+  
+  try {
+    if (typeof content === 'string') {
+      // 尝试解析为 JSON
+      try {
+        const parsed = JSON.parse(content)
+        plainText = extractTextFromProseMirrorDoc(parsed)
+      } catch {
+        // 如果不是 JSON，当作 HTML 处理
+        plainText = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+      }
+    } else if (typeof content === 'object' && content !== null) {
+      // 直接处理 ProseMirror 文档对象
+      plainText = extractTextFromProseMirrorDoc(content)
+    }
+  } catch (error) {
+    console.error('提取纯文本失败:', error)
+    plainText = ''
+  }
+  
+  if (!plainText) {
     stats.value = { wordCount: 0, characterCount: 0 }
     return
   }
-
-  // 移除HTML标签
-  const plainText = content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
   
   // 字符数
   const characterCount = plainText.length
@@ -225,6 +295,24 @@ const updateStats = (content: string) => {
   const wordCount = chineseChars + englishWords
 
   stats.value = { wordCount, characterCount }
+}
+
+// 从 ProseMirror 文档对象中提取纯文本
+const extractTextFromProseMirrorDoc = (doc: any): string => {
+  if (!doc || typeof doc !== 'object') return ''
+  
+  let text = ''
+  
+  function traverse(node: any) {
+    if (node.type === 'text') {
+      text += node.text || ''
+    } else if (node.content && Array.isArray(node.content)) {
+      node.content.forEach(traverse)
+    }
+  }
+  
+  traverse(doc)
+  return text.trim()
 }
 
 // 处理编辑器聚焦
@@ -243,18 +331,27 @@ const handleEditorBlur = () => {
 // 组件挂载时初始化统计
 onMounted(() => {
   updateStats(editorContent.value)
+  lastContentLength = editorContent.value.length // 初始化长度记录
+  lastSaveContent = editorContent.value // 初始化保存内容记录
 })
 
 // 页面卸载前保存
 onUnmounted(() => {
+  // 清理输入活动定时器
+  if (inputActivityTimer) {
+    clearTimeout(inputActivityTimer)
+  }
+  
   if (hasUnsavedChanges.value) {
+    const contentStr = typeof editorContent.value === 'string' ? editorContent.value : JSON.stringify(editorContent.value)
+    
     // 使用同步方式保存
     navigator.sendBeacon(
       '/api/auto-save',
       JSON.stringify({
         contentId: props.contentId,
         userId: props.userId,
-        content: editorContent.value
+        content: contentStr
       })
     )
   }

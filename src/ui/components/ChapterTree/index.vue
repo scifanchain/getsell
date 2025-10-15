@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import draggable from 'vuedraggable'
 import ChapterTreeNode from './Node.vue'
 import ContentCreateModal from '../ContentCreateModal.vue'
@@ -265,6 +265,20 @@ const rootContents = computed({
     })
   }
 })
+
+// 监听 contents 变化，确保 UI 及时更新
+watch(() => props.contents, (newContents, oldContents) => {
+  console.log('🔄 ChapterTree: contents 数据变化', {
+    oldCount: oldContents?.length || 0,
+    newCount: newContents?.length || 0,
+    timestamp: Date.now()
+  })
+  
+  // 强制触发下一个 tick 的重新渲染
+  nextTick(() => {
+    console.log('🔄 ChapterTree: 强制重新渲染完成')
+  })
+}, { deep: true })
 
 // 排序后的章节列表
 const sortedChapters = computed({

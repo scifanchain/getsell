@@ -12,6 +12,17 @@ export default defineConfig(({ mode }) => ({
   // 开发模式的根目录
   root: mode === 'development' ? 'src/ui' : '.',
   
+  // 优化配置，减少内存占用
+  optimizeDeps: {
+    include: ['vue', 'vue-router', 'pinia'],
+    exclude: ['electron']
+  },
+  
+  // 减少文件监听器的资源占用
+  esbuild: {
+    target: 'es2020'
+  },
+  
   build: {
     outDir: mode === 'development' ? '../../dist/renderer' : 'dist/renderer',
     rollupOptions: {
@@ -19,7 +30,10 @@ export default defineConfig(({ mode }) => ({
         // 生产环境使用安全的HTML模板
         main: resolve(__dirname, 'src/ui/index.html')
       }
-    }
+    },
+    // 减少构建时的内存占用
+    chunkSizeWarningLimit: 1000,
+    sourcemap: mode === 'development' ? true : false
   },
   
   resolve: {
@@ -34,7 +48,12 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     strictPort: true,
     hmr: {
-      port: 3001
+      port: 3001,
+      overlay: false // 减少错误覆盖层，避免阻塞
+    },
+    // 减少文件监听和缓存，避免过多资源占用
+    watch: {
+      ignored: ['**/node_modules/**', '**/dist/**', '**/coverage/**', '**/.git/**']
     },
     // 开发环境使用允许unsafe-eval的CSP，用于HMR
     headers: mode === 'development' ? {

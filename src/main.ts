@@ -5,11 +5,12 @@ import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 // 导入TypeScript模块
 import { CRSQLiteManager } from './core/crsqlite-manager';
-import { CRSQLiteRepositoryContainer } from './data/CRSQLiteRepositoryContainer';
+import { RepositoryContainer } from './repositories/RepositoryContainer';
 import { ServiceContainer } from './services/ServiceContainer';
 import { IPCManager } from './ipc/IPCManager';
 import { registerCRSQLiteTestHandlers } from './ipc/test-crsqlite-handlers';
 import { registerCRSQLiteFullTestHandlers } from './ipc/test-crsqlite-full-handlers';
+import { authorConfigStore } from './core/storage/AuthorConfigStore';
 import ulidGenerator from './core/ulid';
 import GestallCrypto from './crypto/crypto';
 
@@ -41,7 +42,7 @@ let mainWindow: BrowserWindow | null = null;
 
 // CR-SQLite 架构实例
 let crsqliteManager: CRSQLiteManager;
-let repositories: CRSQLiteRepositoryContainer;
+let repositories: RepositoryContainer;
 let services: ServiceContainer;
 let ipcManager: IPCManager;
 
@@ -60,7 +61,6 @@ function createWindow(): void {
       contextIsolation: true,
       allowRunningInsecureContent: false,
       experimentalFeatures: false,
-      webSecurity: false, // 对于协同编辑功能，禁用 web 安全限制
       preload: path.join(__dirname, '../src/preload.js')
     },
     show: false // 等待ready-to-show事件
@@ -112,6 +112,9 @@ function createWindow(): void {
     }
   });
 
+  // 🔧 终极修复：移除所有复杂的关闭逻辑
+  // 让程序直接通过 IPC 强制退出
+
   // 开发模式下打开开发者工具
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
@@ -120,7 +123,12 @@ function createWindow(): void {
 
 async function initCore(): Promise<void> {
   try {
-    // � 完全使用 CR-SQLite 作为唯一数据库
+    // 初始化用户配置存储
+    console.log('🔧 初始化作者配置存储');
+    await authorConfigStore.loadConfig();
+    console.log('✅ 作者配置存储初始化成功');
+    
+    // 完全使用 CR-SQLite 作为唯一数据库
     console.log('🔍 初始化 CR-SQLite 数据库 (统一架构)');
     const appDataPath = app.getPath('userData');
     const dbPath = path.join(appDataPath, 'gestell-crsqlite.db');
@@ -134,19 +142,13 @@ async function initCore(): Promise<void> {
     console.log('✅ CR-SQLite 数据库初始化成功:', dbPath);
     
     // 创建仓储容器 (完全使用 CR-SQLite)
-    repositories = new CRSQLiteRepositoryContainer(crsqliteManager);
+    repositories = new RepositoryContainer(crsqliteManager);
     console.log('✅ CR-SQLite 仓储容器创建成功 (包含 Yjs 协作)');
     
     // 初始化服务层
     console.log('🔧 初始化服务层');
-    services = new ServiceContainer(repositories as any);
+    services = new ServiceContainer(repositories);
     console.log('✅ 服务层初始化成功');
-    
-    // 初始化IPC处理器
-    console.log('📡 初始化IPC处理器');
-    ipcManager = new IPCManager(services, mainWindow);
-    ipcManager.initialize();
-    console.log('✅ IPC 处理器初始化成功');
     
     // 注册测试 handlers
     console.log('🧪 注册 CR-SQLite 测试处理器');
@@ -171,8 +173,15 @@ async function initCore(): Promise<void> {
 
 // 应用准备就绪
 app.whenReady().then(async () => {
-  createWindow();
+  // 🔧 修复：先初始化核心模块，再创建窗口，最后初始化 IPC handlers
   await initCore();
+  createWindow();
+  
+  // 在窗口创建后初始化 IPC 处理器
+  console.log('📡 初始化IPC处理器');
+  ipcManager = new IPCManager(services, mainWindow, crsqliteManager);
+  ipcManager.initialize();
+  console.log('✅ IPC 处理器初始化成功');
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -180,19 +189,22 @@ app.whenReady().then(async () => {
 });
 
 // 所有窗口关闭时退出应用
-app.on('window-all-closed', async function () {
+app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') {
-    // 关闭数据库连接
-    if (crsqliteManager) {
-      crsqliteManager.close();
+    try {
+      if (crsqliteManager) {
+        crsqliteManager.close();
+        console.log('✅ 数据库连接已关闭');
+      }
+    } catch (error) {
+      console.error('❌ 关闭数据库时出错:', error);
     }
     app.quit();
   }
 });
 
-// 应用即将退出时清理
-app.on('before-quit', async () => {
-  if (crsqliteManager) {
-    crsqliteManager.close();
-  }
+// 应用即将退出时清理（避免重复关闭）
+app.on('before-quit', () => {
+  console.log('📝 应用即将退出');
+  // 不再重复关闭数据库，因为 window-all-closed 已经处理了
 });

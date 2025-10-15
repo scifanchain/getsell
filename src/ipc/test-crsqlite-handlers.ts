@@ -5,8 +5,8 @@
 
 import { ipcMain } from 'electron';
 import { CRSQLiteManager } from '../core/crsqlite-manager';
-import { CRSQLiteUserRepository } from '../data/crsqlite/CRSQLiteUserRepository';
-import { CRSQLiteWorkRepository } from '../data/crsqlite/CRSQLiteWorkRepository';
+import { CRSQLiteAuthorRepository } from '../repositories/crsqlite/CRSQLiteAuthorRepository';
+import { CRSQLiteWorkRepository } from '../repositories/crsqlite/CRSQLiteWorkRepository';
 import { app } from 'electron';
 import * as path from 'path';
 import { ulid } from 'ulid';
@@ -48,7 +48,7 @@ export function registerCRSQLiteTestHandlers() {
       // Test 2: 创建用户
       results.push({ test: '2', status: 'info', message: '📝 创建用户...' });
       
-      const userRepo = new CRSQLiteUserRepository(manager);
+      const userRepo = new CRSQLiteAuthorRepository(manager);
       const testUser = {
         id: ulid(),
         username: 'test_user_' + Date.now(),

@@ -6,7 +6,7 @@ export interface ElectronAPI {
   // 通用IPC调用方法
   invoke: (channel: string, ...args: any[]) => Promise<any>
 
-  user: {
+  author: {
     create: (userData: { name: string; email: string }) => Promise<any>
     find: (id: string) => Promise<any>
     findByEmail: (email: string) => Promise<any>

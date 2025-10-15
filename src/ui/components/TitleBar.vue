@@ -108,16 +108,42 @@ const isMaximized = ref(false)
 
 // 窗口控制方法
 const minimizeWindow = async () => {
-  await window.gestell.window.minimize()
+  console.log('🔄 TitleBar: 最小化窗口')
+  try {
+    await window.gestell.window.minimize()
+    console.log('✅ TitleBar: 最小化成功')
+  } catch (error) {
+    console.error('❌ TitleBar: 最小化失败', error)
+  }
 }
 
 const toggleMaximize = async () => {
-  await window.gestell.window.toggleMaximize()
-  isMaximized.value = !isMaximized.value
+  console.log('🔄 TitleBar: 切换最大化')
+  try {
+    await window.gestell.window.toggleMaximize()
+    isMaximized.value = !isMaximized.value
+    console.log('✅ TitleBar: 切换最大化成功')
+  } catch (error) {
+    console.error('❌ TitleBar: 切换最大化失败', error)
+  }
 }
 
+// 🔧 修复：防止重复关闭窗口
+let isClosingWindow = false;
 const closeWindow = async () => {
-  await window.gestell.window.close()
+  if (isClosingWindow) {
+    console.log('⚠️ 窗口正在关闭中，忽略重复点击')
+    return;
+  }
+  
+  try {
+    isClosingWindow = true;
+    console.log('🔄 TitleBar: 开始关闭窗口')
+    await window.gestell.window.close()
+  } catch (error) {
+    console.error('关闭窗口失败:', error)
+    isClosingWindow = false; // 失败时重置状态
+  }
 }
 
 // 导航方法

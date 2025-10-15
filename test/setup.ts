@@ -40,50 +40,19 @@ const mockElectron = {
   }
 };
 
-// 使用 require 而不是 ES6 import 来 mock
-const mockPrismaClient = () => ({
-  $connect: () => Promise.resolve(),
-  $disconnect: () => Promise.resolve(),
-  $transaction: () => {},
-  author: {
-    findUnique: () => Promise.resolve(null),
-    findMany: () => Promise.resolve([]),
-    create: () => Promise.resolve({}),
-    update: () => Promise.resolve({}),
-    delete: () => Promise.resolve({}),
-    count: () => Promise.resolve(0)
-  },
-  work: {
-    findUnique: () => Promise.resolve(null),
-    findMany: () => Promise.resolve([]),
-    create: () => Promise.resolve({}),
-    update: () => Promise.resolve({}),
-    delete: () => Promise.resolve({}),
-    count: () => Promise.resolve(0)
-  },
-  chapter: {
-    findUnique: () => Promise.resolve(null),
-    findMany: () => Promise.resolve([]),
-    create: () => Promise.resolve({}),
-    update: () => Promise.resolve({}),
-    delete: () => Promise.resolve({}),
-    count: () => Promise.resolve(0)
-  },
-  content: {
-    findUnique: () => Promise.resolve(null),
-    findMany: () => Promise.resolve([]),
-    create: () => Promise.resolve({}),
-    update: () => Promise.resolve({}),
-    delete: () => Promise.resolve({}),
-    count: () => Promise.resolve(0),
-    aggregate: () => Promise.resolve({})
-  }
+// Mock CR-SQLite
+const mockCRSQLiteManager = () => ({
+  initialize: () => Promise.resolve(),
+  close: () => Promise.resolve(),
+  execute: () => Promise.resolve(),
+  query: () => Promise.resolve([]),
+  transaction: () => Promise.resolve()
 });
 
 // Mock modules
 jest.doMock('electron', () => mockElectron);
-jest.doMock('@prisma/client', () => ({
-  PrismaClient: mockPrismaClient
+jest.doMock('../src/core/crsqlite-manager', () => ({
+  CRSQLiteManager: mockCRSQLiteManager
 }));
 
 // 全局测试配置

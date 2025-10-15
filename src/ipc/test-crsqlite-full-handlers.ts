@@ -6,11 +6,11 @@
 import { ipcMain } from 'electron';
 import { CRSQLiteManager } from '../core/crsqlite-manager';
 import { 
-  CRSQLiteUserRepository,
+  CRSQLiteAuthorRepository,
   CRSQLiteWorkRepository,
   CRSQLiteChapterRepository,
   CRSQLiteContentRepository
-} from '../data/crsqlite';
+} from '../repositories/crsqlite';
 import { app } from 'electron';
 import * as pathModule from 'path';
 import { ulid } from 'ulid';
@@ -51,7 +51,7 @@ export function registerCRSQLiteFullTestHandlers() {
       });
 
       // 创建仓储实例
-      const userRepo = new CRSQLiteUserRepository(manager);
+      const userRepo = new CRSQLiteAuthorRepository(manager);
       const workRepo = new CRSQLiteWorkRepository(manager);
       const chapterRepo = new CRSQLiteChapterRepository(manager);
       const contentRepo = new CRSQLiteContentRepository(manager);

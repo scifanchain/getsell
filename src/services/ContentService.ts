@@ -1,4 +1,4 @@
-import { RepositoryContainer } from '../data/RepositoryContainer';
+import { RepositoryContainer } from '../repositories/RepositoryContainer';
 import { getCurrentTimestamp } from '../utils/timestamp';
 import { ulid } from 'ulid';
 
@@ -42,6 +42,7 @@ export interface AutoSaveResult {
   savedAt: string;
   wordCount: number;
   characterCount: number;
+  error?: string; // 可选的错误信息
 }
 
 /**
@@ -243,11 +244,19 @@ export class ContentService implements IContentService {
       repositoryUpdateData.orderIndex = updateData.orderIndex;
     }
 
+    // 确保 version 字段存在，提供更严格的默认值处理
+    let currentVersion = 1; // 默认版本号
+    if (content.version && typeof content.version === 'number' && !isNaN(content.version)) {
+      currentVersion = content.version;
+    } else if (content.versionNumber && typeof content.versionNumber === 'number' && !isNaN(content.versionNumber)) {
+      currentVersion = content.versionNumber;
+    }
+    
     const updateDataWithStats = {
       ...repositoryUpdateData,
       wordCount,
       characterCount,
-      version: content.version + 1,
+      version: currentVersion + 1,
       updatedAt: getCurrentTimestamp()
     };
 
@@ -260,6 +269,13 @@ export class ContentService implements IContentService {
    */
   async autoSaveContent(contentId: string, userId: string, content: string): Promise<AutoSaveResult> {
     try {
+      console.log('🔧 自动保存调试:', { 
+        contentId, 
+        userId, 
+        contentLength: content.length,
+        contentPreview: content.substring(0, 100) 
+      })
+
       const updateData = {
         content,
         format: 'prosemirror' as const, // 明确指定格式
@@ -267,6 +283,8 @@ export class ContentService implements IContentService {
       };
 
       const updatedContent = await this.updateContent(contentId, userId, updateData);
+      
+      console.log('✅ 自动保存成功:', { contentId, wordCount: updatedContent.wordCount })
       
       return {
         success: true,
@@ -276,13 +294,14 @@ export class ContentService implements IContentService {
         characterCount: updatedContent.characterCount
       };
     } catch (error) {
-      console.error('Auto save failed:', error);
+      console.error('❌ 自动保存失败:', { contentId, userId, error });
       return {
         success: false,
         contentId,
         savedAt: new Date().toISOString(),
         wordCount: 0,
-        characterCount: 0
+        characterCount: 0,
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }

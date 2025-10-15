@@ -1,4 +1,4 @@
-import { RepositoryContainer } from '../data/RepositoryContainer';
+import { RepositoryContainer } from '../repositories/RepositoryContainer';
 import { ulid } from 'ulid';
 
 /**

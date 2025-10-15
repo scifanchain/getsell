@@ -1,12 +1,12 @@
-import { RepositoryContainer } from '../data/RepositoryContainer';
+import { RepositoryContainer } from '../repositories/RepositoryContainer';
 import { GestallCrypto } from '../crypto/crypto';
-import { UserService } from './UserService';
+import { AuthorService } from './AuthorService';
 import { WorkService } from './WorkService';
 import { ChapterService, IChapterService } from './ChapterService';
 import { ContentService, IContentService } from './ContentService';
 import { YjsCollaborationService } from './YjsCollaborationService';
 import { CollaborativeEditingIntegrationService } from './CollaborativeEditingIntegrationService';
-import { IUserService, IWorkService } from './interfaces';
+import { IAuthorService, IWorkService } from './interfaces';
 
 /**
  * 服务容器
@@ -18,7 +18,7 @@ export class ServiceContainer {
     private crypto: GestallCrypto;
 
     // 服务实例（懒加载）
-    private _userService?: IUserService;
+    private _authorService?: IAuthorService;
     private _workService?: IWorkService;
     private _chapterService?: IChapterService;
     private _contentService?: IContentService;
@@ -33,11 +33,11 @@ export class ServiceContainer {
     /**
      * 获取用户服务
      */
-    get userService(): IUserService {
-        if (!this._userService) {
-            this._userService = new UserService(this.repositories, this.crypto);
+    get authorService(): IAuthorService {
+        if (!this._authorService) {
+            this._authorService = new AuthorService(this.repositories, this.crypto);
         }
-        return this._userService;
+        return this._authorService;
     }
 
     /**

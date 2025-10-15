@@ -1,7 +1,7 @@
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { WebrtcProvider } from 'y-webrtc'
-import { RepositoryContainer } from '../data/RepositoryContainer'
+import { RepositoryContainer } from '../repositories/RepositoryContainer'
 import { ulid } from 'ulid'
 import { getCurrentTimestamp } from '../utils/timestamp'
 

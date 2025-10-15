@@ -13,7 +13,7 @@ import type {
 export const userApi = {
   // 用户登录
   async login(credentials: { username: string; password?: string; rememberMe?: boolean }) {
-    return await window.electronAPI.invoke('user:login', credentials)
+    return await window.electronAPI.invoke('author:login', credentials)
   },
 
   // 用户注册
@@ -24,12 +24,12 @@ export const userApi = {
     displayName?: string;
     bio?: string;
   }) {
-    return await window.electronAPI.invoke('user:register', userData)
+    return await window.electronAPI.invoke('author:register', userData)
   },
 
   // 获取当前用户
   async getCurrentUser(userId: string) {
-    return await window.electronAPI.invoke('user:getCurrentUser', userId)
+    return await window.electronAPI.invoke('author:getCurrentUser', userId)
   },
 
   // 更新用户资料
@@ -39,17 +39,17 @@ export const userApi = {
     bio?: string;
     avatarUrl?: string;
   }) {
-    return await window.electronAPI.invoke('user:updateProfile', userId, updateData)
+    return await window.electronAPI.invoke('author:updateProfile', userId, updateData)
   },
 
   // 更改密码
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    return await window.electronAPI.invoke('user:changePassword', userId, currentPassword, newPassword)
+    return await window.electronAPI.invoke('author:changePassword', userId, currentPassword, newPassword)
   },
 
   // 获取用户统计
   async getStats(userId: string) {
-    return await window.electronAPI.invoke('user:getStats', userId)
+    return await window.electronAPI.invoke('author:getStats', userId)
   },
 
   // 兼容旧接口
@@ -69,7 +69,30 @@ export const userApi = {
 
   async findByEmail(email: string): Promise<User | null> {
     // 这个需要在后端添加新的接口
-    return await window.electronAPI.invoke('user:findByEmail', email)
+    return await window.electronAPI.invoke('author:findByEmail', email)
+  },
+
+  // 作者配置相关方法
+  async saveAuthorConfig(config: { currentAuthorId?: string; rememberLogin?: boolean; autoLogin?: boolean }) {
+    return await window.electronAPI.invoke('author:saveConfig', config)
+  },
+
+  async loadAuthorConfig() {
+    return await window.electronAPI.invoke('author:loadConfig')
+  },
+
+  async clearAuthorConfig() {
+    return await window.electronAPI.invoke('author:clearConfig')
+  },
+
+  // 刷新登录时间（自动续期）
+  async refreshLogin() {
+    return await window.electronAPI.invoke('author:refreshLogin')
+  },
+
+  // 检查是否需要续期
+  async shouldRefreshLogin() {
+    return await window.electronAPI.invoke('author:shouldRefresh')
   }
 }
 
