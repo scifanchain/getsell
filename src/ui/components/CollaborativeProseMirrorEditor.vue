@@ -231,13 +231,43 @@ const initYjs = async () => {
   }
 
   console.log('🚀 开始初始化 Yjs')
-  console.log('� props.contentId:', props.contentId)
+  console.log('📄 props.contentId:', props.contentId)
+  console.log('📄 props.modelValue 类型:', typeof props.modelValue)
+  if (typeof props.modelValue === 'string') {
+    console.log('📄 props.modelValue (字符串):', props.modelValue ? props.modelValue.substring(0, 100) + '...' : '(empty)')
+  } else if (typeof props.modelValue === 'object' && props.modelValue !== null) {
+    console.log('📄 props.modelValue (对象):', props.modelValue)
+  } else {
+    console.log('📄 props.modelValue:', props.modelValue)
+  }
   
   // 创建 Yjs 文档
   ydoc = new Y.Doc()
   yxml = ydoc.getXmlFragment('prosemirror')
   
   console.log('📄 Yjs 文档和片段创建完成')
+
+  // 如果有现有内容，加载到 Yjs 文档中
+  if (props.modelValue) {
+    try {
+      console.log('📝 加载现有内容到 Yjs 文档')
+      const schema = createSchema()
+      const doc = createDocumentFromModelValue()
+      if (doc && yxml) {
+        // 将现有内容导入到 yxml 中（使用 y-prosemirror 的方式）
+        const { prosemirrorToYXmlFragment } = await import('y-prosemirror')
+        ydoc.transact(() => {
+          // 先清空现有内容
+          yxml!.delete(0, yxml!.length)
+          // 然后添加新内容
+          prosemirrorToYXmlFragment(doc, yxml!)
+        })
+        console.log('✅ 现有内容已加载到 Yjs 文档')
+      }
+    } catch (error) {
+      console.error('❌ 加载现有内容到 Yjs 失败:', error)
+    }
+  }
 
   // 等待网络提供者设置完成
   await setupNetworkProviders()
@@ -596,19 +626,36 @@ const createDocumentFromModelValue = () => {
   }
 
   try {
-    const parsed = JSON.parse(props.modelValue)
+    let parsed
+    
+    // 检查 modelValue 的类型
+    if (typeof props.modelValue === 'string') {
+      // 如果是字符串，尝试解析 JSON
+      parsed = JSON.parse(props.modelValue)
+    } else if (typeof props.modelValue === 'object' && props.modelValue !== null) {
+      // 如果已经是对象，直接使用
+      parsed = props.modelValue
+    } else {
+      throw new Error('Invalid modelValue type')
+    }
+    
     if (parsed.type === 'doc') {
       return schema.nodeFromJSON(parsed)
     }
     throw new Error('Not a ProseMirror doc')
   } catch (e) {
-    try {
-      const htmlDoc = new window.DOMParser().parseFromString(props.modelValue, 'text/html')
-      return DOMParser.fromSchema(schema).parse(htmlDoc.body)
-    } catch (htmlError) {
-      console.warn('Failed to parse content, using empty document')
-      return schema.nodes.doc.createAndFill()
+    // 如果 JSON 解析失败，尝试作为 HTML 处理（仅当是字符串时）
+    if (typeof props.modelValue === 'string') {
+      try {
+        const htmlDoc = new window.DOMParser().parseFromString(props.modelValue, 'text/html')
+        return DOMParser.fromSchema(schema).parse(htmlDoc.body)
+      } catch (htmlError) {
+        console.warn('Failed to parse content as HTML:', htmlError)
+      }
     }
+    
+    console.warn('Failed to parse content, using empty document:', e)
+    return schema.nodes.doc.createAndFill()
   }
 }
 
@@ -750,6 +797,28 @@ watch(() => props.readonly, (newReadonly) => {
 watch(() => props.initialTitle, (newTitle) => {
   if (newTitle !== undefined && newTitle !== localTitle.value) {
     localTitle.value = newTitle
+  }
+})
+
+// 监听 contentId 变化，重新初始化协同文档
+watch(() => props.contentId, async (newContentId, oldContentId) => {
+  if (newContentId && newContentId !== oldContentId) {
+    console.log('📄 contentId 变化，重新初始化编辑器:', {
+      from: oldContentId,
+      to: newContentId,
+      collaborationEnabled: collaborationEnabled.value
+    })
+    
+    // 完全清理旧的状态
+    cleanup()
+    
+    // 重新初始化协作和编辑器
+    if (collaborationEnabled.value) {
+      await initYjs()
+    }
+    
+    // 重新初始化编辑器
+    initEditor()
   }
 })
 
