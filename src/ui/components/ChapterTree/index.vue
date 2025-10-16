@@ -27,39 +27,43 @@
     </div>
     
     <div class="tree-content">
-      <!-- 根目录内容 -->
-      <div v-if="rootContents.length > 0" class="root-contents">
+      <!-- 根目录内容拖拽区域 -->
+      <div class="root-contents">
+        <h4 class="section-title">根目录内容</h4>
         <draggable
-          v-model="rootContents"
-          :group="{ name: 'contents', pull: true, put: ['contents', 'chapter-contents'] }"
-          @change="handleContentDragChange"
-          animation="150"
-          :force-fallback="false"
-          :fallback-on-body="true"
+          v-model="rootContentsList"
+          group="content-items"
           item-key="id"
           class="content-list"
+          :class="{ 'empty': rootContentsList.length === 0, 'dragging': isDragging }"
+          :move="validateContentMove"
+          @change="handleRootContentChange"
+          @start="onContentDragStart"
+          @end="onContentDragEnd"
+          @add="onContentAdd"
+          @remove="onContentRemove"
+          @update="onContentUpdate"
         >
           <template #item="{ element: content }">
             <div 
               class="content-item"
-              :class="{ 'selected': selectedContentId === content.id }"
+              :class="{ 'selected': props.selectedContentId === content.id }"
+              :data-content-id="content.id"
               @click="$emit('content-select', content.id)"
             >
-              <div class="content-info">
-                <span class="content-icon">📄</span>
-                <span class="content-title">{{ content.title }}</span>
-              </div>
+              <span class="content-icon">📄</span>
+              <span class="content-title">{{ content.title }}</span>
               <div class="content-actions">
                 <button 
-                  class="action-btn"
                   @click.stop="$emit('content-edit', content)"
+                  class="action-button small"
                   title="编辑内容"
                 >
                   ✏️
                 </button>
                 <button 
-                  class="action-btn delete-btn"
                   @click.stop="$emit('content-delete', content.id)"
+                  class="action-button small delete"
                   title="删除内容"
                 >
                   🗑️
@@ -70,74 +74,66 @@
         </draggable>
       </div>
 
-      <!-- 章节列表 -->
-      <draggable
-        v-model="sortedChapters"
-        :group="{ name: 'chapters', pull: true, put: true }"
-        :move="validateMoveDepth"
-        @change="handleDragChange"
-        @start="handleDragStart"
-        @end="handleDragEnd"
-        animation="150"
-        ghost-class="chapter-ghost"
-        chosen-class="chapter-chosen"
-        drag-class="chapter-drag"
-        :sort="true"
-        :force-fallback="false"
-        :fallback-on-body="true"
-        item-key="id"
-        class="draggable-list"
-      >
-        <template #item="{ element: chapter }">
-          <ChapterTreeNode 
-            :chapter="chapter" 
-            :chapters="chapters"
-            :contents="contents"
-            :selected-chapter-id="selectedChapterId ?? undefined"
-            :selected-content-id="selectedContentId ?? undefined"
-            :dragging="isDragging"
-            @chapter-toggle="$emit('chapter-toggle', $event)"
-            @chapter-click="(id) => { console.log('ChapterTree: 收到点击事件, id:', id, '当前selectedId:', selectedChapterId); selectedChapterId = id; console.log('ChapterTree: 已更新selectedId为:', selectedChapterId); $emit('chapter-click', id) }"
-            @chapter-edit="$emit('chapter-edit', $event)"
-            @chapter-delete="$emit('chapter-delete', $event)"
-            @add-sub-chapter="$emit('add-sub-chapter', $event)"
-            @add-content="$emit('add-content', $event)"
-            @content-select="$emit('content-select', $event)"
-            @content-edit="$emit('content-edit', $event)"
-            @content-delete="$emit('content-delete', $event)"
-            @contents-reorder="$emit('contents-reorder', $event)"
-            @chapters-reorder="$emit('chapters-reorder', $event)"
-            @drag-error="showDragError"
-          />
-        </template>
-      </draggable>
-    </div>
-    
-    <div v-if="chapters.length === 0 && rootContents.length === 0" class="empty-state">
-      <p>还没有章节和内容</p>
-      <div class="empty-actions">
-        <button class="create-btn" @click="$emit('add-chapter')">
-          创建第一个章节
-        </button>
-        <button class="create-btn" @click="handleAddRootContent">
-          创建第一个内容
-        </button>
+      <!-- 根级章节拖拽区域 -->
+      <div class="root-chapters">
+        <h4 class="section-title">章节列表</h4>
+        <draggable
+          :list="rootChaptersList"
+          group="chapters"
+          @start="onChapterDragStart"
+          @end="onChapterDragEnd"
+          @add="onChapterAdd"
+          @remove="onChapterRemove"
+          @update="onChapterUpdate"
+          :move="validateChapterMove"
+          item-key="id"
+          class="chapter-list"
+          animation="150"
+          ghost-class="chapter-ghost"
+          chosen-class="chapter-chosen"
+        >
+          <template #item="{ element: chapter }">
+            <ChapterTreeNode
+              :key="chapter.id"
+              :chapter="chapter"
+              :chapters="props.chapters"
+              :contents="props.contents"
+              :user-id="props.userId"
+              :selected-chapter-id="props.selectedChapterId"
+              :selected-content-id="props.selectedContentId"
+              :is-dragging="isDragging"
+              @chapter-toggle="$emit('chapter-toggle', $event)"
+              @chapter-click="$emit('chapter-click', $event)"
+              @chapter-edit="$emit('chapter-edit', $event)"
+              @chapter-delete="$emit('chapter-delete', $event)"
+              @add-sub-chapter="$emit('add-sub-chapter', $event)"
+              @add-content="$emit('add-content', $event)"
+              @content-select="$emit('content-select', $event)"
+              @content-edit="$emit('content-edit', $event)"
+              @content-delete="$emit('content-delete', $event)"
+              @contents-reorder="handleContentsReorder"
+              @chapters-reorder="handleChaptersReorder"
+              @drag-error="showDragError"
+              @content-drag-start="handleChildContentDragStart"
+              @content-drag-end="handleChildContentDragEnd"
+            />
+          </template>
+        </draggable>
       </div>
     </div>
-    
-    <!-- 内容创建弹窗 -->
+
+    <!-- 内容创建模态框 -->
     <ContentCreateModal
-      :isVisible="showCreateContentModal"
-      :workId="createContentWorkId"
-      :chapterId="createContentChapterId"
-      @close="handleCloseCreateModal"
-      @create="handleCreateContent"
+      :is-visible="showCreateContentModal"
+      :chapter-id="createContentChapterId ?? undefined"
+      @close="handleCloseCreateContentModal"
+      @create="handleContentCreated"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch } from 'vue'
 import draggable from 'vuedraggable'
 import ChapterTreeNode from './Node.vue'
 import ContentCreateModal from '../ContentCreateModal.vue'
@@ -145,8 +141,11 @@ import type { ChapterLocal, Content } from './types'
 
 interface Props {
   chapters: ChapterLocal[]
-  contents?: Content[]
-  workId?: string  // 添加 workId prop
+  contents: Content[]
+  workId?: string
+  userId?: string
+  selectedChapterId?: string
+  selectedContentId?: string
 }
 
 const props = defineProps<Props>()
@@ -158,461 +157,677 @@ const emit = defineEmits<{
   'chapter-delete': [chapterId: string]
   'add-chapter': []
   'add-sub-chapter': [parentId: string]
-  'add-content': [data: { title?: string, type?: string, workId?: string, chapterId?: string }]
+  'add-content': [data: { chapterId?: string }]
   'content-select': [contentId: string]
   'content-edit': [content: Content]
   'content-delete': [contentId: string]
+  'contents-reorder': [data: { chapterId?: string; contents: Content[] }]
   'chapters-reorder': [chapters: ChapterLocal[]]
-  'contents-reorder': [data: { chapterId?: string, contents: Content[] }]
 }>()
 
-const isDragging = ref(false)
-const selectedChapterId = ref<string | null>(null)
-const selectedContentId = ref<string | null>(null)
-const showCreateContentModal = ref(false)
-const createContentWorkId = ref<string | undefined>()
-const createContentChapterId = ref<string | undefined>()
+// 状态管理
 const dragErrorMessage = ref<string>('')
-const lastInvalidMove = ref<{chapterId: string, reason: string} | null>(null)
+const showCreateContentModal = ref(false)
+const createContentChapterId = ref<string | null>(null)
+const isDragging = ref(false)
 
-// 显示拖拽错误消息
+// 根级章节列表（响应式数组，用于 draggable）
+const rootChaptersList = computed({
+  get: () => {
+    return props.chapters
+      .filter(chapter => !chapter.parentId)
+      .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
+  },
+  set: (newList) => {
+    // 不在这里处理，交给 onChapterDragEnd 处理
+  }
+})
+
+// 处理根目录内容拖拽变化
+const handleRootContentChange = (evt: any) => {
+  console.log('📄 根目录内容拖拽变化:', evt)
+  
+  if (evt.added) {
+    console.log('📄➕ 内容被添加到根目录')
+    console.log('📄➕ 添加的内容:', evt.added.element.title)
+  }
+  
+  if (evt.removed) {
+    console.log('📄➖ 内容从根目录移除')
+    console.log('📄➖ 移除的内容:', evt.removed.element.title)
+  }
+  
+  if (evt.moved) {
+    console.log('📄🔄 根目录内容重新排序')
+    console.log('📄🔄 移动的内容:', evt.moved.element.title)
+  }
+}
+
+// 根目录内容列表内部状态
+const rootContentsInternal = ref<Content[]>([])
+
+const syncRootContents = () => {
+  rootContentsInternal.value = props.contents
+    .filter(content => !content.chapterId)
+    .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+}
+
+watch(
+  () => props.contents,
+  () => {
+    syncRootContents()
+  },
+  { immediate: true, deep: true }
+)
+
+const rootContentsList = computed({
+  get: () => rootContentsInternal.value,
+  set: (newList) => {
+    // 保持内部显示顺序，等待父组件响应后同步
+    rootContentsInternal.value = [...newList]
+
+    const updatedContents = newList.map((content, index) => ({
+      ...content,
+      chapterId: undefined,
+      orderIndex: index
+    }))
+
+    emit('contents-reorder', { chapterId: undefined, contents: updatedContents })
+  }
+})
+
+// 显示拖拽错误并自动隐藏
 const showDragError = (message: string) => {
   dragErrorMessage.value = message
   setTimeout(() => {
     dragErrorMessage.value = ''
-  }, 3000) // 3秒后自动清除
+  }, 3000)
 }
 
-// 计算章节子树的最大深度（相对深度，从0开始）
-// 返回值：0表示无子章节，1表示有一层子章节，2表示有两层子章节
+// 计算章节子树深度
 const getSubTreeDepth = (chapterId: string): number => {
   const childChapters = props.chapters.filter(ch => ch.parentId === chapterId)
   if (childChapters.length === 0) {
-    return 0 // 没有子章节，深度为0
+    return 0
   }
   
-  let maxChildDepth = 0
+  let maxDepth = 0
   for (const child of childChapters) {
     const childDepth = getSubTreeDepth(child.id)
-    maxChildDepth = Math.max(maxChildDepth, childDepth + 1) // +1表示当前这一层
+    maxDepth = Math.max(maxDepth, childDepth + 1)
   }
   
-  return maxChildDepth
+  return maxDepth
 }
 
-// 验证拖到根级别的移动是否违反层级限制
-const validateMoveDepth = (evt: any): boolean => {
-  if (!evt.draggedContext) {
-    return true // 没有拖拽上下文，允许
-  }
+// 验证章节移动到根级别
+const validateChapterMove = (evt: any) => {
+  if (!evt.draggedContext) return true
   
   const draggedChapter = evt.draggedContext.element as ChapterLocal
-  const targetLevel = 1 // 拖到根级别，将成为 level 1
+  
+  // 移动到根级别，新的 level 是 1
+  const targetLevel = 1
   const subTreeDepth = getSubTreeDepth(draggedChapter.id)
   const finalMaxLevel = targetLevel + subTreeDepth
   
-  console.log(`[根级拖拽] "${draggedChapter.title}" (当前level=${draggedChapter.level}, 子树深度=${subTreeDepth}) → 根目录`)
-  console.log(`  目标level=${targetLevel}, 最终最大level=${finalMaxLevel}`)
-  
-  // 三层结构: Level 1(卷), Level 2(章), Level 3(节)
-  // 移到根目录后，该章节及其所有子章节的 level 都不能超过 3
   if (finalMaxLevel > 3) {
-    if (subTreeDepth === 2) {
-      // 该章节有2层子章节（自己是卷，下面有章和节）
-      showDragError(`无法移动 "${draggedChapter.title}" 到根目录：它包含${subTreeDepth}层子章节，最多只能包含2层`)
-    } else {
-      showDragError(`无法移动 "${draggedChapter.title}" 到根目录：会超过3层目录限制`)
-    }
+    showDragError(`无法移动 "${draggedChapter.title}" 到根目录：该章节有${subTreeDepth}层子章节，会超过3层限制`)
     return false
   }
   
   return true
 }
 
-// 根目录内容（没有 chapterId 的内容）
-const rootContents = computed({
-  get: () => {
-    return (props.contents || [])
-      .filter(content => !content.chapterId)
-      .sort((a, b) => a.orderIndex - b.orderIndex)
-  },
-  set: (value) => {
-    console.log('ChapterTree: 根级内容重新排序')
-    console.log('新的根级内容列表:', value.map(c => ({ id: c.id, title: c.title, chapterId: c.chapterId })))
-    
-    // 检查是否有内容从其他章节移动到根目录
-    const currentRootContentIds = new Set((props.contents || [])
-      .filter(content => !content.chapterId)
-      .map(c => c.id))
-    const newRootContentIds = new Set(value.map(c => c.id))
-    
-    // 找出新添加到根目录的内容
-    const addedToRoot = value.filter(content => !currentRootContentIds.has(content.id))
-    if (addedToRoot.length > 0) {
-      console.log('新添加到根目录的内容:', addedToRoot.map(c => c.title))
-    }
-    
-    // 更新所有内容的章节归属为undefined（根目录）
-    const updatedContents = value.map((content, index) => ({
-      ...content,
-      chapterId: undefined, // 设置为根级内容
-      orderIndex: index
-    }))
-    
-    emit('contents-reorder', { 
-      chapterId: undefined, 
-      contents: updatedContents
-    })
-  }
-})
+// 验证内容移动（内容可以移动到任何位置）
+const validateContentMove = (evt: any) => {
+  console.log('�🔥🔥 [我的调试] validateContentMove 被调用!')
+  console.log('�🔍 [根目录] 验证内容移动:', evt)
+  console.log('🔍 draggedContext:', evt.draggedContext)
+  console.log('🔍 relatedContext:', evt.relatedContext)
+  return true // 内容可以移动到任意位置
+}
 
-// 监听 contents 变化，确保 UI 及时更新
-watch(() => props.contents, (newContents, oldContents) => {
-  console.log('🔄 ChapterTree: contents 数据变化', {
-    oldCount: oldContents?.length || 0,
-    newCount: newContents?.length || 0,
-    timestamp: Date.now()
+// 处理根目录章节拖拽开始
+const onChapterDragStart = (evt: any) => {
+  console.log('🔷 [根目录] 章节拖拽开始:', evt)
+}
+
+// 处理章节添加到根目录
+const onChapterAdd = (evt: any) => {
+  console.log('➕🔷 [根目录] 章节添加:', evt)
+  const { element, newIndex } = evt
+  
+  // 安全地获取章节信息
+  const chapterTitle = element?.title || 'Unknown Chapter'
+  console.log(`➕🔷 添加章节: ${chapterTitle} 到根目录, 位置: ${newIndex}`)
+  
+  // 注意：不在这里处理层级更新，交给 onChapterDragEnd 处理
+}
+
+// 处理章节从根目录移除
+const onChapterRemove = (evt: any) => {
+  console.log('➖🔷 [根目录] 章节移除:', evt)
+  const { element, oldIndex } = evt
+  
+  // 安全地获取章节信息
+  const chapterTitle = element?.title || 'Unknown Chapter'
+  console.log(`➖🔷 移除章节: ${chapterTitle} 从根目录, 原位置: ${oldIndex}`)
+  
+  // 注意：不在这里处理层级更新，交给目标容器的 onChapterDragEnd 处理
+}
+
+// 处理根目录章节重新排序
+const onChapterUpdate = (evt: any) => {
+  console.log('🔄🔷 [根目录] 章节更新:', evt)
+  const { oldIndex, newIndex } = evt
+  
+  console.log(`🔄🔷 根目录章节重新排序: 从位置 ${oldIndex} 移动到位置 ${newIndex}`)
+  
+  // 注意：不在这里处理层级更新，交给 onChapterDragEnd 处理
+}
+
+// 处理章节拖拽结束
+const onChapterDragEnd = (evt: any) => {
+  const { newIndex, oldIndex, item, to, from, pullMode } = evt
+  const isCrossChapter = to !== from
+  
+  console.log(`🔷 [根目录] 章节拖拽结束事件 (${isCrossChapter ? '跨章节' : '根目录内'})`)
+  console.log('🔷 详细事件信息:')
+  console.log('🔷 - to (目标容器):', to)
+  console.log('🔷 - from (源容器):', from)
+  console.log('🔷 - 跨章节拖拽:', isCrossChapter)
+  console.log('🔷 - pullMode:', pullMode)
+  
+  // 如果是根目录内拖拽且位置没变化，不处理
+  if (!isCrossChapter && newIndex === oldIndex) {
+    console.log('🔷 根目录内位置无变化，跳过处理')
+    return
+  }
+  
+  // 获取当前的根级章节列表
+  const rootChapters = rootChaptersList.value
+  console.log(`🔷 根目录章节数量: ${rootChapters.length}`)
+  console.log('🔷 根目录章节列表:', rootChapters.map(c => `${c.id}: ${c.title} (level: ${c.level})`))
+  
+  // 更新章节的 orderIndex 和 level
+  const updatedChapters = [...props.chapters]
+  
+  // 根级章节的level固定为1
+  const rootLevel = 1
+  console.log(`🔷 设置根级章节level为: ${rootLevel}`)
+  
+  rootChapters.forEach((chapter, index) => {
+    const chapterIndex = updatedChapters.findIndex(ch => ch.id === chapter.id)
+    if (chapterIndex >= 0) {
+      const oldLevel = updatedChapters[chapterIndex].level
+      updatedChapters[chapterIndex] = {
+        ...updatedChapters[chapterIndex],
+        parentId: undefined, // 根级章节
+        level: rootLevel, // 根级章节 level 为 1
+        orderIndex: index
+      }
+      
+      console.log(`🔷 更新章节: ${chapter.title} -> 移到根目录, level: ${oldLevel} -> ${rootLevel}, 位置: ${index}`)
+      
+      // 递归更新子章节的 level
+      updateChildrenLevels(updatedChapters, chapter.id, rootLevel)
+    }
   })
   
-  // 强制触发下一个 tick 的重新渲染
-  nextTick(() => {
-    console.log('🔄 ChapterTree: 强制重新渲染完成')
-  })
-}, { deep: true })
+  console.log('🔷 发送 chapters-reorder 事件')
+  emit('chapters-reorder', updatedChapters)
+}
 
-// 排序后的章节列表
-const sortedChapters = computed({
-  get: () => {
-    return [...props.chapters]
-      .filter(chapter => !chapter.parentId) // 只显示根级章节
-      .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
-  },
-  set: (value) => {
-    console.log('=== ChapterTree: 根级章节拖拽发生 ===')
-    console.log('拖拽后的根级章节:', value.map(c => ({ id: c.id, title: c.title, parentId: c.parentId, level: c.level })))
-    
-    // 验证每个章节移动到根级别是否合法
-    for (const chapter of value) {
-      const targetLevel = 1 // 根级别是 level 1
-      const subTreeDepth = getSubTreeDepth(chapter.id)
-      const finalMaxLevel = targetLevel + subTreeDepth
-      
-      console.log(`  验证 "${chapter.title}": 目标level=${targetLevel}, 子树深度=${subTreeDepth}, 最终最大level=${finalMaxLevel}`)
-      
-      if (finalMaxLevel > 3) {
-        // 拒绝这次移动
-        if (subTreeDepth === 2) {
-          showDragError(`无法移动 "${chapter.title}" 到根目录：它包含${subTreeDepth}层子章节，最多只能包含2层`)
-        } else {
-          showDragError(`无法移动 "${chapter.title}" 到根目录：会超过3层目录限制`)
-        }
-        console.log('❌ 验证失败，阻止更新')
-        return // 阻止更新
-      }
-    }
-    
-    console.log('✅ 验证通过，开始重建章节列表')
-    
-    // 检查是否有无效移动需要撤销
-    if (lastInvalidMove.value) {
-      const invalidChapter = value.find(ch => ch.id === lastInvalidMove.value?.chapterId)
-      if (invalidChapter) {
-        console.warn('🚫 撤销无效移动:', lastInvalidMove.value)
-        showDragError(`无法移动章节 "${invalidChapter.title}"：${lastInvalidMove.value.reason}`)
-        lastInvalidMove.value = null
-        return
-      }
-    }
-    
-    // 构建新的章节列表
-    const newChapters: ChapterLocal[] = []
-    const processedIds = new Set<string>() // 记录已处理的章节ID
-    
-    // 递归添加章节及其所有子章节
-    const addChapterWithChildren = (chapterId: string, parentId: string | undefined, orderIndex: number, level: number) => {
-      if (processedIds.has(chapterId)) {
-        console.warn(`章节 ${chapterId} 已处理，跳过`)
-        return // 避免重复添加
-      }
-      
-      const chapter = props.chapters.find(ch => ch.id === chapterId)
-      if (!chapter) {
-        console.warn(`找不到章节 ${chapterId}`)
-        return
-      }
-      
-      // 添加当前章节
-      newChapters.push({
-        ...chapter,
-        parentId,
-        orderIndex,
-        level
-      })
-      processedIds.add(chapterId)
-      
-      // 递归添加子章节
-      const children = props.chapters
-        .filter(ch => ch.parentId === chapterId)
-        .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
-      
-      children.forEach((child, index) => {
-        addChapterWithChildren(child.id, chapterId, index, level + 1)
-      })
-    }
-    
-    // 处理所有根级章节及其子树
-    value.forEach((chapter, index) => {
-      addChapterWithChildren(chapter.id, undefined, index, 1)
-    })
-    
-    // 添加不在根级拖拽中的其他章节（那些仍然是其他章节的子章节）
-    const remainingChapters = props.chapters.filter(ch => !processedIds.has(ch.id))
-    if (remainingChapters.length > 0) {
-      console.log('添加未处理的章节:', remainingChapters.map(ch => ch.title))
-      newChapters.push(...remainingChapters)
-    }
-    
-    console.log(`重新构建完成: ${newChapters.length} 个章节 (原始: ${props.chapters.length})`)
-    console.log('根级章节:', newChapters.filter(ch => !ch.parentId).map(ch => ch.title))
-    
-    emit('chapters-reorder', newChapters)
-  }
-})
-
-// 拖拽事件处理
-const handleDragStart = (evt: any) => {
+// 处理子组件的内容拖拽开始
+const handleChildContentDragStart = () => {
   isDragging.value = true
-  console.log('ChapterTree: 开始拖拽', evt)
 }
 
-const handleDragEnd = (evt: any) => {
+// 处理子组件的内容拖拽结束
+const handleChildContentDragEnd = () => {
   isDragging.value = false
-  console.log('ChapterTree: 拖拽结束', evt)
 }
 
-const handleDragChange = (evt: any) => {
-  console.log('ChapterTree: 拖拽变化事件', evt)
-  if (evt.moved) {
-    const { oldIndex, newIndex } = evt.moved
-    console.log(`根级章节从位置 ${oldIndex} 移动到 ${newIndex}`)
-  }
-  if (evt.added) {
-    console.log('添加到根级章节:', evt.added.element.title)
-  }
-  if (evt.removed) {
-    console.log('从根级章节移除:', evt.removed.element.title)
-  }
+// 处理根目录内容拖拽开始
+const onContentDragStart = (evt: any) => {
+  console.log('🔥🔥🔥 [我的调试] onContentDragStart 被调用!')
+  console.log('🚀 [根目录] 内容拖拽开始:', evt)
+  isDragging.value = true
 }
 
-const handleContentDragChange = (evt: any) => {
-  console.log('ChapterTree: 根级内容拖拽变化', evt)
-  if (evt.moved) {
-    const { oldIndex, newIndex } = evt.moved
-    console.log(`根目录内容从位置 ${oldIndex} 移动到 ${newIndex}`)
-  }
-  if (evt.added) {
-    console.log('内容添加到根目录:', evt.added.element.title)
-    console.log('添加的内容详情:', evt.added.element)
-  }
-  if (evt.removed) {
-    console.log('内容从根目录移除:', evt.removed.element.title)
-    console.log('移除的内容详情:', evt.removed.element)
-  }
+// 处理内容添加到根目录
+const onContentAdd = (evt: any) => {
+  console.log('🔥🔥🔥 [我的调试] onContentAdd 被调用!')
+  console.log('➕ [根目录] 内容添加:', evt)
+  console.log('➕ 事件详情:', {
+    element: evt.element,
+    newIndex: evt.newIndex,
+    from: evt.from,
+    to: evt.to
+  })
+  const { element, newIndex } = evt
+  
+  // 安全地获取内容信息
+  const contentTitle = element?.title || element?.textContent || 'Unknown Content'
+  console.log(`🔥🔥🔥 [我的调试] 添加内容: ${contentTitle} 到根目录, 位置: ${newIndex}`)
+  
+  // 立即更新内容的章节归属为根目录
+  const updatedContents = rootContentsList.value.map((content, index) => ({
+    ...content,
+    chapterId: undefined, // 根目录内容
+    orderIndex: index
+  }))
+  
+  console.log('🔥🔥🔥 [我的调试] 发送 contents-reorder 事件 (添加到根目录)')
+  emit('contents-reorder', { chapterId: undefined, contents: updatedContents })
 }
 
+// 处理内容从根目录移除
+const onContentRemove = (evt: any) => {
+  console.log('➖ [根目录] 内容移除:', evt)
+  const { element, oldIndex } = evt
+  
+  // 安全地获取内容信息
+  const contentTitle = element?.title || element?.textContent || 'Unknown Content'
+  console.log(`➖ 移除内容: ${contentTitle} 从根目录, 原位置: ${oldIndex}`)
+  
+  // 更新剩余内容的顺序
+  const updatedContents = rootContentsList.value.map((content, index) => ({
+    ...content,
+    chapterId: undefined,
+    orderIndex: index
+  }))
+  
+  console.log('➖ 发送 contents-reorder 事件 (从根目录移除)')
+  emit('contents-reorder', { chapterId: undefined, contents: updatedContents })
+}
+
+// 处理根目录内容重新排序
+const onContentUpdate = (evt: any) => {
+  console.log('🔄 [根目录] 内容更新:', evt)
+  const { oldIndex, newIndex } = evt
+  
+  console.log(`🔄 根目录内容重新排序: 从位置 ${oldIndex} 移动到位置 ${newIndex}`)
+  
+  // 更新内容顺序
+  const updatedContents = rootContentsList.value.map((content, index) => ({
+    ...content,
+    chapterId: undefined,
+    orderIndex: index
+  }))
+  
+  console.log('🔄 发送 contents-reorder 事件 (根目录更新)')
+  emit('contents-reorder', { chapterId: undefined, contents: updatedContents })
+}
+
+// 处理内容拖拽结束
+const onContentDragEnd = (evt: any) => {
+  console.log('🔥🔥🔥 [我的调试] onContentDragEnd 被调用!')
+  const { newIndex, oldIndex, item, to, from, pullMode } = evt
+  const isCrossChapter = to !== from
+  
+  console.log(`�🔥🔥 [我的调试] [根目录] 内容拖拽结束事件 (${isCrossChapter ? '跨章节' : '根目录内'})`)
+  console.log('📁 详细事件信息:')
+  console.log('📁 - to (目标容器):', to)
+  console.log('📁 - from (源容器):', from)
+  console.log('📁 - 跨章节拖拽:', isCrossChapter)
+  console.log('📁 - pullMode:', pullMode)
+  
+  // 获取被拖拽的内容ID
+  const draggedContentId = item.dataset?.contentId || 
+    item.querySelector('[data-content-id]')?.dataset?.contentId ||
+    rootContentsList.value[oldIndex]?.id
+  
+  if (!draggedContentId) {
+    console.error('❌ 无法获取被拖拽的内容ID')
+    return
+  }
+  
+  console.log(`📁 拖拽内容ID: ${draggedContentId}`)
+  console.log(`📁 从索引 ${oldIndex} 移动到索引 ${newIndex}`)
+  console.log('📁 当前位置: 根目录')
+  
+  // 如果是根目录内拖拽且位置没变化，不处理
+  if (!isCrossChapter && newIndex === oldIndex) {
+    console.log('📁 根目录内位置无变化，跳过处理')
+    return
+  }
+  
+  // 获取当前的根目录内容列表（这是拖拽后的最新状态）
+  const rootContents = rootContentsList.value
+  console.log(`📁 根目录内容数量: ${rootContents.length}`)
+  console.log('📁 根目录内容列表:', rootContents.map(c => `${c.id}: ${c.title}`))
+  
+  // 更新内容的 orderIndex 和 chapterId
+  const updatedContents = rootContents.map((content, index) => {
+    const updatedContent = {
+      ...content,
+      chapterId: undefined, // 根目录内容
+      orderIndex: index
+    }
+    
+    if (content.id === draggedContentId) {
+      console.log(`📁 更新被拖拽内容: ${content.title} -> 移到根目录, 位置: ${index}`)
+    }
+    
+    return updatedContent
+  })
+  
+  console.log('📁 发送 contents-reorder 事件')
+  console.log('📁 更新内容数据:', updatedContents.map(c => `${c.id}: ${c.title} (章节: ${c.chapterId || '根目录'}, 位置: ${c.orderIndex})`))
+  emit('contents-reorder', { chapterId: undefined, contents: updatedContents })
+  
+  // 重置拖拽状态
+  isDragging.value = false
+}
+
+// 调试章节数据
+const debugChapterData = () => {
+  console.log('🐛 ============ 章节数据调试 ============')
+  console.log('🐛 所有章节数据:')
+  
+  props.chapters.forEach(chapter => {
+    console.log(`🐛 章节: ${chapter.title}`)
+    console.log(`   ID: ${chapter.id}`)
+    console.log(`   parentId: ${chapter.parentId || 'null (根级章节)'}`)
+    console.log(`   level: ${chapter.level}`)
+    console.log(`   orderIndex: ${chapter.orderIndex}`)
+    console.log('   ---')
+  })
+  
+  console.log('🐛 根级章节:')
+  const rootChaps = props.chapters.filter(ch => !ch.parentId)
+  rootChaps.forEach(ch => console.log(`   - ${ch.title} (level: ${ch.level})`))
+  
+  console.log('🐛 按层级分组:')
+  for (let level = 1; level <= 3; level++) {
+    const levelChapters = props.chapters.filter(ch => ch.level === level)
+    console.log(`   Level ${level}: ${levelChapters.length} 个章节`)
+    levelChapters.forEach(ch => {
+      const parentTitle = ch.parentId ? 
+        props.chapters.find(p => p.id === ch.parentId)?.title : '根目录'
+      console.log(`     - ${ch.title} (父: ${parentTitle})`)
+    })
+  }
+  
+  console.log('🐛 检查孤儿章节:')
+  const orphans = props.chapters.filter(ch => {
+    if (!ch.parentId) return false // 根级章节不是孤儿
+    return !props.chapters.find(p => p.id === ch.parentId)
+  })
+  if (orphans.length > 0) {
+    console.log('⚠️ 发现孤儿章节:')
+    orphans.forEach(ch => console.log(`     - ${ch.title} (缺失父章节: ${ch.parentId})`))
+  } else {
+    console.log('✅ 没有孤儿章节')
+  }
+  
+  console.log('🐛 检查层级不一致:')
+  const inconsistentLevels: string[] = []
+  props.chapters.forEach(ch => {
+    if (!ch.parentId) {
+      // 根级章节应该是 level 1
+      if (ch.level !== 1) {
+        inconsistentLevels.push(`${ch.title}: 根级章节但 level=${ch.level} (应该是1)`)
+      }
+    } else {
+      // 子章节的 level 应该是父章节 level + 1
+      const parent = props.chapters.find(p => p.id === ch.parentId)
+      if (parent && ch.level !== parent.level + 1) {
+        inconsistentLevels.push(`${ch.title}: level=${ch.level} 但父章节 ${parent.title} level=${parent.level} (应该是${parent.level + 1})`)
+      }
+    }
+  })
+  
+  if (inconsistentLevels.length > 0) {
+    console.log('⚠️ 发现层级不一致:')
+    inconsistentLevels.forEach(msg => console.log(`     - ${msg}`))
+  } else {
+    console.log('✅ 层级一致')
+  }
+  
+  console.log('🐛 ================================')
+}
+
+// 修复所有章节的层级
+const fixAllChapterLevels = () => {
+  console.log('🔧 开始修复所有章节层级...')
+  
+  const updatedChapters = [...props.chapters]
+  
+  // 首先处理根级章节
+  const rootChapters = updatedChapters.filter(ch => !ch.parentId)
+  rootChapters.forEach(ch => {
+    const index = updatedChapters.findIndex(c => c.id === ch.id)
+    if (index >= 0) {
+      updatedChapters[index] = { ...updatedChapters[index], level: 1 }
+      console.log(`🔧 修复根级章节: ${ch.title} -> level 1`)
+    }
+  })
+  
+  // 递归修复所有子章节
+  rootChapters.forEach(rootChapter => {
+    updateChildrenLevels(updatedChapters, rootChapter.id, 1)
+  })
+  
+  console.log('🔧 发送修复后的章节数据')
+  emit('chapters-reorder', updatedChapters)
+}
+
+// 递归更新子章节的 level
+const updateChildrenLevels = (chapters: ChapterLocal[], parentId: string, parentLevel: number) => {
+  const children = chapters.filter(ch => ch.parentId === parentId)
+  console.log(`🔧 [根目录] 更新子章节层级: 父章节=${parentId}, 父级别=${parentLevel}, 子章节数=${children.length}`)
+  
+  children.forEach(child => {
+    const childIndex = chapters.findIndex(ch => ch.id === child.id)
+    if (childIndex >= 0) {
+      const oldLevel = chapters[childIndex].level
+      const newLevel = parentLevel + 1
+      
+      // 确保level值在有效范围内 (1-3)
+      if (newLevel > 3) {
+        console.warn(`⚠️ 警告: 章节 ${child.title} 的level将超过最大值3，跳过更新`)
+        return
+      }
+      
+      chapters[childIndex] = {
+        ...chapters[childIndex],
+        level: newLevel
+      }
+      
+      console.log(`🔧   - [根目录] 更新章节: ${child.title} 从 level ${oldLevel} -> ${newLevel}`)
+      
+      // 递归更新子章节的 level
+      updateChildrenLevels(chapters, child.id, newLevel)
+    }
+  })
+}
+
+// 处理添加根目录内容
 const handleAddRootContent = () => {
-  console.log('ChapterTree: handleAddRootContent 被调用, workId =', props.workId)
-  createContentWorkId.value = props.workId
-  createContentChapterId.value = undefined
+  createContentChapterId.value = null
   showCreateContentModal.value = true
-  console.log('ChapterTree: 模态框应该显示了，showCreateContentModal =', showCreateContentModal.value)
 }
 
-const handleCloseCreateModal = () => {
+// 处理关闭内容创建模态框
+const handleCloseCreateContentModal = () => {
   showCreateContentModal.value = false
-  createContentWorkId.value = undefined
-  createContentChapterId.value = undefined
+  createContentChapterId.value = null
 }
 
-const handleCreateContent = (data: { title: string; type: string; workId?: string; chapterId?: string }) => {
-  console.log('ChapterTree: handleCreateContent 被调用', data)
-  emit('add-content', data)
-  console.log('ChapterTree: 已发送 add-content 事件')
-  handleCloseCreateModal()
+// 处理内容创建完成
+const handleContentCreated = (data: any) => {
+  emit('add-content', { chapterId: createContentChapterId.value ?? undefined })
+  handleCloseCreateContentModal()
+}
+
+// 处理子组件的内容重排序
+const handleContentsReorder = (data: { chapterId: string; contents: Content[] }) => {
+  emit('contents-reorder', data)
+}
+
+// 处理子组件的章节重排序
+const handleChaptersReorder = (chapters: ChapterLocal[]) => {
+  emit('chapters-reorder', chapters)
 }
 </script>
 
 <style scoped>
 .chapter-tree {
+  padding: 8px;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
+  overflow-y: auto;
+  background-color: #fafafa;
+  border-radius: 4px;
 }
 
 .tree-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-bottom: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .tree-header h3 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  color: #333;
 }
 
 .header-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
-.add-chapter-btn,
-.add-content-btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: rgba(255, 255, 255, 0.9);
-  color: #667eea;
-  border-radius: 6px;
-  cursor: pointer;
+.add-content-btn,
+.add-chapter-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
   transition: all 0.2s ease;
-  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.add-chapter-btn:hover,
-.add-content-btn:hover {
-  background: white;
-  color: #4f46e5;
-  transform: scale(1.05);
+.add-content-btn:hover,
+.add-chapter-btn:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+.drag-error-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #856404;
+}
+
+.error-icon {
+  font-size: 16px;
+}
+
 .tree-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 8px 8px 8px;
-  background: #fafbfc;
-}
-
-.root-contents {
-  margin-bottom: 8px;
-}
-
-.content-list {
-  min-height: 40px;
-  padding: 4px 0;
-  border-radius: 3px;
-  transition: background-color 0.2s ease;
-}
-
-/* 拖拽时高亮显示可放置区域 */
-.content-list.sortable-drag-over {
-  background-color: #e3f2fd;
-  border: 2px dashed #2196f3;
-}
-
-.draggable-list {
-  min-height: 60px;
-}
-
-.empty-state {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  padding: 4px 8px;
+  background-color: #f5f5f5;
+  border-radius: 3px;
+}
+
+.root-contents,
+.root-chapters {
+  background-color: #fff;
+  border-radius: 4px;
+  padding: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.content-list,
+.chapter-list {
+  min-height: 40px;
+}
+
+.content-list.empty {
+  min-height: 0;
+  height: 0;
+  border: none;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.content-list.empty.dragging {
+  min-height: 60px;
+  height: 60px;
+  border: 2px dashed #ddd;
+  border-radius: 4px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  height: 160px;
-  color: #6b7280;
-  text-align: center;
+  color: #aaa;
+  font-size: 14px;
 }
 
-.empty-state p {
-  margin: 0 0 12px 0;
-  font-size: 13px;
-  color: #9ca3af;
+.content-list.empty.dragging::before {
+  content: '拖放内容到此处';
 }
 
-.empty-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.create-btn {
-  padding: 6px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-}
-
-.create-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-}
-
-/* 内容项样式 */
 .content-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 4px 8px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  margin-bottom: 2px;
-  cursor: pointer;
+  justify-content: space-between;
+  padding: 6px 8px;
+  margin: 2px 0;
+  background-color: #fafafa;
+  border-radius: 4px;
+  cursor: move;
   transition: all 0.2s ease;
-  font-size: 12px;
+  border: 1px solid transparent;
 }
 
 .content-item:hover {
-  background: #f8fafc;
-  border-color: #d1d5db;
-  transform: translateX(2px);
+  background-color: #f0f0f0;
+  border-color: #ddd;
 }
 
 .content-item.selected {
-  background: #fef3c7;
-  border-color: #f59e0b;
-  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.2);
-}
-
-.content-info {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
+  background-color: #e8f5e8;
+  border-color: #4caf50;
 }
 
 .content-icon {
-  margin-right: 6px;
+  margin-right: 8px;
   font-size: 14px;
-  opacity: 0.7;
 }
 
 .content-title {
   font-size: 14px;
-  color: #4b5563;
+  color: #333;
+  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -620,7 +835,8 @@ const handleCreateContent = (data: { title: string; type: string; workId?: strin
 
 .content-actions {
   display: flex;
-  gap: 2px;
+  align-items: center;
+  gap: 4px;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -629,107 +845,65 @@ const handleCreateContent = (data: { title: string; type: string; workId?: strin
   opacity: 1;
 }
 
-.action-btn {
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-radius: 4px;
+.action-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 12px;
+  transition: background-color 0.15s ease;
+}
+
+.action-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.action-button.delete:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+}
+
+.action-button.small {
+  width: 20px;
+  height: 20px;
   font-size: 10px;
-  color: #6b7280;
-  transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.delete-btn:hover {
-  background: #fef2f2;
-  color: #dc2626;
-}
-
-/* 拖拽错误提示样式 */
-.drag-error-toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 10000;
-  animation: slideInRight 0.3s ease-out;
-  max-width: 300px;
-}
-
-.error-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-}
-
-.error-text {
-  color: #dc2626;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
 }
 
 /* 拖拽样式 */
+.content-ghost {
+  opacity: 0.5;
+  background-color: #e3f2fd !important;
+}
+
+.content-chosen {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 拖拽悬停时的视觉反馈 */
+.content-list.sortable-drag-over,
+.content-list.sortable-ghost,
+.content-list:global(.sortable-drag-over) {
+  background-color: #e8f5e8 !important;
+  border: 2px solid #4caf50 !important;
+}
+
+.content-list.empty.sortable-drag-over::before,
+.content-list.empty:global(.sortable-drag-over)::before {
+  content: '释放以添加到根目录';
+  color: #4caf50;
+  font-weight: bold;
+}
+
 .chapter-ghost {
-  opacity: 0.4;
-  background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%) !important;
-  border: 2px dashed #a5b4fc !important;
+  opacity: 0.5;
 }
 
 .chapter-chosen {
-  background: #e0e7ff !important;
-  border-color: #6366f1 !important;
-  transform: scale(1.02);
-}
-
-.chapter-drag {
-  opacity: 0.9;
-  transform: rotate(2deg) scale(1.05);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-}
-
-/* 滚动条样式 */
-.tree-content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.tree-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.tree-content::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 2px;
-}
-
-.tree-content::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 </style>

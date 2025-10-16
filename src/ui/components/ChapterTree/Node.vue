@@ -65,17 +65,18 @@
     <div v-if="isExpanded" class="contents-section">
       <draggable
         v-model="sortedChapterContents"
-        :group="{ name: 'chapter-contents', pull: true, put: ['contents', 'chapter-contents'] }"
-        @change="handleContentDragChange"
-        animation="150"
+        group="content-items"
+        @start="handleContentDragStart"
+        @end="handleContentDragEnd"
         item-key="id"
         class="content-drop-zone"
-        :class="{ 'empty': chapterContents.length === 0, 'has-content': chapterContents.length > 0 }"
+        :class="{ 'empty': chapterContents.length === 0, 'has-content': chapterContents.length > 0, 'dragging': props.isDragging }"
       >
         <template #item="{ element: content }">
           <div 
             class="content-item"
             :class="{ 'selected': props.selectedContentId === content.id }"
+            :data-content-id="content.id"
             @click="$emit('content-select', content.id)"
           >
             <span class="content-icon">📄</span>
@@ -122,7 +123,7 @@
             :contents="contents"
             :selected-chapter-id="props.selectedChapterId"
             :selected-content-id="props.selectedContentId"
-            :dragging="dragging"
+            :is-dragging="props.isDragging"
             @chapter-toggle="$emit('chapter-toggle', $event)"
             @chapter-click="$emit('chapter-click', $event)"
             @chapter-edit="$emit('chapter-edit', $event)"
@@ -143,9 +144,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import draggable from 'vuedraggable'
 import type { ChapterLocal, Content } from './types'
+
+// 递归组件自引用
+const Node = defineAsyncComponent(() => import('./Node.vue'))
 
 interface Props {
   chapter: ChapterLocal
@@ -153,7 +157,7 @@ interface Props {
   contents?: Content[]
   selectedChapterId?: string
   selectedContentId?: string
-  dragging?: boolean
+  isDragging?: boolean
 }
 
 const props = defineProps<Props>()
@@ -171,8 +175,19 @@ const emit = defineEmits<{
   'contents-reorder': [data: { chapterId: string; contents: Content[] }]
   'chapters-reorder': [chapters: ChapterLocal[]]
   'drag-error': [message: string]
+  'content-drag-start': []
+  'content-drag-end': []
 }>()
 
+// 处理章节内容拖拽开始
+const handleContentDragStart = () => {
+  emit('content-drag-start')
+}
+
+// 处理章节内容拖拽结束  
+const handleContentDragEnd = () => {
+  emit('content-drag-end')
+}
 const isExpanded = ref(true)
 const draggedChapterId = ref<string | null>(null)
 
@@ -382,20 +397,20 @@ const handleDragEnd = (evt: any) => {
 
 // 处理子章节拖拽变化
 const handleChildChapterDragChange = (evt: any) => {
-  console.log('子章节拖拽变化:', evt)
+  console.log('📁 子章节拖拽变化:', evt)
   
   if (evt.added) {
-    console.log('章节被添加到:', props.chapter.title)
-    console.log('添加的章节:', evt.added.element.title)
+    console.log('📁➕ 章节被添加到:', props.chapter.title)
+    console.log('📁➕ 添加的章节:', evt.added.element.title)
   }
   
   if (evt.removed) {
-    console.log('章节被移除自:', props.chapter.title)
-    console.log('移除的章节:', evt.removed.element.title)
+    console.log('📁➖ 章节被移除自:', props.chapter.title)
+    console.log('📁➖ 移除的章节:', evt.removed.element.title)
   }
   
   if (evt.moved) {
-    console.log('章节内部移动:', evt.moved.element.title)
+    console.log('📁🔄 章节内部移动:', evt.moved.element.title)
   }
 }
 
@@ -564,7 +579,18 @@ const handleContentDragChange = (evt: any) => {
 }
 
 .content-drop-zone.empty {
+  min-height: 0;
+  height: 0;
+  background-color: transparent;
+  border: none;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  margin: 0;
+}
+
+.content-drop-zone.empty.dragging {
   min-height: 40px;
+  height: 40px;
   background-color: #f9f9f9;
   border: 1px dashed #ddd;
   display: flex;
@@ -573,7 +599,7 @@ const handleContentDragChange = (evt: any) => {
   margin: 2px 0;
 }
 
-.content-drop-zone.empty::before {
+.content-drop-zone.empty.dragging::before {
   content: '拖放内容到此处';
   color: #aaa;
   font-size: 11px;

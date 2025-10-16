@@ -370,7 +370,6 @@ export class CRSQLiteChapterRepository extends CRSQLiteBaseRepository implements
    */
   async findByWork(workId: string, includeChildren?: boolean): Promise<any[]> {
     return await this.findByWorkId(workId, {
-      parentId: null,
       includeChildren
     });
   }
