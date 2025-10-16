@@ -290,6 +290,14 @@ export const contentApi = {
     return await window.electronAPI.invoke('content:getByChapter', chapterId, userId)
   },
 
+  // 获取作品的所有内容
+  async getByWork(workId: string, userId?: string) {
+    if (userId) {
+      return await window.electronAPI.invoke('content:getByWork', workId, userId)
+    }
+    return await window.electronAPI.invoke('content:getByWork', workId)
+  },
+
   // 更新内容
   async update(contentId: string, userId: string, updateData: {
     content?: string;

@@ -5,6 +5,7 @@ import router from './router'
 import { useAppStore } from './stores/app'
 import { useUserStore } from './stores/user'
 import './style.css'
+import 'prosemirror-view/style/prosemirror.css'
 
 // 导入用户活动监听器（自动续期功能）
 import './utils/UserActivityWatcher'

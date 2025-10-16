@@ -16,12 +16,11 @@
     </div>
     
     <div class="editor-container">
-      <ProseMirrorEditor
+      <Editor
         v-model="content"
         :readonly="readonly"
         :placeholder="placeholder"
         @change="onContentChange"
-        ref="editorRef"
       />
     </div>
     
@@ -36,7 +35,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import ProseMirrorEditor from '../components/ProseMirrorEditor.vue'
+import Editor from '../components/Editor.vue'
 
 const route = useRoute()
 
@@ -45,7 +44,14 @@ const content = ref('')
 const readonly = ref(false)
 const saving = ref(false)
 const lastSaved = ref<Date | null>(null)
-const editorRef = ref<InstanceType<typeof ProseMirrorEditor>>()
+const extractPlainText = (html: string): string => {
+  if (!html) return ''
+  const container = document.createElement('div')
+  container.innerHTML = html
+  return container.textContent || ''
+}
+
+const plainText = computed(() => extractPlainText(content.value))
 
 // 计算属性
 const placeholder = computed(() => {
@@ -54,17 +60,16 @@ const placeholder = computed(() => {
 })
 
 const wordCount = computed(() => {
-  if (!content.value) return 0
+  const text = plainText.value
+  if (!text) return 0
   // 简单的单词计数（中文按字符计算，英文按单词计算）
-  const text = editorRef.value?.getText() || ''
   const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length
   const englishWords = (text.match(/[a-zA-Z]+/g) || []).length
   return chineseChars + englishWords
 })
 
 const charCount = computed(() => {
-  const text = editorRef.value?.getText() || ''
-  return text.length
+  return plainText.value.length
 })
 
 // 方法

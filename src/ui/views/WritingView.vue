@@ -38,38 +38,19 @@
           </button>
         </div>
 
-        <!-- 协同编辑器 -->
-        <CollaborativeProseMirrorEditor
-          v-if="useCollaborativeEditor && currentUser"
-          :key="`collab-${currentContent.id}`"
+        <Editor
+          :key="editorKey"
           :model-value="currentContent.content || ''"
           :content-id="currentContent.id"
-          :user-id="currentUser.id"
-          :user-name="currentUser.name"
-          :initial-title="currentContent.title"
-          :enable-collaboration="true"
-          :collaboration-config="{
-            websocketUrl: 'ws://localhost:4001/signaling',
-            webrtcSignaling: ['ws://localhost:4001/signaling'],
-            maxConnections: 10
-          }"
+          :user-id="currentUser?.id"
+          :user-name="currentUser?.name"
+          :placeholder="editorPlaceholder"
+          :collaboration-mode="isCollaborationActive"
+          :collaboration-config="collaborationConfig"
+          :readonly="false"
           @update:modelValue="handleContentUpdate"
           @collaboration-changed="handleCollaborationChanged"
           @collaborators-updated="handleCollaboratorsUpdated"
-          @title-updated="handleTitleUpdated"
-        />
-
-        <!-- 原始增强编辑器 -->
-        <EnhancedEditor
-          v-else
-          :key="`standard-${currentContent.id}`"
-          :content-id="currentContent.id"
-          :user-id="currentUser?.id || ''"
-          :chapter-id="currentContent.chapterId || selectedChapterId || ''"
-          :initial-content="currentContent.content"
-          :initial-title="currentContent.title"
-          @content-saved="handleContentSaved"
-          @content-error="handleContentError"
           @title-updated="handleTitleUpdated"
         />
       </div>
@@ -208,12 +189,13 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import ChapterTree from '../components/ChapterTree/index.vue'
-import EnhancedEditor from '../components/EnhancedEditor.vue'
-import CollaborativeProseMirrorEditor from '../components/CollaborativeProseMirrorEditor.vue'
+import Editor from '../components/Editor.vue'
 import ChapterEditModal from '../components/ChapterEditModal.vue'
 import WorkCreateModal from '../components/WorkCreateModal.vue'
-import { workApi, chapterApi, contentApi } from '../services/api'
+import { workApi, chapterApi } from '../services/api'
+import { contentService } from '../services/contentService'
 import type { Chapter, Content } from '../types/models'
+import type { WritingContent } from '../services/contentService'
 
 // 章节数据类型定义
 interface ChapterLocal {
@@ -272,9 +254,9 @@ const userStore = useUserStore()
 // Reactive data
 const currentWork = ref<Work | null>(null)
 const chapters = ref<ChapterLocal[]>([])
-const contents = ref<any[]>([])  // 添加 contents 数据
+const contents = ref<WritingContent[]>([])
 const selectedChapterId = ref('')
-const currentContent = ref<any>(null)
+const currentContent = ref<WritingContent | null>(null)
 const workStats = ref<WorkStats>({ totalWords: 0, totalChapters: 0 })
 const notifications = ref<Notification[]>([])
 
@@ -314,6 +296,30 @@ const selectedChapter = computed(() => {
   return chapters.value.find(ch => ch.id === selectedChapterId.value) || null
 })
 
+const collaborationConfig = {
+  websocketUrl: 'ws://localhost:4001/signaling',
+  webrtcSignaling: ['ws://localhost:4001/signaling'],
+  maxConnections: 10
+}
+
+const isCollaborationActive = computed(() => useCollaborativeEditor.value && !!currentUser.value)
+
+const editorKey = computed(() => {
+  const contentId = currentContent.value?.id ?? 'empty'
+  const mode = isCollaborationActive.value ? 'collab' : 'solo'
+  return `${contentId}-${mode}`
+})
+
+const editorPlaceholder = computed(() => {
+  if (currentContent.value?.title) {
+    return `继续创作「${currentContent.value.title}」...`
+  }
+  if (currentWork.value?.title) {
+    return `开始创作《${currentWork.value.title}》`
+  }
+  return '开始写作...'
+})
+
 // Lifecycle
 onMounted(async () => {
   await initializeView()
@@ -349,19 +355,29 @@ const toggleEditorMode = () => {
 }
 
 const handleContentUpdate = async (content: string) => {
-  if (currentContent.value) {
+  const activeContent = currentContent.value
+  if (activeContent) {
     // 在协同模式下，简单更新本地内容（Yjs 会处理持久化）
-    currentContent.value = { ...currentContent.value, content }
-    
-    // 记录最后编辑的内容（协同模式下也需要记录）
-    if (currentWork.value) {
+    currentContent.value = { ...activeContent, content }
+
+    const index = contents.value.findIndex(item => item.id === activeContent.id)
+    if (index !== -1) {
+      contents.value[index] = {
+        ...contents.value[index],
+        content
+      }
+      contents.value = [...contents.value]
+    }
+
+    // 仅在协同模式下记录最后编辑内容，避免高频 IPC 调用
+    if (useCollaborativeEditor.value && currentWork.value) {
       try {
         await (window as any).electronAPI.invoke('author:setLastEditedContent', {
           workId: currentWork.value.id,
-          chapterId: currentContent.value.chapterId,
-          contentId: currentContent.value.id
+          chapterId: activeContent.chapterId,
+          contentId: activeContent.id
         })
-        console.log('已记录最后编辑的内容 (协同模式):', currentContent.value.id)
+        console.log('已记录最后编辑的内容 (协同模式):', activeContent.id)
       } catch (error) {
         console.error('记录最后编辑内容失败 (协同模式):', error)
       }
@@ -445,9 +461,9 @@ const loadWork = async (workId: string) => {
     const workChapters = await chapterApi.getByWork(workId, currentUser.value.id)
     chapters.value = workChapters.map(convertToLocalChapter)
     
-    // 加载内容数据
-    const contentsResponse = await (window as any).gestell.content.getByWork(workId)
-    contents.value = contentsResponse?.contents || []
+  // 加载内容数据
+  const contentList = await contentService.fetchByWork(workId, currentUser.value.id)
+  contents.value = [...contentList].sort((a, b) => a.orderIndex - b.orderIndex)
 
     const stats = await workApi.getStats(workId, currentUser.value.id)
     workStats.value = stats
@@ -496,7 +512,7 @@ const loadChapterContent = async (chapterId: string) => {
 
     console.log('开始加载章节内容:', chapterId)
     
-    const contentList = await contentApi.getByChapter(chapterId, currentUser.value.id)
+    const contentList = await contentService.fetchByChapter(chapterId, currentUser.value.id)
     console.log('加载到的内容数量:', contentList.length)
     
     if (contentList.length > 0) {
@@ -507,13 +523,16 @@ const loadChapterContent = async (chapterId: string) => {
         return timeB - timeA // 降序，最新的在前
       })
       
-      currentContent.value = sortedByEditTime[0]
-      console.log('已加载最新编辑的内容:', {
-        id: currentContent.value.id,
-        title: currentContent.value.title || '无标题',
-        lastEditedAt: currentContent.value.lastEditedAt,
-        totalContents: contentList.length
-      })
+      const latestContent = sortedByEditTime[0]
+      currentContent.value = latestContent
+      if (latestContent) {
+        console.log('已加载最新编辑的内容:', {
+          id: latestContent.id,
+          title: latestContent.title || '无标题',
+          lastEditedAt: latestContent.lastEditedAt,
+          totalContents: contentList.length
+        })
+      }
       
       if (contentList.length > 1) {
         console.log(`该章节有 ${contentList.length} 个内容片段，已加载最新编辑的版本`)
@@ -550,16 +569,20 @@ const handleContentSelect = async (contentId: string) => {
     isLoadingContent.value = true
     
     // 直接加载指定的内容
-    const content = await contentApi.get(contentId, currentUser.value.id)
+    const content = await contentService.fetchContent(contentId, currentUser.value.id)
+    if (!content) {
+      showNotification('未找到该内容', 'error')
+      return
+    }
     
-    console.log('📦 从 API 获取的完整内容对象:', content)
+    console.log('📦 从服务获取的完整内容对象:', content)
     console.log('📦 内容字段检查:', {
       hasId: !!content.id,
       hasTitle: !!content.title,
-      hasContent: !!content.content,
+      hasContent: typeof content.content === 'string',
       hasChapterId: !!content.chapterId,
       contentType: typeof content.content,
-      contentLength: content.content?.length || 0
+      contentLength: content.content.length || 0
     })
     
     // 先设置内容，确保编辑器能够显示
@@ -589,7 +612,7 @@ const handleContentSelect = async (contentId: string) => {
       selectedChapterId: selectedChapterId.value,
       hasCurrentContent: !!currentContent.value,
       currentContentId: currentContent.value?.id,
-      contentChapterId: content.chapterId,
+  contentChapterId: content.chapterId,
       shouldShowEditor: !!currentContent.value
     })
     
@@ -766,60 +789,47 @@ const handleAddContent = async (data: { title?: string, type?: string, workId?: 
         chapterId: data.chapterId,
         title: data.title
       })
-      
-      const response = await (window as any).gestell.content.create(userId, {
-        workId: workId,
+
+      const emptyDoc = JSON.stringify({ type: 'doc', content: [] })
+      const newContent = await contentService.createContent({
+        authorId: userId,
+        workId,
         chapterId: data.chapterId,
         title: data.title,
-        content: JSON.stringify({ type: 'doc', content: [] }),
-        format: 'prosemirror' as const
+        content: emptyDoc,
+        format: 'prosemirror'
       })
-      
-      console.log('内容创建成功:', response)
-      
-      console.log('📦 创建返回的完整对象:', response)
-      console.log('📦 返回对象字段检查:', {
-        hasId: !!response.id,
-        hasTitle: !!response.title,
-        hasContent: !!response.content,
-        hasChapterId: !!response.chapterId,
-        allKeys: Object.keys(response)
-      })
-      
-      // 🔄 延迟刷新以确保数据已写入数据库
-      setTimeout(async () => {
-        console.log('🔄 开始刷新作品数据...')
-        if (currentWork.value) {
-          await loadWork(currentWork.value.id)
-          console.log('🔄 作品数据刷新完成，当前内容数量:', contents.value.length)
-          
-          // 强制触发响应式更新
-          contents.value = [...contents.value]
-          
-          console.log('🔄 强制响应式更新完成')
+
+      console.log('内容创建成功:', newContent)
+
+      // 更新本地内容列表并保持响应式
+      contents.value = [...contents.value, newContent].sort((a, b) => a.orderIndex - b.orderIndex)
+
+      if (currentWork.value) {
+        try {
+          const stats = await workApi.getStats(currentWork.value.id, userId)
+          workStats.value = stats
+        } catch (statsError) {
+          console.error('刷新作品统计失败:', statsError)
         }
-      }, 100)
-      
-      // 🎯 自动加载新创建的内容到编辑器
-      if (response && response.id) {
-        currentContent.value = response
-        
-        console.log('✅ 已设置 currentContent.value')
-        console.log('📊 当前状态检查:', {
-          selectedChapterId: selectedChapterId.value,
-          hasCurrentContent: !!currentContent.value,
-          currentContentId: currentContent.value?.id,
-          shouldShowEditor: !!(selectedChapterId.value && currentContent.value)
-        })
-        
-        // 如果章节ID不同，更新选中的章节
-        if (data.chapterId && selectedChapterId.value !== data.chapterId) {
-          selectedChapterId.value = data.chapterId
-          console.log('🔄 已更新 selectedChapterId 为:', data.chapterId)
-        }
-        console.log('已自动加载新内容到编辑器')
       }
-      
+
+      // 🎯 自动加载新创建的内容到编辑器
+      currentContent.value = newContent
+
+      console.log('✅ 已设置 currentContent.value', {
+        selectedChapterId: selectedChapterId.value,
+        hasCurrentContent: !!currentContent.value,
+        currentContentId: currentContent.value?.id,
+        shouldShowEditor: !!(selectedChapterId.value && currentContent.value)
+      })
+
+      // 如果章节ID不同，更新选中的章节
+      if (data.chapterId && selectedChapterId.value !== data.chapterId) {
+        selectedChapterId.value = data.chapterId
+        console.log('🔄 已更新 selectedChapterId 为:', data.chapterId)
+      }
+
       showNotification('内容创建成功', 'success')
       
     } catch (err: any) {
@@ -901,25 +911,23 @@ const handleContentsReorder = async (data: { chapterId?: string; contents: Conte
       }))
       
       console.log('开始保存内容顺序到数据库...')
-      await contentApi.reorderContents(currentUser.value!.id, contentOrders)
+      await contentService.reorderContents(currentUser.value!.id, contentOrders)
       console.log('✅ 内容顺序已保存到数据库')
       
       // 更新本地状态
-      const updatedContents = contents.value.map(content => {
-        const newOrder = contentOrders.find(c => c.id === content.id)
-        if (newOrder) {
-          return {
-            ...content,
-            chapterId: newOrder.chapterId,
-            orderIndex: newOrder.orderIndex
-          }
+      const updatedContents = contents.value.map(existingContent => {
+        const newOrder = contentOrders.find(c => c.id === existingContent.id)
+        if (!newOrder) {
+          return existingContent
         }
-        return content
+        return {
+          ...existingContent,
+          chapterId: newOrder.chapterId,
+          orderIndex: newOrder.orderIndex
+        }
       })
       
-      // 按 orderIndex 排序
-      updatedContents.sort((a, b) => a.orderIndex - b.orderIndex)
-      contents.value = updatedContents
+      contents.value = [...updatedContents].sort((a, b) => a.orderIndex - b.orderIndex)
       
       console.log('✅ 本地状态已更新')
       showNotification('内容顺序已更新', 'success')
@@ -1024,7 +1032,8 @@ const createNewContent = async () => {
       contentTitle = `${currentWork.value.title} - 内容${rootContents.length + 1}`
     }
 
-    const newContent = await contentApi.create(currentUser.value.id, {
+    const newContent = await contentService.createContent({
+      authorId: currentUser.value.id,
       workId: currentWork.value.id,
       chapterId: selectedChapterId.value,
       content: emptyProseMirrorDoc,
@@ -1034,10 +1043,18 @@ const createNewContent = async () => {
 
     console.log('内容创建成功:', newContent)
     currentContent.value = newContent
-    
-    // 重新加载作品数据以更新统计信息
+
+    // 将新内容加入本地列表
+  contents.value = [...contents.value, newContent].sort((a, b) => a.orderIndex - b.orderIndex)
+
+    // 刷新作品统计信息
     if (currentWork.value) {
-      await loadWork(currentWork.value.id)
+      try {
+        const stats = await workApi.getStats(currentWork.value.id, currentUser.value.id)
+        workStats.value = stats
+      } catch (statsError) {
+        console.error('刷新作品统计失败:', statsError)
+      }
     }
     
     showNotification('已创建新内容，开始写作吧！', 'success')
@@ -1047,36 +1064,14 @@ const createNewContent = async () => {
   }
 }
 
-const handleContentSaved = async (result: any) => {
-  showNotification('内容已保存', 'success')
-  todayStats.value.wordsWritten += result.wordCount || 0
-  
-  // 记录最后编辑的内容
-  if (currentContent.value && currentWork.value) {
-    try {
-      await (window as any).electronAPI.invoke('author:setLastEditedContent', {
-        workId: currentWork.value.id,
-        chapterId: currentContent.value.chapterId,
-        contentId: currentContent.value.id
-      })
-      console.log('已记录最后编辑的内容:', currentContent.value.id)
-    } catch (error) {
-      console.error('记录最后编辑内容失败:', error)
-    }
-  }
-}
-
-const handleContentError = (error: Error) => {
-  showNotification(`保存失败: ${error.message}`, 'error')
-}
-
 const handleTitleUpdated = (title: string) => {
-  if (currentContent.value) {
+  const activeContent = currentContent.value
+  if (activeContent) {
     // 更新当前内容的标题
-    currentContent.value.title = title
+    activeContent.title = title
     
     // 同时更新 contents 数组中对应的内容项，确保章节树实时刷新
-    const contentIndex = contents.value.findIndex(content => content.id === currentContent.value.id)
+    const contentIndex = contents.value.findIndex(content => content.id === activeContent.id)
     if (contentIndex !== -1) {
       contents.value[contentIndex] = {
         ...contents.value[contentIndex],
