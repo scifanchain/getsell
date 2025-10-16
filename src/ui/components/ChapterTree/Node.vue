@@ -1,17 +1,30 @@
 <template>
   <div class="chapter-tree-node">
+    <!-- 层级指示线 -->
+    <div class="level-lines">
+      <div 
+        v-for="i in chapter.level - 1" 
+        :key="i"
+        class="level-line"
+      ></div>
+    </div>
+    
     <div 
       class="chapter-node" 
       :class="{ 
         'selected': props.selectedChapterId === chapter.id,
-        'has-children': hasChildren,
+        'has-children': hasExpandableContent,
         'expanded': isExpanded 
+      }"
+      :style="{ 
+        'margin-left': `${(chapter.level - 1) * 20}px`,
+        '--chapter-level': chapter.level 
       }"
       @click="$emit('chapter-click', chapter.id)"
     >
       <div class="chapter-content">
         <span 
-          v-if="hasChildren" 
+          v-if="hasExpandableContent" 
           class="expand-toggle"
           :class="{ 'expanded': isExpanded }"
           @click.stop="handleToggle"
@@ -136,6 +149,8 @@
             @contents-reorder="$emit('contents-reorder', $event)"
             @chapters-reorder="$emit('chapters-reorder', $event)"
             @drag-error="$emit('drag-error', $event)"
+            @content-drag-start="$emit('content-drag-start')"
+            @content-drag-end="$emit('content-drag-end')"
           />
         </template>
       </draggable>
@@ -265,6 +280,11 @@ const childChapters = computed(() => {
 // 是否有子章节
 const hasChildren = computed(() => childChapters.value.length > 0)
 
+// 是否有可展开的内容（子章节或章节内容）
+const hasExpandableContent = computed(() => 
+  childChapters.value.length > 0 || chapterContents.value.length > 0
+)
+
 // 章节内容
 const chapterContents = computed(() => {
   return (props.contents || [])
@@ -375,7 +395,7 @@ const sortedChapterContents = computed({
 
 // 处理章节切换
 const handleToggle = () => {
-  if (hasChildren.value) {
+  if (hasExpandableContent.value) {
     isExpanded.value = !isExpanded.value
     emit('chapter-toggle', props.chapter.id)
   }
@@ -423,26 +443,74 @@ const handleContentDragChange = (evt: any) => {
 <style scoped>
 .chapter-tree-node {
   user-select: none;
+  position: relative;
 }
+
+.level-lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.level-line {
+  position: absolute;
+  left: calc(10px + var(--level, 0) * 20px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: #e0e0e0;
+}
+
+.level-line:nth-child(1) { --level: 0; }
+.level-line:nth-child(2) { --level: 1; }
+.level-line:nth-child(3) { --level: 2; }
 
 .chapter-node {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 8px;
-  margin: 0;
+  padding: 6px 12px;
+  margin: 1px 0;
   cursor: pointer;
-  border-radius: 3px;
-  transition: background-color 0.15s ease;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  position: relative;
+  z-index: 2;
+  background-color: #fff;
+  border: 1px solid transparent;
+}
+
+/* 只为非根级章节添加水平连接线 */
+.chapter-node:not([style*="--chapter-level: 1"])::before {
+  content: '';
+  position: absolute;
+  left: calc(-10px - (var(--chapter-level, 1) - 1) * 20px);
+  top: 50%;
+  width: 12px;
+  height: 1px;
+  background-color: #e0e0e0;
+  transform: translateY(-50%);
+}
+
+/* 根级章节特殊样式 */
+.chapter-node[style*="--chapter-level: 1"] {
+  margin: 4px 0;
+  font-weight: 500;
 }
 
 .chapter-node:hover {
-  background-color: #f0f0f0;
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .chapter-node.selected {
   background-color: #e3f2fd;
-  border-left: 3px solid #2196f3;
+  border-color: #2196f3;
+  box-shadow: 0 2px 4px rgba(33,150,243,0.2);
 }
 
 .chapter-content {

@@ -2,25 +2,6 @@
   <div class="writing-view">
     <!-- 左侧边栏 -->
     <div class="sidebar">
-      <!-- 作品信息 -->
-      <div class="work-info" v-if="currentWork">
-        <h2 class="work-title">{{ currentWork.title }}</h2>
-        <div class="work-stats">
-          <div class="stat-item">
-            <span class="label">总字数:</span>
-            <span class="value">{{ workStats.totalWords }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">章节数:</span>
-            <span class="value">{{ chapters.length }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="label">进度:</span>
-            <span class="value">{{ Math.round((currentWork.progressPercentage || 0)) }}%</span>
-          </div>
-        </div>
-      </div>
-
       <!-- 章节树 -->
       <div class="chapter-section">
         <ChapterTree
@@ -128,6 +109,24 @@
 
     <!-- 右侧边栏 -->
     <div class="right-sidebar">
+      <!-- 作品信息 -->
+      <div class="work-info" v-if="currentWork">
+        <h2 class="work-title">{{ currentWork.title }}</h2>
+        <div class="work-stats">
+          <div class="stat-item">
+            <span class="label">总字数:</span>
+            <span class="value">{{ workStats.totalWords }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="label">章节数:</span>
+            <span class="value">{{ chapters.length }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="label">进度:</span>
+            <span class="value">{{ Math.round((currentWork.progressPercentage || 0)) }}%</span>
+          </div>
+        </div>
+      </div>
       <!-- 章节信息 -->
       <div v-if="selectedChapter" class="chapter-info">
         <h3>章节信息</h3>

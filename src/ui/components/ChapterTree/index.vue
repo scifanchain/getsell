@@ -28,14 +28,13 @@
     
     <div class="tree-content">
       <!-- 根目录内容拖拽区域 -->
-      <div class="root-contents">
-        <h4 class="section-title">根目录内容</h4>
+      <div class="root-contents" v-show="rootContentsList.length > 0 || isDragging">
         <draggable
           v-model="rootContentsList"
           group="content-items"
           item-key="id"
-          class="content-list"
-          :class="{ 'empty': rootContentsList.length === 0, 'dragging': isDragging }"
+          class="content-list root-drop-zone"
+          :class="{ 'empty': rootContentsList.length === 0, 'dragging': isDragging, 'show-when-empty': rootContentsList.length === 0 && isDragging }"
           :move="validateContentMove"
           @change="handleRootContentChange"
           @start="onContentDragStart"
@@ -76,7 +75,6 @@
 
       <!-- 根级章节拖拽区域 -->
       <div class="root-chapters">
-        <h4 class="section-title">章节列表</h4>
         <draggable
           :list="rootChaptersList"
           group="chapters"
@@ -114,8 +112,8 @@
               @contents-reorder="handleContentsReorder"
               @chapters-reorder="handleChaptersReorder"
               @drag-error="showDragError"
-              @content-drag-start="handleChildContentDragStart"
-              @content-drag-end="handleChildContentDragEnd"
+              @content-drag-start="handleGlobalDragStart"
+              @content-drag-end="handleGlobalDragEnd"
             />
           </template>
         </draggable>
@@ -379,13 +377,12 @@ const onChapterDragEnd = (evt: any) => {
   emit('chapters-reorder', updatedChapters)
 }
 
-// 处理子组件的内容拖拽开始
-const handleChildContentDragStart = () => {
+// 全局拖拽状态管理
+const handleGlobalDragStart = () => {
   isDragging.value = true
 }
 
-// 处理子组件的内容拖拽结束
-const handleChildContentDragEnd = () => {
+const handleGlobalDragEnd = () => {
   isDragging.value = false
 }
 
@@ -393,7 +390,7 @@ const handleChildContentDragEnd = () => {
 const onContentDragStart = (evt: any) => {
   console.log('🔥🔥🔥 [我的调试] onContentDragStart 被调用!')
   console.log('🚀 [根目录] 内容拖拽开始:', evt)
-  isDragging.value = true
+  handleGlobalDragStart()
 }
 
 // 处理内容添加到根目录
@@ -519,7 +516,7 @@ const onContentDragEnd = (evt: any) => {
   emit('contents-reorder', { chapterId: undefined, contents: updatedContents })
   
   // 重置拖拽状态
-  isDragging.value = false
+  handleGlobalDragEnd()
 }
 
 // 调试章节数据
@@ -765,6 +762,50 @@ const handleChaptersReorder = (chapters: ChapterLocal[]) => {
   border-radius: 4px;
   padding: 8px;
   border: 1px solid #e0e0e0;
+}
+
+.root-drop-zone.empty.show-when-empty {
+  min-height: 60px;
+  height: 60px;
+  border: 2px dashed #ddd;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.root-drop-zone.empty.show-when-empty::before {
+  content: '拖放内容到根目录';
+}
+
+.root-drop-zone.empty {
+  min-height: 0;
+  height: 0;
+  border: none;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  margin: 0;
+  padding: 0;
+}
+
+.root-drop-zone.empty.dragging {
+  min-height: 60px;
+  height: 60px;
+  border: 2px dashed #ddd;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.root-drop-zone.empty.dragging::before {
+  content: '拖放内容到根目录';
 }
 
 .content-list,
