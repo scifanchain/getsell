@@ -7,18 +7,20 @@ export interface ElectronAPI {
   invoke: (channel: string, ...args: any[]) => Promise<any>
 
   author: {
-    create: (userData: { name: string; email: string }) => Promise<any>
-    find: (id: string) => Promise<any>
+    login: (credentials: { username: string; password: string }) => Promise<any>
+    register: (authorData: { username: string; password: string; displayName?: string; email?: string }) => Promise<any>
+    getCurrentUser: (userId: string) => Promise<any>
+    updateProfile: (userId: string, updateData: any) => Promise<any>
+    changePassword: (userId: string, currentPassword: string, newPassword: string) => Promise<any>
+    getStats: (userId: string) => Promise<any>
     findByEmail: (email: string) => Promise<any>
-    update: (id: string, userData: any) => Promise<any>
-    delete: (id: string) => Promise<void>
   }
   
-  project: {
-    create: (projectData: { title: string; description?: string; authorId: string }) => Promise<any>
+  work: {
+    create: (workData: { title: string; description?: string; authorId: string }) => Promise<any>
     list: (authorId: string) => Promise<any[]>
     find: (id: string) => Promise<any>
-    update: (id: string, projectData: Partial<{ title: string; description?: string }>) => Promise<any>
+    update: (id: string, workData: Partial<{ title: string; description?: string }>) => Promise<any>
     delete: (id: string) => Promise<void>
   }
   

@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { ServiceContainer } from '../services/ServiceContainer';
 import { authorConfigStore } from '../core/storage/AuthorConfigStore';
+import { DatabaseManager } from '../core/db-manager';
 
 /**
  * 系统和窗口相关的 IPC 处理器
@@ -9,7 +10,7 @@ export class SystemIPCHandler {
     constructor(
         private services: ServiceContainer, 
         private mainWindow: any,
-        private crsqliteManager?: any
+        private dbManager?: DatabaseManager
     ) {}
 
     initialize() {
@@ -212,10 +213,10 @@ export class SystemIPCHandler {
             try {
                 console.log('🧹 快速清理关键资源...');
                 
-                // 通过构造函数传入的 crsqliteManager 关闭数据库
-                if (this.crsqliteManager) {
+                // 通过构造函数传入的 dbManager 关闭数据库
+                if (this.dbManager) {
                     try {
-                        this.crsqliteManager.close();
+                        this.dbManager.close();
                         console.log('✅ 数据库连接已关闭');
                     } catch (dbError: any) {
                         console.log('⚠️ 数据库关闭出错，忽略:', dbError?.message || dbError);

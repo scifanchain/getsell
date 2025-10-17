@@ -4,9 +4,9 @@
  */
 
 import type { 
-  User, Project, Chapter, SystemStats,
-  CreateUserData, CreateProjectData, CreateChapterData,
-  UpdateProjectData, UpdateChapterData
+  Author, Work, Chapter, SystemStats,
+  CreateAuthorData, CreateWorkData, CreateChapterData,
+  UpdateWorkData, UpdateChapterData
 } from '../types/models'
 
 // 用户相关API
@@ -53,21 +53,16 @@ export const userApi = {
   },
 
   // 兼容旧接口
-  async create(userData: CreateUserData): Promise<User> {
-    // 将 name 映射为 username
-    const registerData = {
-      username: userData.name,
-      email: userData.email,
-      displayName: userData.name
-    }
-    return await this.register(registerData)
+  async create(userData: CreateAuthorData): Promise<Author> {
+    // 将旧的数据格式转换为新格式
+    return await this.register(userData)
   },
 
-  async find(id: string): Promise<User | null> {
+  async find(id: string): Promise<Author | null> {
     return await this.getCurrentUser(id)
   },
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<Author | null> {
     // 这个需要在后端添加新的接口
     return await window.electronAPI.invoke('author:findByEmail', email)
   },

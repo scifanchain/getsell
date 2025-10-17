@@ -1,4 +1,5 @@
-import { AuthorData } from './types';
+import type { Author, NewAuthor, UpdateAuthor } from '../../db/schema';
+import type { AuthorData } from '../../shared/types';
 
 /**
  * 作者仓储接口
@@ -10,7 +11,7 @@ export interface IAuthorRepository {
      * @param authorData 作者数据
      * @returns 创建的作者信息
      */
-    create(authorData: AuthorData): Promise<any>;
+    create(authorData: Omit<NewAuthor, 'id' | 'createdAt' | 'updatedAt'>): Promise<Author>;
 
     /**
      * 根据ID查找作者

@@ -1,49 +1,51 @@
 /**
  * 共享类型定义 - 主进程和渲染进程都可以使用
+ * 
+ * 架构说明:
+ * - 数据库实体类型统一从 schema.ts 导出
+ * - 此文件仅保留 IPC 接口、响应类型和输入数据类型
  */
 
-// IPC通信接口定义
+// ============================================
+// 从 schema.ts 重新导出数据库实体类型
+// ============================================
+export type {
+  Author,
+  Work,
+  Chapter,
+  Content,
+  ContentVersion,
+  CollaborativeDocument,
+  NewAuthor,
+  NewWork,
+  NewChapter,
+  NewContent,
+  NewContentVersion,
+  NewCollaborativeDocument,
+  UpdateAuthor,
+  UpdateWork,
+  UpdateChapter,
+  UpdateContent,
+} from '../db/schema';
+
+// ============================================
+// IPC 通信接口
+// ============================================
 export interface IPCResponse<T = any> {
   success: boolean;
   error?: string;
   data?: T;
 }
 
-// 用户相关接口
-export interface User {
-  id: string
-  name: string
-  email: string
-  createdAt: string
-  updatedAt: string
-}
-
-export interface UserData {
+// ============================================
+// 输入数据类型（简化版，用于 IPC 传输）
+// ============================================
+export interface AuthorData {
   username: string;
   email: string;
   password: string;
   displayName?: string;
   bio?: string;
-}
-
-export interface UserCreateResponse {
-  userId: string;
-  publicKey: string;
-}
-
-// 作品相关接口
-export interface Work {
-  id: string
-  title: string
-  subtitle?: string
-  description?: string
-  authorId: string
-  genre?: string
-  status?: string
-  collaborationMode?: string
-  createdAt: string
-  updatedAt: string
-  chapters?: Chapter[]
 }
 
 export interface WorkData {
@@ -54,26 +56,8 @@ export interface WorkData {
   collaborationMode?: string;
 }
 
-// 章节相关接口
-export interface Chapter {
-  id: string
-  title: string
-  content?: string
-  workId: string
-  orderIndex: number
-  level: number
-  parentId?: string
-  subtitle?: string
-  description?: string
-  type?: 'chapter' | 'volume' | 'section'
-  authorId?: string
-  createdAt: string
-  updatedAt: string
-}
-
 export interface ChapterData {
   title: string;
-  content?: string;
   workId: string;
   orderIndex: number;
   parentId?: string;
@@ -83,55 +67,60 @@ export interface ChapterData {
   authorId?: string;
 }
 
-// 内容相关接口
-export interface Content {
-  id: string;
-  title: string;
-  content: string;
-  chapterId: string;
-  orderIndex: number;
-  tags?: string[];
-  workId: string;
-  type?: string;
-  contentJson?: string;  // ProseMirror 文档的 JSON 表示
-  contentHtml?: string;  // HTML 表示
-  authorId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface ContentData {
   title: string;
-  content: string;
   chapterId: string;
   orderIndex: number;
-  tags?: string[];
   workId: string;
   type?: string;
-  contentJson?: string;  // ProseMirror 文档的 JSON 表示
-  contentHtml?: string;  // HTML 表示
+  contentJson?: string;
   authorId?: string;
 }
 
-// 系统统计接口
-export interface SystemStats {
-  users: number
-  works: number
-  chapters: number
-  storage: {
-    used: number
-    total: number
-  }
+// ============================================
+// 特殊响应类型
+// ============================================
+export interface AuthorCreateResponse {
+  authorId: string;
+  publicKey: string;
 }
 
-// 窗口相关接口
 export interface WindowResponse {
   success: boolean;
   error?: string;
 }
 
-// 密钥对接口
+// ============================================
+// 通用类型
+// ============================================
 export interface KeyPair {
   publicKey: string;
   privateKey: string;
+}
+
+export interface SystemStats {
+  authors: number;
+  works: number;
+  chapters: number;
+  storage: {
+    used: number;
+    total: number;
+  };
+}
+
+export interface PaginationOptions {
+  skip?: number;
+  take?: number;
+}
+
+export interface SortOptions {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
+export interface QueryOptions {
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }

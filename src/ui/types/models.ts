@@ -2,22 +2,26 @@
  * 应用数据模型类型定义
  */
 
-export interface User {
+export interface Author {
   id: string
-  name: string
-  email: string
+  username: string
   displayName?: string
+  email: string
   bio?: string
   avatarUrl?: string
+  publicKey?: string
+  walletAddress?: string
   createdAt: string
   updatedAt: string
 }
 
-export interface Project {
+export interface Work {
   id: string
   title: string
   description?: string
   authorId: string
+  genre?: string
+  collaborationMode?: string
   createdAt: string
   updatedAt: string
   chapters?: Chapter[]
@@ -60,8 +64,8 @@ export interface Content {
 }
 
 export interface SystemStats {
-  users: number
-  projects: number
+  authors: number
+  works: number
   chapters: number
   storage: {
     used: number
@@ -77,15 +81,20 @@ export interface ApiResponse<T> {
 }
 
 // 创建类型
-export interface CreateUserData {
-  name: string
+export interface CreateAuthorData {
+  username: string
   email: string
+  password: string
+  displayName?: string
+  bio?: string
 }
 
-export interface CreateProjectData {
+export interface CreateWorkData {
   title: string
   description?: string
   authorId: string
+  genre?: string
+  collaborationMode?: string
 }
 
 export interface CreateChapterData {
@@ -101,9 +110,11 @@ export interface CreateChapterData {
 }
 
 // 更新类型
-export interface UpdateProjectData {
+export interface UpdateWorkData {
   title?: string
   description?: string
+  genre?: string
+  collaborationMode?: string
 }
 
 export interface UpdateChapterData {

@@ -4,20 +4,18 @@ import 'dotenv/config';
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import * as path from 'path';
 // 导入TypeScript模块
-import { CRSQLiteManager } from './core/crsqlite-manager';
+import { DatabaseManager } from './core/db-manager';
 import { RepositoryContainer } from './repositories/RepositoryContainer';
 import { ServiceContainer } from './services/ServiceContainer';
 import { IPCManager } from './ipc/IPCManager';
-import { registerCRSQLiteTestHandlers } from './ipc/test-crsqlite-handlers';
-import { registerCRSQLiteFullTestHandlers } from './ipc/test-crsqlite-full-handlers';
 import { authorConfigStore } from './core/storage/AuthorConfigStore';
 import ulidGenerator from './core/ulid';
 import GestallCrypto from './crypto/crypto';
 
 // 导入类型定义
 import {
-  UserData,
-  UserCreateResponse,
+  AuthorData,
+  AuthorCreateResponse,
   WorkData,
   Work,
   ChapterData,
@@ -40,8 +38,8 @@ console.log('🔧 Chrome版本:', process.versions.chrome);
 let crypto: any;
 let mainWindow: BrowserWindow | null = null;
 
-// CR-SQLite 架构实例
-let crsqliteManager: CRSQLiteManager;
+// 数据库和服务实例
+let dbManager: DatabaseManager;
 let repositories: RepositoryContainer;
 let services: ServiceContainer;
 let ipcManager: IPCManager;
@@ -129,38 +127,32 @@ async function initCore(): Promise<void> {
     console.log('✅ 作者配置存储初始化成功');
     
     // 完全使用 CR-SQLite 作为唯一数据库
-    console.log('🔍 初始化 CR-SQLite 数据库 (统一架构)');
+    console.log('🔍 初始化数据库');
     const appDataPath = app.getPath('userData');
-    const dbPath = path.join(appDataPath, 'gestell-crsqlite.db');
+    const dbPath = path.join(appDataPath, 'gestell.db');
     
-    crsqliteManager = new CRSQLiteManager({
+    dbManager = new DatabaseManager({
       dbPath,
       enableWal: true,
-      enableForeignKeys: false // CR-SQLite 限制
     });
-    await crsqliteManager.initialize();
-    console.log('✅ CR-SQLite 数据库初始化成功:', dbPath);
+    await dbManager.initialize();
+    console.log('✅ 数据库初始化成功:', dbPath);
     
-    // 创建仓储容器 (完全使用 CR-SQLite)
-    repositories = new RepositoryContainer(crsqliteManager);
-    console.log('✅ CR-SQLite 仓储容器创建成功 (包含 Yjs 协作)');
+    // 创建仓储容器
+    repositories = new RepositoryContainer(dbManager);
+    console.log('✅ 仓储容器创建成功');
     
     // 初始化服务层
     console.log('🔧 初始化服务层');
     services = new ServiceContainer(repositories);
     console.log('✅ 服务层初始化成功');
     
-    // 注册测试 handlers
-    console.log('🧪 注册 CR-SQLite 测试处理器');
-    registerCRSQLiteTestHandlers();
-    registerCRSQLiteFullTestHandlers();
-    
     // 初始化加密模块
     crypto = new GestallCrypto();
     
     console.log('🚀 Gestell核心模块初始化成功');
-    console.log('📊 完全使用 CR-SQLite (包括 Yjs 协作)');
-    console.log('✨ Prisma 已完全移除');
+    console.log('📊 数据库架构重构完成');
+    console.log('✨ 使用 Drizzle ORM + CR-SQLite');
   } catch (error) {
     console.error('❌ 核心模块初始化失败:', error);
     throw error;
@@ -179,7 +171,7 @@ app.whenReady().then(async () => {
   
   // 在窗口创建后初始化 IPC 处理器
   console.log('📡 初始化IPC处理器');
-  ipcManager = new IPCManager(services, mainWindow, crsqliteManager);
+  ipcManager = new IPCManager(services, mainWindow, dbManager);
   ipcManager.initialize();
   console.log('✅ IPC 处理器初始化成功');
 
@@ -192,8 +184,8 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') {
     try {
-      if (crsqliteManager) {
-        crsqliteManager.close();
+      if (dbManager) {
+        dbManager.close();
         console.log('✅ 数据库连接已关闭');
       }
     } catch (error) {

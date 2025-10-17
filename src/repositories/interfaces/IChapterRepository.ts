@@ -1,4 +1,5 @@
-import { ChapterData, PaginationOptions } from './types';
+import type { Chapter, NewChapter, UpdateChapter } from '../../db/schema';
+import type { ChapterData, QueryOptions } from '../../shared/types';
 
 /**
  * 章节仓储接口

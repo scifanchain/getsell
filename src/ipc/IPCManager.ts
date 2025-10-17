@@ -4,6 +4,7 @@ import { WorkIPCHandler } from './WorkIPCHandler';
 import { SystemIPCHandler } from './SystemIPCHandler';
 import { ChapterIPCHandler } from './ChapterIPCHandler';
 import { ContentIPCHandler } from './ContentIPCHandler';
+import { DatabaseManager } from '../core/db-manager';
 
 /**
  * IPC 处理器管理器
@@ -16,10 +17,10 @@ export class IPCManager {
     private chapterHandler: ChapterIPCHandler;
     private contentHandler: ContentIPCHandler;
 
-    constructor(services: ServiceContainer, mainWindow: any, crsqliteManager?: any) {
+    constructor(services: ServiceContainer, mainWindow: any, dbManager?: DatabaseManager) {
         this.authorHandler = new AuthorIPCHandler(services);
         this.workHandler = new WorkIPCHandler(services);
-        this.systemHandler = new SystemIPCHandler(services, mainWindow, crsqliteManager);
+        this.systemHandler = new SystemIPCHandler(services, mainWindow, dbManager);
         this.chapterHandler = new ChapterIPCHandler(services);
         this.contentHandler = new ContentIPCHandler(services);
     }

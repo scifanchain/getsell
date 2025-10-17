@@ -28,7 +28,16 @@ interface ElectronAPI {
     toggleMaximize: () => Promise<any>
     close: () => Promise<any>
   }
-  project: {
+  author: {
+    login: (credentials: any) => Promise<any>
+    register: (data: any) => Promise<any>
+    getCurrentUser: (userId: string) => Promise<any>
+    updateProfile: (userId: string, data: any) => Promise<any>
+    changePassword: (userId: string, currentPassword: string, newPassword: string) => Promise<any>
+    getStats: (userId: string) => Promise<any>
+    findByEmail: (email: string) => Promise<any>
+  }
+  work: {
     create: (data: any) => Promise<any>
     list: (authorId?: string) => Promise<any>
     update: (id: string, data: any) => Promise<any>

@@ -1,4 +1,5 @@
-import { WorkData, PaginationOptions, SortOptions } from './types';
+import type { Work, NewWork, UpdateWork } from '../../db/schema';
+import type { WorkData, QueryOptions } from '../../shared/types';
 
 /**
  * 作品仓储接口
@@ -8,33 +9,31 @@ export interface IWorkRepository {
     /**
      * 创建新作品
      * @param workData 作品数据
-     * @returns 创建的作品信息（包含关联数据）
+     * @returns 创建的作品信息
      */
-    create(workData: WorkData): Promise<any>;
+    create(workData: Omit<NewWork, 'id' | 'createdAt' | 'updatedAt'>): Promise<Work>;
 
     /**
      * 根据ID查找作品
      * @param id 作品ID
-     * @returns 作品详细信息（包含章节和内容）
+     * @returns 作品详细信息
      */
-    findById(id: string): Promise<any | null>;
+    findById(id: string): Promise<Work | null>;
 
     /**
      * 获取作者的作品列表
      * @param authorId 作者ID
-     * @param pagination 分页选项
-     * @param sort 排序选项
+     * @param options 查询选项（分页、排序）
      * @returns 作品列表
      */
-    findByAuthor(authorId: string, pagination?: PaginationOptions, sort?: SortOptions): Promise<any[]>;
+    findByAuthor(authorId: string, options?: QueryOptions): Promise<Work[]>;
 
     /**
      * 获取所有作品列表
-     * @param pagination 分页选项
-     * @param sort 排序选项
+     * @param options 查询选项（分页、排序）
      * @returns 作品列表
      */
-    findAll(pagination?: PaginationOptions, sort?: SortOptions): Promise<any[]>;
+    findAll(options?: QueryOptions): Promise<Work[]>;
 
     /**
      * 更新作品信息
@@ -42,7 +41,7 @@ export interface IWorkRepository {
      * @param updateData 更新数据
      * @returns 更新后的作品信息
      */
-    update(id: string, updateData: Partial<WorkData>): Promise<any>;
+    update(id: string, updateData: UpdateWork): Promise<Work>;
 
     /**
      * 删除作品（级联删除相关数据）
@@ -56,7 +55,7 @@ export interface IWorkRepository {
      * @param authorId 可选的作者ID筛选
      * @returns 匹配的作品列表
      */
-    search(query: string, authorId?: string): Promise<any[]>;
+    search(query: string, authorId?: string): Promise<Work[]>;
 
     /**
      * 获取作品统计信息

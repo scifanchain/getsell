@@ -1,4 +1,4 @@
-import { CRSQLiteManager } from '../core/crsqlite-manager';
+import { DatabaseManager } from '../core/db-manager';
 import { 
     IAuthorRepository, 
     IWorkRepository, 
@@ -6,11 +6,10 @@ import {
     IContentRepository, 
     IStatsRepository 
 } from './interfaces';
-import { CRSQLiteAuthorRepository } from './crsqlite/CRSQLiteAuthorRepository';
-import { CRSQLiteWorkRepository } from './crsqlite/CRSQLiteWorkRepository';
-import { CRSQLiteChapterRepository } from './crsqlite/CRSQLiteChapterRepository';
-import { CRSQLiteContentRepository } from './crsqlite/CRSQLiteContentRepository';
-import { CRSQLiteCollaborationRepository } from './crsqlite/CRSQLiteCollaborationRepository';
+import { AuthorRepository } from './AuthorRepository';
+import { WorkRepository } from './WorkRepository';
+import { ChapterRepository } from './ChapterRepository';
+import { ContentRepository } from './ContentRepository';
 
 export interface ICollaborationRepository {
     saveDocument(data: any): Promise<any>;
@@ -28,11 +27,9 @@ export interface ICollaborationRepository {
 /**
  * Repository 容器
  * 负责创建和管理所有 Repository 实例
- * 
- * 完全基于 CR-SQLite，统一的 CRDT 数据库解决方案
  */
 export class RepositoryContainer {
-    private crsqliteManager: CRSQLiteManager;
+    private dbManager: DatabaseManager;
 
     // Repository 实例
     private _authorRepository?: IAuthorRepository;
@@ -42,8 +39,8 @@ export class RepositoryContainer {
     private _statsRepository?: IStatsRepository;
     private _collaborationRepository?: ICollaborationRepository;
 
-    constructor(crsqliteManager: CRSQLiteManager) {
-        this.crsqliteManager = crsqliteManager;
+    constructor(dbManager: DatabaseManager) {
+        this.dbManager = dbManager;
     }
 
     /**
@@ -51,7 +48,7 @@ export class RepositoryContainer {
      */
     get authorRepository(): IAuthorRepository {
         if (!this._authorRepository) {
-            this._authorRepository = new CRSQLiteAuthorRepository(this.crsqliteManager);
+            this._authorRepository = new AuthorRepository(this.dbManager);
         }
         return this._authorRepository;
     }
@@ -61,7 +58,7 @@ export class RepositoryContainer {
      */
     get workRepository(): IWorkRepository {
         if (!this._workRepository) {
-            this._workRepository = new CRSQLiteWorkRepository(this.crsqliteManager);
+            this._workRepository = new WorkRepository(this.dbManager);
         }
         return this._workRepository;
     }
@@ -71,7 +68,7 @@ export class RepositoryContainer {
      */
     get chapterRepository(): IChapterRepository {
         if (!this._chapterRepository) {
-            this._chapterRepository = new CRSQLiteChapterRepository(this.crsqliteManager);
+            this._chapterRepository = new ChapterRepository(this.dbManager);
         }
         return this._chapterRepository;
     }
@@ -81,14 +78,14 @@ export class RepositoryContainer {
      */
     get contentRepository(): IContentRepository {
         if (!this._contentRepository) {
-            this._contentRepository = new CRSQLiteContentRepository(this.crsqliteManager);
+            this._contentRepository = new ContentRepository(this.dbManager);
         }
-        return this._contentRepository;
+        return this._contentRepository!;
     }
 
     /**
      * 获取统计 Repository
-     * 提供基于 CR-SQLite 的统计功能
+     * 提供基于数据库的统计功能
      */
     get statsRepository(): IStatsRepository {
         if (!this._statsRepository) {
@@ -96,7 +93,7 @@ export class RepositoryContainer {
             this._statsRepository = {
                 getSystemStats: async () => {
                     // 系统级统计
-                    const db = this.crsqliteManager.getDatabase();
+                    const db = this.dbManager.getDatabase();
                     const authorsCount = db.prepare('SELECT COUNT(*) as count FROM authors').get() as { count: number };
                     const worksCount = db.prepare('SELECT COUNT(*) as count FROM works').get() as { count: number };
                     const chaptersCount = db.prepare('SELECT COUNT(*) as count FROM chapters').get() as { count: number };
@@ -147,11 +144,9 @@ export class RepositoryContainer {
                     // 处理 CR-SQLite 时间戳转换
                     let lastUpdated = new Date();
                     if (work?.updatedAt) {
-                        // 如果 updatedAt 是数字(Unix 时间戳)，转换为 Date
+                        // updatedAt 是数字(Unix 时间戳)，转换为 Date
                         if (typeof work.updatedAt === 'number') {
                             lastUpdated = new Date(work.updatedAt);
-                        } else if (work.updatedAt instanceof Date) {
-                            lastUpdated = work.updatedAt;
                         }
                     }
                     
@@ -185,26 +180,25 @@ export class RepositoryContainer {
      */
     get collaborationRepository(): ICollaborationRepository {
         if (!this._collaborationRepository) {
-            this._collaborationRepository = new CRSQLiteCollaborationRepository(
-                this.crsqliteManager
-            );
+            // TODO: 实现 CollaborationRepository
+            throw new Error('CollaborationRepository not implemented yet');
         }
         return this._collaborationRepository;
     }
 
     /**
-     * 获取 CR-SQLite 管理器
+     * 获取数据库管理器
      */
-    get manager(): CRSQLiteManager {
-        return this.crsqliteManager;
+    get manager(): DatabaseManager {
+        return this.dbManager;
     }
 
     /**
      * 关闭所有连接
      */
     async close(): Promise<void> {
-        if (this.crsqliteManager) {
-            this.crsqliteManager.close();
+        if (this.dbManager) {
+            this.dbManager.close();
         }
     }
 }

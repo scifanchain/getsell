@@ -68,6 +68,8 @@
     "better-sqlite3": "^12.4.1",
     "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.5",
+    "drizzle-orm": "^0.44.6",
     "electron-store": "^10.0.0",
     "highlight.js": "^11.10.0",
     "jszip": "^3.10.1",

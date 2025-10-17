@@ -5,23 +5,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 通用IPC调用方法
   invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
 
-  // 用户管理API (新架构)
-  user: {
-    // 兼容旧接口
-    create: (userData) => ipcRenderer.invoke('user:create', userData),
-    find: (id) => ipcRenderer.invoke('user:find', id),
-    findByEmail: (email) => ipcRenderer.invoke('user:findByEmail', email),
-    update: (id, userData) => ipcRenderer.invoke('user:update', id, userData),
-    delete: (id) => ipcRenderer.invoke('user:delete', id),
+  // 作者管理API
+  author: {
+    login: (credentials) => ipcRenderer.invoke('author:login', credentials),
+    register: (userData) => ipcRenderer.invoke('author:register', userData),
+    getCurrentUser: (userId) => ipcRenderer.invoke('author:getCurrentUser', userId),
+    updateProfile: (userId, updateData) => ipcRenderer.invoke('author:updateProfile', userId, updateData),
+    changePassword: (userId, currentPassword, newPassword) => ipcRenderer.invoke('author:changePassword', userId, currentPassword, newPassword),
+    getStats: (userId) => ipcRenderer.invoke('author:getStats', userId),
+    findByEmail: (email) => ipcRenderer.invoke('author:findByEmail', email),
   },
 
-  // 项目管理API (兼容旧接口)
-  project: {
-    create: (projectData) => ipcRenderer.invoke('project:create', projectData),
-    list: (authorId) => ipcRenderer.invoke('project:list', authorId),
-    find: (id) => ipcRenderer.invoke('project:find', id),
-    update: (id, projectData) => ipcRenderer.invoke('project:update', id, projectData),
-    delete: (id) => ipcRenderer.invoke('project:delete', id),
+  // 作品管理API
+  work: {
+    create: (workData) => ipcRenderer.invoke('work:create', workData),
+    list: (authorId) => ipcRenderer.invoke('work:list', authorId),
+    find: (id) => ipcRenderer.invoke('work:find', id),
+    update: (id, workData) => ipcRenderer.invoke('work:update', id, workData),
+    delete: (id) => ipcRenderer.invoke('work:delete', id),
   },
 
   // 章节管理API
@@ -74,9 +75,15 @@ contextBridge.exposeInMainWorld('electron', {
 
 // 兼容旧的 gestell API
 contextBridge.exposeInMainWorld('gestell', {
-  // 用户管理API
-  user: {
-    create: (userData) => ipcRenderer.invoke('user:create', userData),
+  // 作者管理API
+  author: {
+    login: (credentials) => ipcRenderer.invoke('author:login', credentials),
+    register: (userData) => ipcRenderer.invoke('author:register', userData),
+    getCurrentUser: (userId) => ipcRenderer.invoke('author:getCurrentUser', userId),
+    updateProfile: (userId, updateData) => ipcRenderer.invoke('author:updateProfile', userId, updateData),
+    changePassword: (userId, currentPassword, newPassword) => ipcRenderer.invoke('author:changePassword', userId, currentPassword, newPassword),
+    getStats: (userId) => ipcRenderer.invoke('author:getStats', userId),
+    findByEmail: (email) => ipcRenderer.invoke('author:findByEmail', email),
   },
 
   // 作品管理API

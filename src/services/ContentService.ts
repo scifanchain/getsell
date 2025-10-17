@@ -248,8 +248,6 @@ export class ContentService implements IContentService {
     let currentVersion = 1; // 默认版本号
     if (content.version && typeof content.version === 'number' && !isNaN(content.version)) {
       currentVersion = content.version;
-    } else if (content.versionNumber && typeof content.versionNumber === 'number' && !isNaN(content.versionNumber)) {
-      currentVersion = content.versionNumber;
     }
     
     const updateDataWithStats = {
@@ -349,6 +347,10 @@ export class ContentService implements IContentService {
     }
 
     // 验证权限
+    if (!content.chapterId) {
+      throw new Error('内容没有关联章节');
+    }
+    
     const chapter = await this.repositories.chapterRepository.findById(content.chapterId);
     if (!chapter || !this.checkChapterAccess(chapter, userId)) {
       throw new Error('没有权限查看此内容历史');

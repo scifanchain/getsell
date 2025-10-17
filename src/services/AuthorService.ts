@@ -137,7 +137,6 @@ export class AuthorService implements IAuthorService {
 
         // 创建用户数据
         const userCreateData = {
-            id: ulid(),
             username: userData.username,
             passwordHash: passwordHash,
             displayName: userData.displayName || userData.username,

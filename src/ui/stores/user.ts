@@ -4,20 +4,20 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { User } from '../types/models'
+import type { Author } from '../types/models'
 import { userApi } from '../services/api'
 import { userActivityWatcher } from '../utils/UserActivityWatcher'
 
 export const useUserStore = defineStore('user', () => {
   // State
-  const currentUser = ref<User | null>(null)
+  const currentUser = ref<Author | null>(null)
   const isLoggedIn = ref(false)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
   // Getters
   const userDisplayName = computed(() => {
-    return currentUser.value?.name || '未登录用户'
+    return currentUser.value?.displayName || currentUser.value?.username || '未登录用户'
   })
 
   const userEmail = computed(() => {

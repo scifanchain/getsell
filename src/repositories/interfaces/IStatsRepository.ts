@@ -1,4 +1,20 @@
-import { Stats } from './types';
+/**
+ * 统计数据接口
+ */
+export interface Stats {
+    authors: number;
+    works: number;
+    chapters: number;
+    contents: number;
+    characters: number;
+    worldbuilding: number;
+    chapter_levels: Record<string, number>;
+    content_stats: {
+        total_words: number;
+        total_characters: number;
+        total_contents: number;
+    };
+}
 
 /**
  * 统计仓储接口

@@ -59,15 +59,16 @@ export class WorkService implements IWorkService {
             take: options?.limit || 20
         };
 
-        const sortOptions = {
-            field: options?.sortBy || 'updatedAt',
-            direction: options?.sortOrder || 'desc'
+        const queryOptions = {
+            limit: paginationOptions.take,
+            offset: paginationOptions.skip,
+            sortBy: options?.sortBy || 'updatedAt',
+            sortOrder: options?.sortOrder || 'desc'
         };
 
         const works = await this.repositories.workRepository.findByAuthor(
             userId, 
-            paginationOptions, 
-            sortOptions
+            queryOptions
         );
 
         return works.map(work => this.mapToWorkInfo(work));
@@ -77,19 +78,15 @@ export class WorkService implements IWorkService {
      * 获取所有作品列表
      */
     async getAllWorks(options?: WorkQueryOptions): Promise<WorkInfo[]> {
-        const paginationOptions = {
-            skip: options?.offset || 0,
-            take: options?.limit || 100
-        };
-
-        const sortOptions = {
-            field: options?.sortBy || 'updatedAt',
-            direction: options?.sortOrder || 'desc'
+        const queryOptions = {
+            limit: options?.limit || 100,
+            offset: options?.offset || 0,
+            sortBy: options?.sortBy || 'updatedAt',
+            sortOrder: options?.sortOrder || 'desc'
         };
 
         const works = await this.repositories.workRepository.findAll(
-            paginationOptions,
-            sortOptions
+            queryOptions
         );
 
         return works.map(work => this.mapToWorkInfo(work));
@@ -109,7 +106,13 @@ export class WorkService implements IWorkService {
             throw new Error('没有修改此作品的权限');
         }
 
-        const updatedWork = await this.repositories.workRepository.update(workId, updateData);
+        // 转换 tags 从数组到 JSON 字符串
+        const processedUpdateData: any = { ...updateData };
+        if (updateData.tags && Array.isArray(updateData.tags)) {
+            processedUpdateData.tags = JSON.stringify(updateData.tags);
+        }
+
+        const updatedWork = await this.repositories.workRepository.update(workId, processedUpdateData);
         
         // 如果更新了统计信息，刷新缓存
         if (updateData.status) {
