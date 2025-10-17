@@ -212,10 +212,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../stores/user'
+import { useAuthorStore } from '../stores/author'
 
 const router = useRouter()
-const userStore = useUserStore()
+const authorStore = useAuthorStore()
 const isDev = import.meta.env.DEV
 
 // 导航方法
@@ -253,7 +253,7 @@ const handleCreateWork = async () => {
   
   try {
     // 检查用户是否登录
-    const userId = userStore.currentUser?.id
+    const userId = authorStore.currentAuthor?.id
     if (!userId) {
       alert('请先登录')
       router.push('/login')

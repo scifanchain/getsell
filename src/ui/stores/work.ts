@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Work, WorkData } from '../../shared/types'
-import { useUserStore } from './user'
+import { useAuthorStore } from './author'
 
 // 模拟 API 调用
 const workApi = {
@@ -98,14 +98,14 @@ export const useWorkStore = defineStore('work', () => {
       currentWork.value = work
     } else {
       try {
-        // 获取当前用户 ID
-        const userStore = useUserStore()
-        const userId = userStore.currentUser?.id
-        if (!userId) {
-          throw new Error('用户未登录')
+        // 获取当前作者 ID
+        const authorStore = useAuthorStore()
+        const authorId = authorStore.currentAuthor?.id
+        if (!authorId) {
+          throw new Error('作者未登录')
         }
         
-        const fetchedWork = await workApi.getWork(workId, userId)
+        const fetchedWork = await workApi.getWork(workId, authorId)
         currentWork.value = fetchedWork
         // 如果不在列表中，添加到列表
         if (!works.value.find(w => w.id === workId)) {

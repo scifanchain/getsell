@@ -262,10 +262,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { workApi } from '../services/api'
-import { useUserStore } from '../stores/user'
+import { useAuthorStore } from '../stores/author'
 
 const router = useRouter()
-const userStore = useUserStore()
+const authorStore = useAuthorStore()
 
 // 响应式数据
 const searchQuery = ref('')
@@ -279,10 +279,10 @@ const works = ref<any[]>([])
 
 // 获取当前用户ID
 const getCurrentUserId = () => {
-  if (!userStore.currentUser?.id) {
+  if (!authorStore.currentAuthor?.id) {
     throw new Error('请先登录')
   }
-  return userStore.currentUser.id
+  return authorStore.currentAuthor.id
 }
 
 // 计算属性：筛选后的作品

@@ -6,7 +6,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { SystemStats } from '../types/models'
 import { systemApi } from '../services/api'
-import { useUserStore } from './user'
+import { useAuthorStore } from './author'
 
 export const useAppStore = defineStore('app', () => {
   // State
@@ -32,8 +32,8 @@ export const useAppStore = defineStore('app', () => {
   const statsDisplay = computed(() => {
     if (!stats.value) return null
     return {
-      users: stats.value.users,
-      projects: stats.value.projects,
+      authors: stats.value.authors,
+      works: stats.value.works,
       chapters: stats.value.chapters,
       storageUsed: `${(stats.value.storage.used / 1024 / 1024).toFixed(2)} MB`,
       storageTotal: `${(stats.value.storage.total / 1024 / 1024).toFixed(2)} MB`,
@@ -49,9 +49,9 @@ export const useAppStore = defineStore('app', () => {
     error.value = null
     
     try {
-      // 1. 加载用户登录状态
-      const userStore = useUserStore()
-      await userStore.loadUserFromStorage()
+      // 1. 加载作者登录状态
+      const authorStore = useAuthorStore()
+      await authorStore.loadAuthorFromStorage()
       
       // 2. 加载主题设置
       const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'auto' | null
@@ -70,9 +70,9 @@ export const useAppStore = defineStore('app', () => {
       
       isInitialized.value = true
       console.log('✅ 应用初始化完成', {
-        isLoggedIn: userStore.isLoggedIn,
-        userId: userStore.currentUser?.id,
-        userName: userStore.currentUser?.name
+        isLoggedIn: authorStore.isLoggedIn,
+        authorId: authorStore.currentAuthor?.id,
+        authorName: authorStore.currentAuthor?.username
       })
     } catch (err) {
       error.value = err instanceof Error ? err.message : '应用初始化失败'

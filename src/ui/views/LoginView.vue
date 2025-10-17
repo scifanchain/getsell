@@ -148,11 +148,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useUserStore } from '../stores/user'
+import { useAuthorStore } from '../stores/author'
 
 const router = useRouter()
 const route = useRoute()
-const userStore = useUserStore()
+const authorStore = useAuthorStore()
 
 // 响应式数据
 const mode = ref<'login' | 'register'>('login')
@@ -169,21 +169,21 @@ const registerForm = ref({
 })
 
 // 计算属性
-const loading = computed(() => userStore.loading)
-const error = computed(() => userStore.error)
+const loading = computed(() => authorStore.loading)
+const error = computed(() => authorStore.error)
 
 // 方法
 async function handleLogin() {
   if (!loginForm.value.username.trim()) {
-    userStore.error = '请输入用户名'
+    authorStore.error = '请输入用户名'
     return
   }
   
   // 清除之前的错误
-  userStore.clearError()
+  authorStore.clearError()
   
   try {
-    const result = await userStore.loginUser(
+    const result = await authorStore.loginUser(
       loginForm.value.username,
       loginForm.value.password || undefined,
       loginForm.value.rememberMe
@@ -204,38 +204,38 @@ async function handleRegister() {
   
   // 验证表单
   if (!username.trim()) {
-    userStore.error = '请输入用户名'
+    authorStore.error = '请输入用户名'
     return
   }
   
   if (username.length < 3 || username.length > 20) {
-    userStore.error = '用户名长度应为3-20个字符'
+    authorStore.error = '用户名长度应为3-20个字符'
     return
   }
   
   // 验证密码（如果填写了）
   if (password && password.length < 6) {
-    userStore.error = '密码长度至少6位'
+    authorStore.error = '密码长度至少6位'
     return
   }
   
   if (!email.trim()) {
-    userStore.error = '请输入邮箱地址'
+    authorStore.error = '请输入邮箱地址'
     return
   }
   
   // 验证邮箱格式
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email)) {
-    userStore.error = '请输入有效的邮箱地址'
+    authorStore.error = '请输入有效的邮箱地址'
     return
   }
   
   // 清除之前的错误
-  userStore.clearError()
+  authorStore.clearError()
   
   try {
-    const user = await userStore.registerUser({
+    const user = await authorStore.registerUser({
       username: username.trim(),
       password: password.trim() || undefined,
       displayName: displayName.trim() || username.trim(),

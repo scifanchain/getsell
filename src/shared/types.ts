@@ -10,22 +10,32 @@
 // 从 schema.ts 重新导出数据库实体类型
 // ============================================
 export type {
+  // Read 类型（查询返回）
   Author,
   Work,
   Chapter,
   Content,
   ContentVersion,
   CollaborativeDocument,
+  // Create 类型（插入数据）
   NewAuthor,
   NewWork,
   NewChapter,
   NewContent,
   NewContentVersion,
   NewCollaborativeDocument,
+  // Update 类型（部分更新）
   UpdateAuthor,
   UpdateWork,
   UpdateChapter,
   UpdateContent,
+  // Delete 类型（删除条件）
+  DeleteAuthor,
+  DeleteWork,
+  DeleteChapter,
+  DeleteContent,
+  DeleteContentVersion,
+  DeleteCollaborativeDocument,
 } from '../db/schema';
 
 // ============================================

@@ -62,7 +62,7 @@
           class="action-button"
           title="添加内容"
         >
-          �
+          📝
         </button>
         <button 
           @click.stop="$emit('chapter-delete', chapter.id)"

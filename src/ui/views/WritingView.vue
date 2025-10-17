@@ -27,7 +27,7 @@
     <div class="main-editor-area">
       <div v-if="currentContent" class="editor-wrapper">
         <!-- 编辑器模式切换 -->
-        <div class="editor-mode-toggle" v-if="currentUser">
+        <div class="editor-mode-toggle" v-if="currentAuthor">
           <button 
             @click="toggleEditorMode" 
             class="mode-toggle-btn"
@@ -42,8 +42,8 @@
           :key="editorKey"
           :model-value="currentContent.content || ''"
           :content-id="currentContent.id"
-          :user-id="currentUser?.id"
-          :user-name="currentUser?.name"
+          :user-id="currentAuthor?.id"
+          :user-name="currentAuthor?.username"
           :placeholder="editorPlaceholder"
           :collaboration-mode="isCollaborationActive"
           :collaboration-config="collaborationConfig"
@@ -187,7 +187,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../stores/user'
+import { useAuthorStore } from '../stores/author'
 import ChapterTree from '../components/ChapterTree/index.vue'
 import Editor from '../components/Editor.vue'
 import ChapterEditModal from '../components/ChapterEditModal.vue'
@@ -249,7 +249,7 @@ interface EditingChapter {
 
 // Composables
 const router = useRouter()
-const userStore = useUserStore()
+const authorStore = useAuthorStore()
 
 // Reactive data
 const currentWork = ref<Work | null>(null)
@@ -281,15 +281,15 @@ const todayStats = ref<TodayStats>({
 })
 
 // Computed properties
-const currentUser = computed(() => {
-  const user = userStore.currentUser
-  console.log('👤 WritingView currentUser:', {
-    user,
-    hasUser: !!user,
-    userId: user?.id,
-    userName: user?.name
+const currentAuthor = computed(() => {
+  const author = authorStore.currentAuthor
+  console.log('👤 WritingView currentAuthor:', {
+    author,
+    hasAuthor: !!author,
+    authorId: author?.id,
+    authorName: author?.username
   })
-  return user
+  return author
 })
 const selectedChapter = computed(() => {
   if (!Array.isArray(chapters.value)) return null
@@ -302,7 +302,7 @@ const collaborationConfig = {
   maxConnections: 10
 }
 
-const isCollaborationActive = computed(() => useCollaborativeEditor.value && !!currentUser.value)
+const isCollaborationActive = computed(() => useCollaborativeEditor.value && !!currentAuthor.value)
 
 const editorKey = computed(() => {
   const contentId = currentContent.value?.id ?? 'empty'
@@ -450,22 +450,22 @@ const initializeView = async () => {
 
 const loadWork = async (workId: string) => {
   try {
-    if (!currentUser.value) {
+    if (!currentAuthor.value) {
       showNotification('用户未登录', 'error')
       return
     }
 
-    const work = await workApi.get(workId, currentUser.value.id)
+    const work = await workApi.get(workId, currentAuthor.value.id)
     currentWork.value = work
 
-    const workChapters = await chapterApi.getByWork(workId, currentUser.value.id)
+    const workChapters = await chapterApi.getByWork(workId, currentAuthor.value.id)
     chapters.value = workChapters.map(convertToLocalChapter)
     
   // 加载内容数据
-  const contentList = await contentService.fetchByWork(workId, currentUser.value.id)
+  const contentList = await contentService.fetchByWork(workId, currentAuthor.value.id)
   contents.value = [...contentList].sort((a, b) => a.orderIndex - b.orderIndex)
 
-    const stats = await workApi.getStats(workId, currentUser.value.id)
+    const stats = await workApi.getStats(workId, currentAuthor.value.id)
     workStats.value = stats
 
     if (chapters.value.length > 0) {
@@ -488,9 +488,9 @@ const loadWork = async (workId: string) => {
 
 const loadUserFirstWork = async () => {
   try {
-    if (!currentUser.value) return
+    if (!currentAuthor.value) return
 
-    const works = await workApi.getUserWorks(currentUser.value.id, {
+    const works = await workApi.getUserWorks(currentAuthor.value.id, {
       sortBy: 'updatedAt',
       sortOrder: 'desc'
     })
@@ -505,14 +505,14 @@ const loadUserFirstWork = async () => {
 
 const loadChapterContent = async (chapterId: string) => {
   try {
-    if (!currentUser.value) {
+    if (!currentAuthor.value) {
       console.warn('用户未登录，无法加载内容')
       return
     }
 
     console.log('开始加载章节内容:', chapterId)
     
-    const contentList = await contentService.fetchByChapter(chapterId, currentUser.value.id)
+    const contentList = await contentService.fetchByChapter(chapterId, currentAuthor.value.id)
     console.log('加载到的内容数量:', contentList.length)
     
     if (contentList.length > 0) {
@@ -552,7 +552,7 @@ const loadChapterContent = async (chapterId: string) => {
 // 处理内容选择 - 用户在 ChapterTree 中点击某个内容
 const handleContentSelect = async (contentId: string) => {
   try {
-    if (!currentUser.value) {
+    if (!currentAuthor.value) {
       showNotification('用户未登录', 'error')
       return
     }
@@ -569,7 +569,7 @@ const handleContentSelect = async (contentId: string) => {
     isLoadingContent.value = true
     
     // 直接加载指定的内容
-    const content = await contentService.fetchContent(contentId, currentUser.value.id)
+    const content = await contentService.fetchContent(contentId, currentAuthor.value.id)
     if (!content) {
       showNotification('未找到该内容', 'error')
       return
@@ -704,11 +704,11 @@ const handleChapterDelete = async (chapterId: string) => {
   if (!confirm('确定要删除这个章节吗？这个操作不可恢复。')) return
 
   try {
-    if (!currentUser.value) {
+    if (!currentAuthor.value) {
       alert('用户未登录，无法删除章节')
       return
     }
-    await chapterApi.delete(chapterId, currentUser.value.id)
+    await chapterApi.delete(chapterId, currentAuthor.value.id)
     if (currentWork.value) {
       await loadWork(currentWork.value.id)
     }
@@ -762,7 +762,7 @@ const handleAddContent = async (data: { title?: string, type?: string, workId?: 
   // 如果有 title，说明是从 ContentCreateModal 来的，直接创建内容
   if (data.title) {
     try {
-      const userId = currentUser.value?.id
+      const userId = currentAuthor.value?.id
       if (!userId) {
         showNotification('请先登录', 'error')
         return
@@ -881,7 +881,7 @@ const handleChaptersReorder = async (reorderedChapters: ChapterLocal[]) => {
       }))
       
       console.log('开始保存章节顺序到数据库...')
-      await chapterApi.reorderChapters(currentUser.value!.id, chapterOrders)
+      await chapterApi.reorderChapters(currentAuthor.value!.id, chapterOrders)
       console.log('✅ 章节顺序已保存到数据库')
       showNotification('章节顺序已更新', 'success')
     }
@@ -911,7 +911,7 @@ const handleContentsReorder = async (data: { chapterId?: string; contents: Conte
       }))
       
       console.log('开始保存内容顺序到数据库...')
-      await contentService.reorderContents(currentUser.value!.id, contentOrders)
+      await contentService.reorderContents(currentAuthor.value!.id, contentOrders)
       console.log('✅ 内容顺序已保存到数据库')
       
       // 更新本地状态
@@ -940,16 +940,16 @@ const handleContentsReorder = async (data: { chapterId?: string; contents: Conte
 
 const handleChapterSave = async (chapterData: any) => {
   try {
-    if (!currentUser.value) {
+    if (!currentAuthor.value) {
       alert('用户未登录，无法保存章节')
       return
     }
 
     // 检查用户是否有权限修改此作品
-    if (currentWork.value && currentWork.value.authorId !== currentUser.value.id) {
+    if (currentWork.value && currentWork.value.authorId !== currentAuthor.value.id) {
       // 检查是否是协作者
       const collaborators = currentWork.value.collaborators?.split(',') || []
-      if (!collaborators.includes(currentUser.value.id)) {
+      if (!collaborators.includes(currentAuthor.value.id)) {
         alert('您没有权限在此作品中创建章节')
         return
       }
@@ -958,7 +958,7 @@ const handleChapterSave = async (chapterData: any) => {
     if (isNewChapter.value) {
       const dataWithAuthor = {
         ...chapterData,
-        authorId: currentUser.value.id
+        authorId: currentAuthor.value.id
       }
       await chapterApi.create(dataWithAuthor)
     } else {
@@ -966,7 +966,7 @@ const handleChapterSave = async (chapterData: any) => {
         alert('没有正在编辑的章节')
         return
       }
-      await chapterApi.update(editingChapter.value.id, currentUser.value.id, chapterData)
+      await chapterApi.update(editingChapter.value.id, currentAuthor.value.id, chapterData)
     }
 
     if (currentWork.value) {
@@ -992,7 +992,7 @@ const handleChapterModalClose = () => {
 
 const createNewContent = async () => {
   try {
-    if (!currentUser.value) {
+    if (!currentAuthor.value) {
       showNotification('用户未登录', 'error')
       return
     }
@@ -1010,7 +1010,7 @@ const createNewContent = async () => {
     console.log('创建新内容:', {
       workId: currentWork.value.id,
       chapterId: selectedChapterId.value,
-      userId: currentUser.value.id
+      userId: currentAuthor.value.id
     })
 
     // 创建空的 ProseMirror 文档
@@ -1033,7 +1033,7 @@ const createNewContent = async () => {
     }
 
     const newContent = await contentService.createContent({
-      authorId: currentUser.value.id,
+      authorId: currentAuthor.value.id,
       workId: currentWork.value.id,
       chapterId: selectedChapterId.value,
       content: emptyProseMirrorDoc,
@@ -1050,7 +1050,7 @@ const createNewContent = async () => {
     // 刷新作品统计信息
     if (currentWork.value) {
       try {
-        const stats = await workApi.getStats(currentWork.value.id, currentUser.value.id)
+        const stats = await workApi.getStats(currentWork.value.id, currentAuthor.value.id)
         workStats.value = stats
       } catch (statsError) {
         console.error('刷新作品统计失败:', statsError)
@@ -1090,12 +1090,12 @@ const handleCreateWork = () => {
 
 const handleWorkSave = async (workData: any) => {
   try {
-    if (!currentUser.value) {
+    if (!currentAuthor.value) {
       showNotification('用户未登录', 'error')
       return
     }
 
-    const newWork = await workApi.create(currentUser.value.id, workData)
+    const newWork = await workApi.create(currentAuthor.value.id, workData)
     await loadWork(newWork.id)
     showWorkModal.value = false
     showNotification('作品已创建', 'success')

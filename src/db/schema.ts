@@ -279,3 +279,12 @@ export type UpdateAuthor = Partial<NewAuthor>;
 export type UpdateWork = Partial<NewWork>;
 export type UpdateChapter = Partial<NewChapter>;
 export type UpdateContent = Partial<NewContent>;
+
+// Delete 类型（删除条件）
+export type DeleteAuthor = Pick<Author, 'id'>;
+export type DeleteWork = Pick<Work, 'id'>;
+export type DeleteChapter = Pick<Chapter, 'id'>;
+export type DeleteContent = Pick<Content, 'id'>;
+export type DeleteContentVersion = Pick<ContentVersion, 'id'>;
+export type DeleteCollaborativeDocument = Pick<CollaborativeDocument, 'id'>;
+

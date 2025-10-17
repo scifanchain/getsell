@@ -434,7 +434,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWorkStore } from '../stores/work'
-import { useUserStore } from '../stores/user'
+import { useAuthorStore } from '../stores/author'
 import ProseMirrorRenderer from '../components/ProseMirrorRenderer.vue'
 import type { Work, Chapter, ChapterData, Content } from '../../shared/types'
 
@@ -922,8 +922,8 @@ const loadChapters = async () => {
   
   try {
     // 获取当前用户 ID
-    const userStore = useUserStore()
-    const userId = userStore.currentUser?.id
+    const authorStore = useAuthorStore()
+    const userId = authorStore.currentAuthor?.id
     if (!userId) {
       throw new Error('用户未登录')
     }

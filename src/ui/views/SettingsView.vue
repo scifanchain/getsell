@@ -210,10 +210,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { useUserStore } from '../stores/user';
+import { useAuthorStore } from '../stores/author';
 import { useAppStore } from '../stores/app';
 
-const userStore = useUserStore();
+const authorStore = useAuthorStore();
 const appStore = useAppStore();
 
 // Avatar
@@ -248,11 +248,11 @@ const isSavingPreferences = ref(false);
 
 // Load user data on mount
 onMounted(async () => {
-  if (userStore.currentUser) {
-    profileForm.displayName = userStore.currentUser.displayName || '';
-    profileForm.bio = userStore.currentUser.bio || '';
-    profileForm.email = userStore.currentUser.email || '';
-    currentAvatar.value = userStore.currentUser.avatarUrl || '';
+  if (authorStore.currentAuthor) {
+    profileForm.displayName = authorStore.currentAuthor.displayName || '';
+    profileForm.bio = authorStore.currentAuthor.bio || '';
+    profileForm.email = authorStore.currentAuthor.email || '';
+    currentAvatar.value = authorStore.currentAuthor.avatarUrl || '';
   }
 
   // Load preferences
@@ -300,7 +300,7 @@ const removeAvatar = () => {
 
 // Profile functions
 const saveProfile = async () => {
-  if (!userStore.currentUser) return;
+  if (!authorStore.currentAuthor) return;
 
   // Validate
   if (!profileForm.displayName.trim()) {
@@ -316,7 +316,7 @@ const saveProfile = async () => {
   isSavingProfile.value = true;
 
   try {
-    await userStore.updateProfile({
+    await authorStore.updateProfile({
       displayName: profileForm.displayName,
       bio: profileForm.bio,
       email: profileForm.email,
@@ -358,7 +358,7 @@ const changePassword = async () => {
   isChangingPassword.value = true;
 
   try {
-    await userStore.changePassword(
+    await authorStore.changePassword(
       passwordForm.currentPassword,
       passwordForm.newPassword
     );

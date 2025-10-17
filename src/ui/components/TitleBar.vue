@@ -24,10 +24,10 @@
         <!-- 用户菜单 -->
         <div class="user-menu" @click="toggleUserDropdown">
           <div class="user-avatar">
-            <img v-if="userAvatar" :src="userAvatar" alt="用户头像" class="avatar-image">
+            <img v-if="authorAvatar" :src="authorAvatar" alt="用户头像" class="avatar-image">
             <span v-else class="avatar-placeholder">👤</span>
           </div>
-          <span class="user-name">{{ userName || '未登录' }}</span>
+          <span class="user-name">{{ authorName || '未登录' }}</span>
           <span class="dropdown-arrow" :class="{ 'dropdown-open': showUserDropdown }">▼</span>
           
           <!-- 用户下拉菜单 -->
@@ -35,12 +35,12 @@
             <div class="dropdown-header">
               <div class="user-info">
                 <div class="user-avatar-large">
-                  <img v-if="userAvatar" :src="userAvatar" alt="用户头像" class="avatar-image">
+                  <img v-if="authorAvatar" :src="authorAvatar" alt="用户头像" class="avatar-image">
                   <span v-else class="avatar-placeholder">👤</span>
                 </div>
                 <div class="user-details">
-                  <div class="user-name-large">{{ userName || '未登录用户' }}</div>
-                  <div class="user-email">{{ userEmail || 'guest@gestell.com' }}</div>
+                  <div class="user-name-large">{{ authorName || '未登录作者' }}</div>
+                  <div class="user-email">{{ authorEmail || 'guest@gestell.com' }}</div>
                 </div>
               </div>
             </div>
@@ -65,7 +65,7 @@
               </a>
               <a href="#" @click="handleLogin" class="dropdown-item">
                 <span class="item-icon">🔐</span>
-                {{ userName ? '登出' : '登录' }}
+                {{ authorName ? '登出' : '登录' }}
               </a>
             </div>
           </div>
@@ -91,18 +91,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../stores/user'
+import { useAuthorStore } from '../stores/author'
 
 const router = useRouter()
-const userStore = useUserStore()
+const authorStore = useAuthorStore()
 
-// 用户状态
-const userName = computed(() => {
-  if (!userStore.currentUser) return ''
-  return userStore.currentUser.displayName || userStore.currentUser.name || '未命名用户'
+// 作者状态
+const authorName = computed(() => {
+  if (!authorStore.currentAuthor) return ''
+  return authorStore.currentAuthor.displayName || authorStore.currentAuthor.username || '未命名作者'
 })
-const userEmail = computed(() => userStore.currentUser?.email || '')
-const userAvatar = computed(() => userStore.currentUser?.avatarUrl || '')
+const authorEmail = computed(() => authorStore.currentAuthor?.email || '')
+const authorAvatar = computed(() => authorStore.currentAuthor?.avatarUrl || '')
 const showUserDropdown = ref(false)
 const isMaximized = ref(false)
 
@@ -199,9 +199,9 @@ function goToHelp() {
 }
 
 function handleLogin() {
-  if (userName.value) {
+  if (authorName.value) {
     // 登出
-    userStore.logoutUser()
+    authorStore.logoutAuthor()
     router.push('/login')
     console.log('用户已登出')
   } else {

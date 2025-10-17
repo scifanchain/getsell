@@ -6,7 +6,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Chapter, CreateChapterData, UpdateChapterData } from '../types/models'
 import { chapterApi } from '../services/api'
-import { useUserStore } from './user'
+import { useAuthorStore } from './author'
 
 export const useChapterStore = defineStore('chapter', () => {
   // State
@@ -95,12 +95,12 @@ export const useChapterStore = defineStore('chapter', () => {
     error.value = null
     
     try {
-      const userStore = useUserStore()
-      if (!userStore.currentUser?.id) {
-        throw new Error('用户未登录')
+      const authorStore = useAuthorStore()
+      if (!authorStore.currentAuthor?.id) {
+        throw new Error('作者未登录')
       }
       
-      const updatedChapter = await chapterApi.update(userStore.currentUser.id, id, chapterData)
+      const updatedChapter = await chapterApi.update(authorStore.currentAuthor.id, id, chapterData)
       const index = chapters.value.findIndex(c => c.id === id)
       if (index !== -1) {
         chapters.value[index] = updatedChapter
@@ -122,12 +122,12 @@ export const useChapterStore = defineStore('chapter', () => {
     error.value = null
     
     try {
-      const userStore = useUserStore()
-      if (!userStore.currentUser?.id) {
-        throw new Error('用户未登录')
+      const authorStore = useAuthorStore()
+      if (!authorStore.currentAuthor?.id) {
+        throw new Error('作者未登录')
       }
       
-      await chapterApi.delete(userStore.currentUser.id, id)
+      await chapterApi.delete(authorStore.currentAuthor.id, id)
       chapters.value = chapters.value.filter(c => c.id !== id)
       if (currentChapter.value?.id === id) {
         currentChapter.value = null
@@ -173,14 +173,14 @@ export const useChapterStore = defineStore('chapter', () => {
   async function reorderChapters(newOrder: Chapter[]) {
     try {
       loading.value = true
-      const userStore = useUserStore()
-      if (!userStore.currentUser?.id) {
-        throw new Error('用户未登录')
+      const authorStore = useAuthorStore()
+      if (!authorStore.currentAuthor?.id) {
+        throw new Error('作者未登录')
       }
       
       // 批量更新章节顺序
       const updatePromises = newOrder.map((chapter, index) => 
-        chapterApi.update(userStore.currentUser!.id, chapter.id, { orderIndex: index + 1 })
+        chapterApi.update(authorStore.currentAuthor!.id, chapter.id, { orderIndex: index + 1 })
       )
       
       await Promise.all(updatePromises)
