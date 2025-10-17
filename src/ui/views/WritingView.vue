@@ -26,16 +26,13 @@
     <!-- 主编辑区域 -->
     <div class="main-editor-area">
       <div v-if="currentContent" class="editor-wrapper">
-        <!-- 编辑器模式切换 -->
-        <div class="editor-mode-toggle" v-if="currentAuthor">
-          <button 
-            @click="toggleEditorMode" 
-            class="mode-toggle-btn"
-            :class="{ active: useCollaborativeEditor }"
-          >
-            <span class="icon">{{ useCollaborativeEditor ? '🤝' : '📝' }}</span>
-            {{ useCollaborativeEditor ? '协同模式' : '单机模式' }}
-          </button>
+        <!-- 协作模式指示器 -->
+        <div class="collaboration-mode-indicator" v-if="currentWork">
+          <div class="mode-badge" :class="collaborationModeClass">
+            <span class="mode-icon">{{ collaborationModeIcon }}</span>
+            <span class="mode-label">{{ collaborationModeLabel }}</span>
+          </div>
+          <div class="mode-description">{{ collaborationModeDescription }}</div>
         </div>
 
         <Editor
@@ -49,6 +46,7 @@
           :collaboration-config="collaborationConfig"
           :readonly="false"
           @update:modelValue="handleContentUpdate"
+          @change="handleContentUpdate"
           @collaboration-changed="handleCollaborationChanged"
           @collaborators-updated="handleCollaboratorsUpdated"
           @title-updated="handleTitleUpdated"
@@ -84,6 +82,24 @@
               创建新作品
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- 底部状态栏 -->
+      <div class="editor-status-bar" v-if="currentContent">
+        <div class="status-left">
+          <span class="status-item save-status" :class="saveStatusClass">
+            <span class="status-icon">{{ saveStatusIcon }}</span>
+            <span class="status-text">{{ saveStatusText }}</span>
+          </span>
+          <span class="status-item word-count" v-if="currentContent">
+            {{ currentContent.wordCount || 0 }} 字
+          </span>
+        </div>
+        <div class="status-right">
+          <span class="status-item" v-if="currentContent.updatedAt">
+            最后更新: {{ formatRelativeTime(currentContent.updatedAt) }}
+          </span>
         </div>
       </div>
     </div>
@@ -185,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthorStore } from '../stores/author'
 import ChapterTree from '../components/ChapterTree/index.vue'
@@ -261,7 +277,6 @@ const workStats = ref<WorkStats>({ totalWords: 0, totalChapters: 0 })
 const notifications = ref<Notification[]>([])
 
 // Collaborative editing state
-const useCollaborativeEditor = ref(false)
 const collaborationEnabled = ref(false)
 const activeCollaborators = ref<any[]>([])
 
@@ -273,6 +288,14 @@ const isNewChapter = ref(false)
 
 // Loading states
 const isLoadingContent = ref(false)
+
+// Save status
+const saveStatus = ref<'empty' | 'unsaved' | 'saving' | 'saved' | 'error'>('empty')
+const lastSaveTime = ref<Date | null>(null)
+let saveStatusTimer: NodeJS.Timeout | null = null
+let autoSaveTimer: NodeJS.Timeout | null = null
+const AUTO_SAVE_INTERVAL = 30000 // 30秒自动保存一次
+const hasUnsavedChanges = ref(false)
 
 // Statistics
 const todayStats = ref<TodayStats>({
@@ -302,7 +325,54 @@ const collaborationConfig = {
   maxConnections: 10
 }
 
-const isCollaborationActive = computed(() => useCollaborativeEditor.value && !!currentAuthor.value)
+// 根据作品的协作模式自动判断是否使用协作编辑器
+// private: 单机模式
+// team/public: 协作模式
+const isCollaborationActive = computed(() => {
+  if (!currentWork.value) return false
+  const mode = (currentWork.value as any).collaborationMode || 'private'
+  return mode === 'team' || mode === 'public'
+})
+
+// 协作模式相关的计算属性
+const collaborationModeClass = computed(() => {
+  if (!currentWork.value) return ''
+  const mode = (currentWork.value as any).collaborationMode || 'private'
+  return `mode-${mode}`
+})
+
+const collaborationModeIcon = computed(() => {
+  if (!currentWork.value) return '📝'
+  const mode = (currentWork.value as any).collaborationMode || 'private'
+  const icons = {
+    private: '📝',
+    team: '👥',
+    public: '🌍'
+  }
+  return icons[mode as 'private' | 'team' | 'public'] || '📝'
+})
+
+const collaborationModeLabel = computed(() => {
+  if (!currentWork.value) return '单机模式'
+  const mode = (currentWork.value as any).collaborationMode || 'private'
+  const labels = {
+    private: '私有创作',
+    team: '团队协作',
+    public: '公开协作'
+  }
+  return labels[mode as 'private' | 'team' | 'public'] || '私有创作'
+})
+
+const collaborationModeDescription = computed(() => {
+  if (!currentWork.value) return ''
+  const mode = (currentWork.value as any).collaborationMode || 'private'
+  const descriptions = {
+    private: '仅您可以编辑此作品',
+    team: '团队成员可以协同编辑',
+    public: '所有人都可以参与编辑'
+  }
+  return descriptions[mode as 'private' | 'team' | 'public'] || ''
+})
 
 const editorKey = computed(() => {
   const contentId = currentContent.value?.id ?? 'empty'
@@ -320,9 +390,67 @@ const editorPlaceholder = computed(() => {
   return '开始写作...'
 })
 
+const saveStatusClass = computed(() => {
+  return saveStatus.value
+})
+
+const saveStatusIcon = computed(() => {
+  const icons = {
+    empty: '○',
+    unsaved: '○',
+    saving: '⏳',
+    saved: '✓',
+    error: '✗'
+  }
+  return icons[saveStatus.value]
+})
+
+const saveStatusText = computed(() => {
+  const texts = {
+    empty: '没有更新内容',
+    unsaved: '未保存',
+    saving: '正在保存...',
+    saved: '已保存',
+    error: '保存失败'
+  }
+  return texts[saveStatus.value]
+})
+
+const formatRelativeTime = (dateString: string): string => {
+  if (!dateString) return ''
+  
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const seconds = Math.floor(diff / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  
+  if (seconds < 10) return '刚刚'
+  if (seconds < 60) return `${seconds}秒前`
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 7) return `${days}天前`
+  
+  return date.toLocaleDateString('zh-CN')
+}
+
 // Lifecycle
 onMounted(async () => {
   await initializeView()
+})
+
+onUnmounted(() => {
+  // 清理定时器
+  stopAutoSave()
+  if (saveStatusTimer) {
+    clearTimeout(saveStatusTimer)
+  }
+  // 保存未保存的更改
+  if (hasUnsavedChanges.value) {
+    saveContentToDatabase()
+  }
 })
 
 // Watchers
@@ -345,42 +473,168 @@ watch(selectedChapterId, async (newChapterId, oldChapterId) => {
 })
 
 // Methods
-// Collaborative editing methods
-const toggleEditorMode = () => {
-  useCollaborativeEditor.value = !useCollaborativeEditor.value
-  showNotification(
-    useCollaborativeEditor.value ? '已切换到协同编辑模式' : '已切换到单机编辑模式',
-    'info'
-  )
+// 实际保存到数据库的函数
+const saveContentToDatabase = async () => {
+  const activeContent = currentContent.value
+  const author = currentAuthor.value
+  
+  console.log('💾 saveContentToDatabase 调用:', {
+    hasActiveContent: !!activeContent,
+    hasAuthor: !!author,
+    hasUnsavedChanges: hasUnsavedChanges.value
+  })
+  
+  if (!activeContent || !author || !hasUnsavedChanges.value) {
+    console.log('⚠️ 保存条件不满足，跳过保存')
+    return
+  }
+  
+  console.log('✅ 开始执行保存...')
+
+  // 在协同模式下，同时保存内容和记录位置
+  if (isCollaborationActive.value && currentWork.value) {
+    saveStatus.value = 'saving'
+    try {
+      // 保存内容到数据库 (作为备份)
+      await contentService.updateContent(activeContent.id, author.id, {
+        content: activeContent.content,
+        format: 'prosemirror'
+      })
+      
+      // 记录最后编辑位置
+      await (window as any).electronAPI.invoke('author:setLastEditedContent', {
+        workId: currentWork.value.id,
+        chapterId: activeContent.chapterId,
+        contentId: activeContent.id
+      })
+      
+      saveStatus.value = 'saved'
+      lastSaveTime.value = new Date()
+      hasUnsavedChanges.value = false
+      console.log('已保存内容并记录位置 (协同模式):', activeContent.id)
+      
+      // 保存成功后保持 saved 状态，不再恢复为其他状态
+    } catch (error) {
+      console.error('记录最后编辑内容失败 (协同模式):', error)
+      saveStatus.value = 'error'
+      // 3秒后恢复为 unsaved 状态
+      setTimeout(() => {
+        saveStatus.value = 'unsaved'
+      }, 3000)
+    }
+  } else {
+    // 非协同模式下，保存到数据库
+    saveStatus.value = 'saving'
+    try {
+      await contentService.updateContent(activeContent.id, author.id, {
+        content: activeContent.content,
+        format: 'prosemirror'
+      })
+      saveStatus.value = 'saved'
+      lastSaveTime.value = new Date()
+      hasUnsavedChanges.value = false
+      
+      // 更新 updatedAt 时间
+      if (currentContent.value) {
+        currentContent.value = {
+          ...currentContent.value,
+          updatedAt: new Date().toISOString()
+        }
+      }
+      
+      console.log('内容已保存到数据库:', activeContent.id)
+      
+      // 保存成功后保持 saved 状态，不再恢复为其他状态
+    } catch (error) {
+      console.error('保存内容失败:', error)
+      saveStatus.value = 'error'
+      // 3秒后恢复为 unsaved 状态
+      setTimeout(() => {
+        saveStatus.value = 'unsaved'
+      }, 3000)
+    }
+  }
 }
 
-const handleContentUpdate = async (content: string) => {
-  const activeContent = currentContent.value
-  if (activeContent) {
-    // 在协同模式下，简单更新本地内容（Yjs 会处理持久化）
-    currentContent.value = { ...activeContent, content }
-
-    const index = contents.value.findIndex(item => item.id === activeContent.id)
-    if (index !== -1) {
-      contents.value[index] = {
-        ...contents.value[index],
-        content
-      }
-      contents.value = [...contents.value]
+// 启动自动保存定时器
+const startAutoSave = () => {
+  // 清除现有定时器
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer)
+  }
+  
+  console.log('🔄 启动自动保存定时器 (每30秒)')
+  
+  // 每30秒检查并保存
+  autoSaveTimer = setInterval(async () => {
+    console.log('⏰ 自动保存定时器触发, hasUnsavedChanges:', hasUnsavedChanges.value)
+    if (hasUnsavedChanges.value) {
+      console.log('💾 执行自动保存...')
+      await saveContentToDatabase()
+    } else {
+      console.log('✓ 没有未保存的更改')
     }
+  }, AUTO_SAVE_INTERVAL)
+}
 
-    // 仅在协同模式下记录最后编辑内容，避免高频 IPC 调用
-    if (useCollaborativeEditor.value && currentWork.value) {
-      try {
-        await (window as any).electronAPI.invoke('author:setLastEditedContent', {
-          workId: currentWork.value.id,
-          chapterId: activeContent.chapterId,
-          contentId: activeContent.id
-        })
-        console.log('已记录最后编辑的内容 (协同模式):', activeContent.id)
-      } catch (error) {
-        console.error('记录最后编辑内容失败 (协同模式):', error)
-      }
+// 停止自动保存定时器
+const stopAutoSave = () => {
+  if (autoSaveTimer) {
+    console.log('🛑 停止自动保存定时器')
+    clearInterval(autoSaveTimer)
+    autoSaveTimer = null
+  }
+}
+
+// Collaborative editing methods
+const handleContentUpdate = async (content: string) => {
+  console.log('🔥🔥🔥 handleContentUpdate 被调用!', { contentLength: content.length })
+  
+  const activeContent = currentContent.value
+  const author = currentAuthor.value
+  
+  console.log('检查条件:', {
+    hasActiveContent: !!activeContent,
+    hasAuthor: !!author,
+    authorId: author?.id
+  })
+  
+  if (!activeContent || !author) {
+    console.log('❌ 条件不满足，提前返回')
+    return
+  }
+
+  // 更新本地内容
+  currentContent.value = { ...activeContent, content }
+
+  const index = contents.value.findIndex(item => item.id === activeContent.id)
+  if (index !== -1) {
+    contents.value[index] = {
+      ...contents.value[index],
+      content
+    }
+    contents.value = [...contents.value]
+  }
+
+  // 检查内容是否为空（空文档或只有空段落）
+  const isEmpty = !content || 
+                  content.trim() === '' || 
+                  content === '{"type":"doc","content":[{"type":"paragraph"}]}' ||
+                  content === '{"type":"doc","content":[]}'
+  
+  if (isEmpty) {
+    // 内容为空，保持 empty 状态
+    hasUnsavedChanges.value = false
+    saveStatus.value = 'empty'
+    console.log('📄 内容为空，状态保持: empty')
+  } else {
+    // 有内容，标记为未保存
+    hasUnsavedChanges.value = true
+    console.log('✏️ 内容已更新, 标记为未保存')
+    
+    // 如果状态是 saved 或 empty，改为显示未保存
+    if (saveStatus.value === 'saved' || saveStatus.value === 'empty') {
+      saveStatus.value = 'unsaved'
     }
   }
 }
@@ -450,8 +704,12 @@ const initializeView = async () => {
 
 const loadWork = async (workId: string) => {
   try {
-    if (!currentAuthor.value) {
-      showNotification('用户未登录', 'error')
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常:', { 
+        hasAuthor: !!currentAuthor.value,
+        authorId: currentAuthor.value?.id
+      })
+      showNotification('用户信息异常，请重新登录', 'error')
       return
     }
 
@@ -488,7 +746,10 @@ const loadWork = async (workId: string) => {
 
 const loadUserFirstWork = async () => {
   try {
-    if (!currentAuthor.value) return
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常，无法加载作品')
+      return
+    }
 
     const works = await workApi.getUserWorks(currentAuthor.value.id, {
       sortBy: 'updatedAt',
@@ -505,8 +766,8 @@ const loadUserFirstWork = async () => {
 
 const loadChapterContent = async (chapterId: string) => {
   try {
-    if (!currentAuthor.value) {
-      console.warn('用户未登录，无法加载内容')
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常，无法加载内容')
       return
     }
 
@@ -532,6 +793,8 @@ const loadChapterContent = async (chapterId: string) => {
           lastEditedAt: latestContent.lastEditedAt,
           totalContents: contentList.length
         })
+        // 启动自动保存
+        startAutoSave()
       }
       
       if (contentList.length > 1) {
@@ -541,6 +804,8 @@ const loadChapterContent = async (chapterId: string) => {
       // 如果没有内容，设置为 null，界面会显示"开始写作"按钮
       currentContent.value = null
       console.log('该章节暂无内容，等待用户创建')
+      // 停止自动保存
+      stopAutoSave()
     }
   } catch (error) {
     console.error('Load chapter content failed:', error)
@@ -552,8 +817,9 @@ const loadChapterContent = async (chapterId: string) => {
 // 处理内容选择 - 用户在 ChapterTree 中点击某个内容
 const handleContentSelect = async (contentId: string) => {
   try {
-    if (!currentAuthor.value) {
-      showNotification('用户未登录', 'error')
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常')
+      showNotification('用户信息异常，请重新登录', 'error')
       return
     }
 
@@ -582,13 +848,28 @@ const handleContentSelect = async (contentId: string) => {
       hasContent: typeof content.content === 'string',
       hasChapterId: !!content.chapterId,
       contentType: typeof content.content,
-      contentLength: content.content.length || 0
+      contentLength: content.content.length || 0,
+      contentPreview: content.content?.substring(0, 100)
     })
     
     // 先设置内容，确保编辑器能够显示
     currentContent.value = content
     
-    console.log('✅ 已设置 currentContent.value')
+    console.log('✅ 已设置 currentContent.value:', {
+      id: content.id,
+      title: content.title,
+      contentLength: content.content?.length || 0
+    })
+    
+    // 根据内容是否为空设置初始保存状态
+    hasUnsavedChanges.value = false
+    if (!content.content || content.content.trim() === '' || content.content === '{"type":"doc","content":[{"type":"paragraph"}]}') {
+      saveStatus.value = 'empty'
+      console.log('📄 内容为空，状态设为: empty')
+    } else {
+      saveStatus.value = 'saved'
+      console.log('📄 内容已加载，状态设为: saved')
+    }
     
     // 使用 nextTick 确保响应式更新完成后再更新章节ID
     await nextTick()
@@ -704,8 +985,9 @@ const handleChapterDelete = async (chapterId: string) => {
   if (!confirm('确定要删除这个章节吗？这个操作不可恢复。')) return
 
   try {
-    if (!currentAuthor.value) {
-      alert('用户未登录，无法删除章节')
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常')
+      alert('用户信息异常，无法删除章节。请重新登录。')
       return
     }
     await chapterApi.delete(chapterId, currentAuthor.value.id)
@@ -736,6 +1018,10 @@ const handleAddChapter = () => {
     title: '',
     type: 'chapter'
   }
+  console.log('📝 handleAddChapter - 设置 editingChapter:', {
+    editingChapter: editingChapter.value,
+    currentWorkId: currentWork.value.id
+  })
   isNewChapter.value = true
   showChapterModal.value = true
 }
@@ -752,12 +1038,22 @@ const handleAddSubChapter = (parentId: string) => {
     title: '',
     type: 'section'
   }
+  console.log('📝 handleAddSubChapter - 设置 editingChapter:', {
+    editingChapter: editingChapter.value,
+    currentWorkId: currentWork.value.id,
+    parentId
+  })
   isNewChapter.value = true
   showChapterModal.value = true
 }
 
 const handleAddContent = async (data: { title?: string, type?: string, workId?: string, chapterId?: string }) => {
-  console.log('WritingView: handleAddContent 被调用', data)
+  console.log('WritingView: handleAddContent 被调用', {
+    data,
+    hasTitle: !!data.title,
+    dataWorkId: data.workId,
+    dataChapterId: data.chapterId
+  })
   
   // 如果有 title，说明是从 ContentCreateModal 来的，直接创建内容
   if (data.title) {
@@ -768,7 +1064,8 @@ const handleAddContent = async (data: { title?: string, type?: string, workId?: 
         return
       }
       
-      const workId = currentWork.value?.id
+      // 优先使用传递的 workId，否则使用当前作品的 id
+      const workId = data.workId || currentWork.value?.id
       if (!workId) {
         showNotification('请先选择或创建作品', 'error')
         return
@@ -940,8 +1237,13 @@ const handleContentsReorder = async (data: { chapterId?: string; contents: Conte
 
 const handleChapterSave = async (chapterData: any) => {
   try {
-    if (!currentAuthor.value) {
-      alert('用户未登录，无法保存章节')
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常:', { 
+        hasAuthor: !!currentAuthor.value,
+        authorId: currentAuthor.value?.id,
+        author: currentAuthor.value
+      })
+      alert('用户信息异常，无法保存章节。请重新登录。')
       return
     }
 
@@ -960,6 +1262,21 @@ const handleChapterSave = async (chapterData: any) => {
         ...chapterData,
         authorId: currentAuthor.value.id
       }
+      console.log('📝 创建章节，数据:', {
+        dataWithAuthor,
+        hasWorkId: !!dataWithAuthor.workId,
+        workId: dataWithAuthor.workId,
+        currentWork: currentWork.value?.id,
+        chapterData
+      })
+      
+      // 确保 workId 存在
+      if (!dataWithAuthor.workId) {
+        console.error('❌ workId 缺失！')
+        alert('作品信息缺失，无法创建章节')
+        return
+      }
+      
       await chapterApi.create(dataWithAuthor)
     } else {
       if (!editingChapter.value?.id) {
@@ -992,8 +1309,13 @@ const handleChapterModalClose = () => {
 
 const createNewContent = async () => {
   try {
-    if (!currentAuthor.value) {
-      showNotification('用户未登录', 'error')
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常:', { 
+        hasAuthor: !!currentAuthor.value,
+        authorId: currentAuthor.value?.id,
+        author: currentAuthor.value
+      })
+      showNotification('用户信息异常，请重新登录', 'error')
       return
     }
 
@@ -1043,9 +1365,17 @@ const createNewContent = async () => {
 
     console.log('内容创建成功:', newContent)
     currentContent.value = newContent
+    
+    // 新创建的内容为空，设置状态为 empty
+    hasUnsavedChanges.value = false
+    saveStatus.value = 'empty'
+    console.log('📄 新建空内容，状态设为: empty')
 
     // 将新内容加入本地列表
   contents.value = [...contents.value, newContent].sort((a, b) => a.orderIndex - b.orderIndex)
+
+    // 启动自动保存
+    startAutoSave()
 
     // 刷新作品统计信息
     if (currentWork.value) {
@@ -1090,8 +1420,9 @@ const handleCreateWork = () => {
 
 const handleWorkSave = async (workData: any) => {
   try {
-    if (!currentAuthor.value) {
-      showNotification('用户未登录', 'error')
+    if (!currentAuthor.value || !currentAuthor.value.id) {
+      console.error('❌ 用户信息异常')
+      showNotification('用户信息异常，请重新登录', 'error')
       return
     }
 
@@ -1142,37 +1473,45 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
 
 <style scoped>
 .writing-view {
-  height: 100vh;
+  height: 100%;
   display: grid;
-  grid-template-columns: 300px 1fr 250px;
+  grid-template-columns: 280px 1fr 280px;
   grid-template-rows: 1fr;
-  gap: 1px;
-  background: #e1e5e9;
-}
-
-.sidebar {
-  background: white;
-  display: flex;
-  flex-direction: column;
+  gap: 0;
+  background: #f5f6fa;
   overflow: hidden;
 }
 
+.sidebar {
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid #e8eaed;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
+  height: 100%;
+}
+
 .work-info {
-  padding: 20px;
-  border-bottom: 1px solid #e1e5e9;
+  padding: 24px 20px;
+  border-bottom: 1px solid #e8eaed;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  flex-shrink: 0;
 }
 
 .work-title {
   margin: 0 0 12px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .work-stats {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .stat-item {
@@ -1182,12 +1521,16 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
 }
 
 .stat-item .label {
-  color: #666;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
 }
 
 .stat-item .value {
-  font-weight: 500;
-  color: #333;
+  font-weight: 700;
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 
 .chapter-section {
@@ -1196,12 +1539,77 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
 }
 
 .main-editor-area {
-  background: white;
+  background: #ffffff;
   overflow: hidden;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.03);
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .editor-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   height: 100%;
+}
+
+/* 协作模式指示器 */
+.collaboration-mode-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  border-bottom: 1px solid #e8eaed;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  flex-shrink: 0;
+}
+
+.mode-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.mode-badge.mode-private {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.mode-badge.mode-team {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(245, 87, 108, 0.3);
+}
+
+.mode-badge.mode-public {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+}
+
+.mode-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.mode-label {
+  letter-spacing: 0.3px;
+}
+
+.mode-description {
+  font-size: 12px;
+  color: #6c757d;
+  font-weight: 500;
 }
 
 .create-content,
@@ -1263,32 +1671,41 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
 
 .start-writing-btn,
 .action-btn {
-  padding: 12px 24px;
-  border: 1px solid #ddd;
+  padding: 14px 28px;
+  border: 2px solid transparent;
   background: white;
-  border-radius: 6px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.3s ease;
   margin: 0 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .action-btn.primary {
-  background: #007bff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border-color: #007bff;
+  border-color: transparent;
 }
 
 .start-writing-btn:hover,
 .action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+}
+
+.action-btn.primary:hover {
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .right-sidebar {
-  background: white;
-  padding: 20px;
+  background: #ffffff;
+  padding: 24px 20px;
   overflow-y: auto;
+  border-left: 1px solid #e8eaed;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.02);
+  height: 100%;
 }
 
 .chapter-info h3,
@@ -1343,22 +1760,35 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
 }
 
 .stat-card {
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 6px;
+  padding: 18px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  border-radius: 12px;
   text-align: center;
+  border: 1px solid #e8eaed;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .stat-number {
-  font-size: 24px;
-  font-weight: 600;
-  color: #007bff;
-  margin-bottom: 4px;
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 6px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #666;
+  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .notifications {
@@ -1376,43 +1806,7 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* 编辑器模式切换 */
-.editor-mode-toggle {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
 
-.mode-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  background: white;
-  color: #495057;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.mode-toggle-btn:hover {
-  background: #f8f9fa;
-  border-color: #6c757d;
-}
-
-.mode-toggle-btn.active {
-  background: #007bff;
-  border-color: #007bff;
-  color: white;
-}
-
-.mode-toggle-btn .icon {
-  font-size: 14px;
-}
 
 .notification.success {
   background: #d4edda;
@@ -1430,6 +1824,69 @@ const showNotification = (message: string, type: 'success' | 'error' | 'info' = 
   background: #d1ecf1;
   color: #0c5460;
   border: 1px solid #bee5eb;
+}
+
+/* 编辑器底部状态栏 */
+.editor-status-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e8eaed;
+  font-size: 13px;
+  color: #6b7280;
+  z-index: 10;
+}
+
+.status-left,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.save-status {
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.save-status.empty {
+  color: #9ca3af;
+}
+
+.save-status.unsaved {
+  color: #f59e0b;
+}
+
+.save-status.saving {
+  color: #3b82f6;
+}
+
+.save-status.saved {
+  color: #10b981;
+}
+
+.save-status.error {
+  color: #ef4444;
+}
+
+.status-icon {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.word-count {
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
 }
 
 /* 响应式设计 */

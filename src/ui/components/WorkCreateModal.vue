@@ -25,7 +25,7 @@
               id="description"
               v-model="formData.description"
               placeholder="简要描述您的作品内容"
-              rows="4"
+              rows="2"
             ></textarea>
           </div>
           
@@ -66,6 +66,25 @@
             <div class="help-text">用逗号分隔多个标签</div>
           </div>
           
+          <div class="form-group">
+            <label for="collaborationMode">协作模式</label>
+            <div class="collaboration-mode-selector">
+              <div 
+                v-for="mode in collaborationModes" 
+                :key="mode.value"
+                class="mode-option"
+                :class="{ active: formData.collaborationMode === mode.value }"
+                @click="formData.collaborationMode = mode.value"
+              >
+                <div class="mode-icon">{{ mode.icon }}</div>
+                <div class="mode-info">
+                  <div class="mode-label">{{ mode.label }}</div>
+                  <div class="mode-description">{{ mode.description }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div class="form-actions">
             <button type="button" class="btn secondary" @click="$emit('close')">
               取消
@@ -93,8 +112,30 @@ const formData = ref({
   description: '',
   genre: 'science_fiction',
   targetWords: 50000,
-  tagsInput: ''
+  tagsInput: '',
+  collaborationMode: 'private' as 'private' | 'team' | 'public'
 })
+
+const collaborationModes = [
+  {
+    value: 'private' as const,
+    icon: '📝',
+    label: '个人创作',
+    description: '仅您自己可以编辑此作品'
+  },
+  {
+    value: 'team' as const,
+    icon: '👥',
+    label: '团队协作',
+    description: '邀请团队成员协同编辑'
+  },
+  {
+    value: 'public' as const,
+    icon: '🌍',
+    label: '公开协作',
+    description: '所有人都可以参与编辑'
+  }
+]
 
 const handleSubmit = () => {
   const tags = formData.value.tagsInput
@@ -108,7 +149,7 @@ const handleSubmit = () => {
     genre: formData.value.genre,
     targetWords: formData.value.targetWords,
     tags,
-    collaborationMode: 'solo'
+    collaborationMode: formData.value.collaborationMode
   }
 
   emit('save', workData)
@@ -132,7 +173,7 @@ const handleSubmit = () => {
 .modal-content {
   background: white;
   border-radius: 8px;
-  width: 500px;
+  width: 700px;
   max-width: 90vw;
   max-height: 80vh;
   overflow: hidden;
@@ -262,5 +303,111 @@ const handleSubmit = () => {
 
 .btn.primary:hover {
   background: #0056b3;
+}
+
+/* 协作模式选择器 */
+.collaboration-mode-selector {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 12px;
+  border: 2px solid #e8eaed;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #ffffff;
+  flex: 1;
+  text-align: center;
+}
+
+.mode-option:hover {
+  border-color: #c8d0d8;
+  background: #f8f9fa;
+  transform: translateY(-2px);
+}
+
+.mode-option.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.mode-option.active .mode-description {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mode-icon {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.mode-option.active .mode-icon {
+  transform: scale(1.1);
+}
+
+.mode-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.mode-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.mode-description {
+  font-size: 11px;
+  color: #6c757d;
+  line-height: 1.3;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95vw;
+    max-height: 90vh;
+  }
+  
+  .collaboration-mode-selector {
+    flex-direction: column;
+  }
+  
+  .mode-option {
+    flex-direction: row;
+    padding: 12px;
+    gap: 12px;
+    text-align: left;
+  }
+  
+  .mode-info {
+    flex: 1;
+  }
+  
+  .mode-icon {
+    font-size: 28px;
+  }
+  
+  .mode-label {
+    font-size: 14px;
+  }
+  
+  .mode-description {
+    font-size: 11px;
+  }
 }
 </style>

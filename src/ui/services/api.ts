@@ -100,7 +100,7 @@ export const workApi = {
     genre?: string;
     tags?: string[];
     targetWords?: number;
-    collaborationMode?: 'solo' | 'collaborative';
+    collaborationMode?: 'private' | 'team' | 'public';
   }) {
     return await window.electronAPI.invoke('work:create', authorId, workData)
   },

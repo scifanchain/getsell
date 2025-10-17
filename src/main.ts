@@ -62,7 +62,7 @@ function createWindow(): void {
       preload: path.join(__dirname, '../src/preload.js')
     },
     show: false // 等待ready-to-show事件
-  });
+  })
 
   // 加载应用的index.html
   // 检查是否是测试模式
@@ -86,7 +86,8 @@ function createWindow(): void {
   // 窗口准备好后显示
   mainWindow.once('ready-to-show', () => {
     if (mainWindow) {
-      mainWindow.show();
+      mainWindow.maximize(); 
+      mainWindow.show(); 
       
       // 开发时打开开发者工具
       mainWindow.webContents.openDevTools();

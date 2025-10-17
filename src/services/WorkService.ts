@@ -1,6 +1,7 @@
 import { IWorkService, CreateWorkData, WorkInfo, WorkQueryOptions, UpdateWorkData, WorkStats, PublishResult } from './interfaces';
 import { getCurrentTimestamp } from '../core/timestamp';
 import { RepositoryContainer } from '../repositories/RepositoryContainer';
+import { validateCollaborationMode } from '../core/validators';
 import { ulid } from 'ulid';
 
 /**
@@ -26,7 +27,7 @@ export class WorkService implements IWorkService {
             description: workData.description,
             genre: workData.genre || 'science_fiction',
             authorId: authorId,
-            collaborationMode: workData.collaborationMode || 'solo'
+            collaborationMode: validateCollaborationMode(workData.collaborationMode)
         };
 
         const createdWork = await this.repositories.workRepository.create(createData);

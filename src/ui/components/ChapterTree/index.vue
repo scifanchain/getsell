@@ -105,7 +105,7 @@
               @chapter-edit="$emit('chapter-edit', $event)"
               @chapter-delete="$emit('chapter-delete', $event)"
               @add-sub-chapter="$emit('add-sub-chapter', $event)"
-              @add-content="$emit('add-content', $event)"
+              @add-content="handleAddContentToChapter"
               @content-select="$emit('content-select', $event)"
               @content-edit="$emit('content-edit', $event)"
               @content-delete="$emit('content-delete', $event)"
@@ -123,6 +123,7 @@
     <!-- 内容创建模态框 -->
     <ContentCreateModal
       :is-visible="showCreateContentModal"
+      :work-id="props.workId"
       :chapter-id="createContentChapterId ?? undefined"
       @close="handleCloseCreateContentModal"
       @create="handleContentCreated"
@@ -648,6 +649,13 @@ const handleAddRootContent = () => {
   showCreateContentModal.value = true
 }
 
+// 处理添加内容到章节
+const handleAddContentToChapter = (data: { chapterId: string }) => {
+  console.log('ChapterTree: handleAddContentToChapter 被调用', data)
+  createContentChapterId.value = data.chapterId
+  showCreateContentModal.value = true
+}
+
 // 处理关闭内容创建模态框
 const handleCloseCreateContentModal = () => {
   showCreateContentModal.value = false
@@ -656,7 +664,9 @@ const handleCloseCreateContentModal = () => {
 
 // 处理内容创建完成
 const handleContentCreated = (data: any) => {
-  emit('add-content', { chapterId: createContentChapterId.value ?? undefined })
+  console.log('ChapterTree: handleContentCreated 被调用', data)
+  // 传递完整的 data，包括 title, type, workId, chapterId
+  emit('add-content', data)
   handleCloseCreateContentModal()
 }
 

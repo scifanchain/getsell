@@ -57,7 +57,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { EditorState } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
-import { Schema, DOMParser, DOMSerializer } from 'prosemirror-model'
+import { Schema, DOMParser, DOMSerializer, Node as ProseMirrorNode } from 'prosemirror-model'
 import { schema as basicSchema } from 'prosemirror-schema-basic'
 import { addListNodes } from 'prosemirror-schema-list'
 import { keymap } from 'prosemirror-keymap'
@@ -150,17 +150,27 @@ const initEditor = async () => {
       const newState = editorView.state.apply(transaction)
       editorView.updateState(newState)
       
-      if (transaction.docChanged && !props.collaborationMode) {
+      if (transaction.docChanged) {
         const content = getDocumentContent()
-        emit('update:modelValue', content)
+        console.log('📝 Editor: 文档变化', { 
+          collaborationMode: props.collaborationMode,
+          contentLength: content.length,
+          willEmit: !props.collaborationMode
+        })
+        
+        // 始终触发 change 事件,让父组件决定如何处理
         emit('change', content)
+        
+        // 非协作模式下也触发 modelValue 更新
+        if (!props.collaborationMode) {
+          emit('update:modelValue', content)
+        }
       }
     }
   })
 
-  if (!props.collaborationMode && props.modelValue) {
-    updateContent(props.modelValue)
-  }
+  // 初始内容已经在 createStandardState 中加载
+  console.log('🚀 编辑器初始化完成')
 }
 
 const createStandardState = () => {
@@ -174,8 +184,33 @@ const createStandardState = () => {
     })
   ]
 
+  // 尝试从 props.modelValue 加载初始内容
+  let doc: ProseMirrorNode
+  if (props.modelValue && props.modelValue.trim()) {
+    try {
+      console.log('📄 createStandardState: 尝试加载初始内容，长度:', props.modelValue.length)
+      const jsonContent = JSON.parse(props.modelValue)
+      doc = ProseMirrorNode.fromJSON(schema, jsonContent)
+      console.log('✅ createStandardState: 初始内容加载成功')
+    } catch (error) {
+      console.error('❌ createStandardState: 解析初始内容失败:', error)
+      console.log('📄 创建空文档')
+      doc = schema.nodeFromJSON({
+        type: 'doc',
+        content: [{ type: 'paragraph' }]
+      })
+    }
+  } else {
+    console.log('📄 createStandardState: 无初始内容，创建空文档')
+    doc = schema.nodeFromJSON({
+      type: 'doc',
+      content: [{ type: 'paragraph' }]
+    })
+  }
+
   return EditorState.create({
     schema,
+    doc,
     plugins
   })
 }
@@ -307,21 +342,33 @@ const enableCollaboration = async () => {
 const getDocumentContent = (): string => {
   if (!editorView) return ''
   
-  const serializer = DOMSerializer.fromSchema(schema)
-  const fragment = serializer.serializeFragment(editorView.state.doc.content)
-  const div = document.createElement('div')
-  div.appendChild(fragment)
-  return div.innerHTML
+  // 将 ProseMirror 文档序列化为 JSON 格式
+  const json = editorView.state.doc.toJSON()
+  return JSON.stringify(json)
 }
 
 const updateContent = (content: string) => {
-  if (!editorView || !content || props.collaborationMode) return
+  if (!editorView || props.collaborationMode) return
   
   try {
-    const parser = DOMParser.fromSchema(schema)
-    const div = document.createElement('div')
-    div.innerHTML = content
-    const doc = parser.parse(div)
+    let doc: ProseMirrorNode
+    
+    // 如果内容为空或仅有空格，创建空文档
+    if (!content || !content.trim()) {
+      console.log('📄 内容为空，创建空文档')
+      doc = schema.nodeFromJSON({
+        type: 'doc',
+        content: [{
+          type: 'paragraph'
+        }]
+      })
+    } else {
+      console.log('📄 解析 JSON 内容，长度:', content.length)
+      // 解析 JSON 格式内容
+      const jsonContent = JSON.parse(content)
+      doc = ProseMirrorNode.fromJSON(schema, jsonContent)
+      console.log('✅ JSON 解析成功')
+    }
     
     const newState = EditorState.create({
       schema,
@@ -330,8 +377,10 @@ const updateContent = (content: string) => {
     })
     
     editorView.updateState(newState)
+    console.log('✅ 编辑器状态已更新')
   } catch (error) {
-    console.error('更新内容失败:', error)
+    console.error('❌ 更新内容失败:', error)
+    console.error('内容预览:', content?.substring(0, 200))
   }
 }
 
@@ -371,12 +420,6 @@ const handleContentClick = () => {
   }
 }
 
-watch(() => props.modelValue, (newValue) => {
-  if (newValue !== getDocumentContent()) {
-    updateContent(newValue || '')
-  }
-})
-
 watch(() => props.collaborationMode, async (newMode) => {
   if (newMode && !collaborationEnabled.value) {
     await enableCollaboration()
@@ -406,26 +449,35 @@ defineExpose({
 </script>
 
 <style scoped>
+/* ============================================
+   编辑器容器 - 主布局
+   ============================================ */
 .unified-editor {
-  border: 1px solid #d9dde3;
-  border-radius: 8px;
-  background: #f2f4f7;
-  overflow: hidden;
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
 }
 
-/* 协作状态栏样式 */
+/* ============================================
+   协作状态栏
+   ============================================ */
 .collaboration-status {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  padding: 10px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
   font-size: 13px;
-  flex-shrink: 0;
+  z-index: 10;
 }
 
 .status-indicators {
@@ -442,15 +494,15 @@ defineExpose({
 }
 
 .connection-status.connected {
-  color: #28a745;
+  color: #10b981;
 }
 
 .connection-status.connecting {
-  color: #ffc107;
+  color: #f59e0b;
 }
 
 .connection-status.disconnected {
-  color: #dc3545;
+  color: #ef4444;
 }
 
 .status-dot {
@@ -458,10 +510,16 @@ defineExpose({
   height: 8px;
   border-radius: 50%;
   background: currentColor;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .collaborators-count {
-  color: #6c757d;
+  color: #6b7280;
 }
 
 .collaborators-list {
@@ -479,157 +537,262 @@ defineExpose({
   font-size: 11px;
   font-weight: 600;
   color: white;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.collaboration-controls {
-  display: flex;
-  gap: 8px;
-}
-
-/* 编辑器菜单样式（作用于 ProseMirror 原生节点） */
-:global(.ProseMirror-menubar-wrapper) {
-  flex-shrink: 0;
-  height: 40px;
-  background: #eceff3;
-  border-bottom: 1px solid #d9dde3;
-  display: flex;
-  align-items: center;
-  padding: 0 18px;
-  box-sizing: border-box;
-}
-
-:global(.ProseMirror-menubar) {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
-  gap: 15px;
-  height: 100%;
-  width: 100%;
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-}
-
-:global(.ProseMirror-menubar .ProseMirror-menu-group) {
+/* ============================================
+   ProseMirror 菜单项按钮样式 - 全局
+   ============================================ */
+:global(.unified-editor .ProseMirror-menubar .ProseMirror-menu-group) {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 15px;
+  gap: 4px;
+  margin: 0 8px 0 0 !important;
+  padding: 0 !important;
 }
 
-:global(.ProseMirror-menubar .ProseMirror-menu-group:last-child) {
-  margin-right: 0;
+:global(.unified-editor .ProseMirror-menubar .ProseMirror-menuitem) {
+  display: inline-flex !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: static !important;
 }
 
-:global(.ProseMirror-menubar .ProseMirror-menuitem) {
+/* 菜单项按钮样式 - 注意是 div，不是 button */
+:global(.unified-editor .ProseMirror-menuitem > div) {
   display: inline-flex !important;
   align-items: center !important;
-}
-
-:global(.ProseMirror-menubar button) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: 1px solid transparent;
+  justify-content: center !important;
+  gap: 4px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 10px;
+  margin: 0 !important;
+  border: 1px solid #d1d5db !important;
   border-radius: 6px;
-  background: transparent;
-  color: #2d3748;
+  background: linear-gradient(to bottom, #ffffff, #f9fafb);
+  color: #1f2937;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  position: static !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  user-select: none;
 }
 
-:global(.ProseMirror-menubar button:hover) {
-  background: #e4f0ff;
-  border-color: rgba(99, 102, 241, 0.3);
+:global(.unified-editor .ProseMirror-menuitem > div:hover) {
+  background: linear-gradient(to bottom, #3b82f6, #2563eb);
+  border-color: #2563eb !important;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
 }
 
-:global(.ProseMirror-menubar button:active) {
-  transform: none;
+:global(.unified-editor .ProseMirror-menuitem > div:active) {
+  transform: translateY(0);
+  background: linear-gradient(to bottom, #2563eb, #1d4ed8);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.4) inset;
 }
 
-:global(.ProseMirror-menubar button:focus-visible) {
-  outline: 2px solid rgba(99, 102, 241, 0.65);
-  outline-offset: 2px;
+:global(.unified-editor .ProseMirror-menu-active > div) {
+  background: linear-gradient(to bottom, #3b82f6, #2563eb) !important;
+  border-color: #1d4ed8 !important;
+  color: white;
+  box-shadow: 0 1px 4px rgba(29, 78, 216, 0.4);
 }
 
-:global(.ProseMirror-menu-active button) {
-  background: #fff4c2;
-  border-color: rgba(234, 179, 8, 0.4);
+:global(.unified-editor .ProseMirror-menu-disabled > div) {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
+/* ============================================
+   编辑器内容区域
+   ============================================ */
 .editor-content {
   flex: 1;
-  min-height: 300px;
-  padding: 20px 24px;
-  background: #f7f9fc;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background: #f9fafb;
   min-height: 0;
-}
-
-.editor-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.editor-content::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.45);
-  border-radius: 999px;
-}
-
-.editor-content :deep(.ProseMirror) {
-  max-width: 840px;
-  margin: 0 auto;
-  padding: 28px 36px 48px;
-  background: #fcfcfd;
-  border-radius: 12px;
-  box-shadow: none;
-  outline: none;
-  line-height: 1.65;
-  font-size: 15px;
-  color: #1f2937;
-  white-space: pre-wrap;
-  transition: box-shadow 0.2s ease;
-  flex: 1;
-  width: 100%;
+  z-index: 1;
   box-sizing: border-box;
 }
 
+/* ============================================
+   ProseMirror 菜单栏包装器 - 全局样式
+   ============================================ */
+:global(.unified-editor .ProseMirror-menubar-wrapper) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  background: #ffffff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+:global(.unified-editor .ProseMirror-menubar) {
+  flex-shrink: 0;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 6px;
+  margin: 0 !important;
+  padding: 8px 16px !important;
+  border: none !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background: #e9eaf0 !important;
+  position: relative !important;
+  z-index: 20 !important;
+  box-sizing: border-box;
+}
+
+/* ProseMirror 编辑区 - menuBar插件会自动创建wrapper */
+:global(.unified-editor .ProseMirror) {
+  flex: 1 !important;
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 40px 20px !important;
+  margin: 0 auto !important;
+  background: #dfe7e3 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  outline: none !important;
+  font-size: 16px !important;
+  line-height: 1.75 !important;
+  color: #1f2937 !important;
+  white-space: pre-wrap !important;
+  word-wrap: break-word !important;
+  box-sizing: border-box !important;
+}
+
+/* 滚动条样式 */
+:global(.unified-editor .ProseMirror)::-webkit-scrollbar {
+  width: 12px;
+}
+
+:global(.unified-editor .ProseMirror)::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-left: 1px solid #e5e7eb;
+}
+
+:global(.unified-editor .ProseMirror)::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+  border: 3px solid #f3f4f6;
+  transition: background 0.2s ease;
+}
+
+:global(.unified-editor .ProseMirror)::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 .editor-content :deep(.ProseMirror-focused) {
-  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.35);
+  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .editor-content :deep(.ProseMirror p) {
-  margin: 0 0 14px 0;
+  margin: 0 0 1em 0;
+  min-height: 1em;
 }
 
 .editor-content :deep(.ProseMirror p:last-child) {
   margin-bottom: 0;
 }
 
-/* 底部工具栏样式 */
+.editor-content :deep(.ProseMirror h1) {
+  font-size: 2em;
+  font-weight: 700;
+  margin: 0.67em 0;
+  line-height: 1.2;
+}
+
+.editor-content :deep(.ProseMirror h2) {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin: 0.83em 0;
+  line-height: 1.3;
+}
+
+.editor-content :deep(.ProseMirror h3) {
+  font-size: 1.17em;
+  font-weight: 600;
+  margin: 1em 0;
+  line-height: 1.4;
+}
+
+.editor-content :deep(.ProseMirror ul),
+.editor-content :deep(.ProseMirror ol) {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.editor-content :deep(.ProseMirror li) {
+  margin: 0.25em 0;
+}
+
+.editor-content :deep(.ProseMirror blockquote) {
+  border-left: 3px solid #d1d5db;
+  padding-left: 1em;
+  margin: 1em 0;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.editor-content :deep(.ProseMirror code) {
+  background: #f3f4f6;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.editor-content :deep(.ProseMirror pre) {
+  background: #1f2937;
+  color: #f9fafb;
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.editor-content :deep(.ProseMirror pre code) {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* ============================================
+   底部工具栏
+   ============================================ */
 .editor-footer {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+  padding: 10px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
   font-size: 13px;
-  flex-shrink: 0;
+  z-index: 10;
 }
 
 .editor-info {
-  color: #6c757d;
+  color: #6b7280;
 }
 
 .sync-status {
@@ -641,53 +804,47 @@ defineExpose({
   gap: 8px;
 }
 
-/* 按钮样式 */
+/* ============================================
+   按钮样式
+   ============================================ */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 8px 16px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .btn:hover {
   transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.btn-collaboration {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
-}
-
-.btn-collaboration:hover {
-  background: #0056b3;
-  border-color: #0056b3;
-}
-
-.btn-collaboration.active {
-  background: #28a745;
-  border-color: #28a745;
+.btn:active {
+  transform: translateY(0);
 }
 
 .btn-outline {
-  background: transparent;
-  color: #007bff;
-  border-color: #007bff;
+  background: white;
+  color: #3b82f6;
+  border-color: #3b82f6;
 }
 
 .btn-outline:hover {
-  background: #007bff;
+  background: #3b82f6;
   color: white;
 }
 
 .icon {
   font-size: 14px;
+  line-height: 1;
 }
 </style>

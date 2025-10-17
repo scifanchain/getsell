@@ -95,20 +95,27 @@ const formData = ref({
   subtitle: '',
   description: '',
   type: 'chapter' as 'volume' | 'chapter' | 'section',
-  workId: '',
-  parentId: ''
+  workId: undefined as string | undefined,
+  parentId: undefined as string | undefined
 })
 
 onMounted(() => {
+  console.log('📝 ChapterEditModal onMounted:', {
+    hasChapter: !!props.chapter,
+    chapter: props.chapter,
+    isNew: props.isNew
+  })
+  
   if (props.chapter) {
     formData.value = {
       title: props.chapter.title || '',
       subtitle: props.chapter.subtitle || '',
       description: props.chapter.description || '',
       type: props.chapter.type || 'chapter',
-      workId: props.chapter.workId || '',
-      parentId: props.chapter.parentId || ''
+      workId: props.chapter.workId,
+      parentId: props.chapter.parentId
     }
+    console.log('📝 ChapterEditModal formData 初始化:', formData.value)
   }
   
   // 自动聚焦到标题输入框
@@ -119,8 +126,21 @@ onMounted(() => {
 
 const handleSubmit = () => {
   if (props.isNew) {
-    // 创建模式：传递所有字段（包括 workId 和 parentId）
-    emit('save', { ...formData.value })
+    // 创建模式：传递所有字段，但过滤掉 undefined 的值
+    const data: any = {
+      title: formData.value.title,
+      subtitle: formData.value.subtitle,
+      description: formData.value.description,
+      type: formData.value.type
+    }
+    if (formData.value.workId) {
+      data.workId = formData.value.workId
+    }
+    if (formData.value.parentId) {
+      data.parentId = formData.value.parentId
+    }
+    console.log('📝 ChapterEditModal 提交数据:', data)
+    emit('save', data)
   } else {
     // 编辑模式：只传递可以更新的字段，不包括 workId 和 parentId
     emit('save', {

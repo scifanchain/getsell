@@ -83,7 +83,7 @@ export interface CreateWorkData {
     genre?: string;
     tags?: string[];
     targetWords?: number;
-    collaborationMode?: 'solo' | 'collaborative';
+    collaborationMode?: 'private' | 'team' | 'public';
 }
 
 /**

@@ -64,13 +64,17 @@ export class ChapterService implements IChapterService {
      * 检查用户对作品的写权限
      */
     private async checkWorkWriteAccess(workId: string, userId: string): Promise<boolean> {
+        console.log('🔐 checkWorkWriteAccess 被调用:', { workId, userId });
         const work = await this.repositories.workRepository.findById(workId);
+        console.log('🔐 查找作品结果:', { work, hasWork: !!work, authorId: work?.authorId });
         if (!work) {
+            console.log('❌ 作品不存在');
             return false;
         }
         
         // 作者有写权限
         if (work.authorId === userId) {
+            console.log('✅ 用户是作品作者，有写权限');
             return true;
         }
         
@@ -88,8 +92,16 @@ export class ChapterService implements IChapterService {
      * 章节层级限制:最多支持3层 (1. 卷 -> 2. 章 -> 3. 节)
      */
     async createChapter(authorId: string, chapterData: CreateChapterData): Promise<ChapterInfo> {
+        console.log('📝 ChapterService.createChapter 被调用:', {
+            authorId,
+            chapterData,
+            hasWorkId: !!chapterData.workId,
+            workId: chapterData.workId
+        });
+        
         // 验证作品是否存在且用户有权限
         const work = await this.repositories.workRepository.findById(chapterData.workId);
+        console.log('📝 查找作品结果:', { work, hasWork: !!work });
         if (!work) {
             throw new Error('作品不存在');
         }
@@ -116,9 +128,8 @@ export class ChapterService implements IChapterService {
             orderIndex = siblings.length;
         }
 
-        // 创建章节数据
+        // 创建章节数据（不包含 id，由 repository 自动生成）
         const createData = {
-            id: ulid(),
             title: chapterData.title,
             subtitle: chapterData.subtitle,
             description: chapterData.description,
@@ -128,6 +139,8 @@ export class ChapterService implements IChapterService {
             type: chapterData.type || 'chapter',
             authorId: authorId
         };
+        
+        console.log('📝 准备创建章节，数据:', createData);
 
         const createdChapter = await this.repositories.chapterRepository.create(createData);
         return this.mapToChapterInfo(createdChapter);
