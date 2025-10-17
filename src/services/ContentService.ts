@@ -1,5 +1,5 @@
 import { RepositoryContainer } from '../repositories/RepositoryContainer';
-import { getCurrentTimestamp } from '../utils/timestamp';
+import { getCurrentTimestamp } from '../core/timestamp';
 import { ulid } from 'ulid';
 
 /**

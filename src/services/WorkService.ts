@@ -1,5 +1,5 @@
 import { IWorkService, CreateWorkData, WorkInfo, WorkQueryOptions, UpdateWorkData, WorkStats, PublishResult } from './interfaces';
-import { getCurrentTimestamp } from '../utils/timestamp';
+import { getCurrentTimestamp } from '../core/timestamp';
 import { RepositoryContainer } from '../repositories/RepositoryContainer';
 import { ulid } from 'ulid';
 
@@ -30,7 +30,18 @@ export class WorkService implements IWorkService {
         };
 
         const createdWork = await this.repositories.workRepository.create(createData);
-        return this.mapToWorkInfo(createdWork);
+        
+        // 手动添加 author 信息到返回的 work 对象
+        const workWithAuthor = {
+            ...createdWork,
+            author: {
+                id: author.id,
+                username: author.username,
+                displayName: author.displayName || author.username
+            }
+        };
+        
+        return this.mapToWorkInfo(workWithAuthor);
     }
 
     /**
@@ -47,7 +58,22 @@ export class WorkService implements IWorkService {
         // 只有作者和协作者可以修改作品(在更新/删除时检查)
         // 如果需要限制,可以检查 work.isPublic
 
-        return this.mapToWorkInfo(work);
+        // 查询作者信息
+        const author = await this.repositories.authorRepository.findById(work.authorId);
+        const workWithAuthor = {
+            ...work,
+            author: author ? {
+                id: author.id,
+                username: author.username,
+                displayName: author.displayName || author.username
+            } : {
+                id: work.authorId,
+                username: 'Unknown',
+                displayName: 'Unknown'
+            }
+        };
+
+        return this.mapToWorkInfo(workWithAuthor);
     }
 
     /**
@@ -71,7 +97,22 @@ export class WorkService implements IWorkService {
             queryOptions
         );
 
-        return works.map(work => this.mapToWorkInfo(work));
+        // 获取作者信息
+        const author = await this.repositories.authorRepository.findById(userId);
+        const authorInfo = author ? {
+            id: author.id,
+            username: author.username,
+            displayName: author.displayName || author.username
+        } : {
+            id: userId,
+            username: 'Unknown',
+            displayName: 'Unknown'
+        };
+
+        return works.map(work => this.mapToWorkInfo({
+            ...work,
+            author: authorInfo
+        }));
     }
 
     /**
@@ -211,6 +252,13 @@ export class WorkService implements IWorkService {
      * 将数据库作品对象映射为作品信息对象
      */
     private mapToWorkInfo(work: any): WorkInfo {
+        // 确保 author 对象存在
+        const author = work.author || {
+            id: work.authorId,
+            username: 'Unknown',
+            displayName: 'Unknown'
+        };
+        
         return {
             id: work.id,
             title: work.title,
@@ -220,9 +268,9 @@ export class WorkService implements IWorkService {
             tags: work.tags ? work.tags.split(',') : [],
             authorId: work.authorId, // 添加 authorId 用于权限检查
             author: {
-                id: work.author.id,
-                username: work.author.username,
-                displayName: work.author.displayName
+                id: author.id,
+                username: author.username,
+                displayName: author.displayName || author.username
             },
             collaborators: work.collaborators, // 添加协作者列表
             status: work.status as any,

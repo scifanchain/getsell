@@ -6,32 +6,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Work, WorkData } from '../../shared/types'
 import { useAuthorStore } from './author'
-
-// 模拟 API 调用
-const workApi = {
-  async createWork(workData: WorkData): Promise<{ workId: string; work: Work }> {
-    // 调用主进程的 IPC
-    return await (window as any).gestell.work.create(workData)
-  },
-
-  async getWorks(authorId?: string): Promise<{ works: Work[] }> {
-    return await (window as any).gestell.work.list(authorId)
-  },
-
-  async getWork(workId: string, userId: string): Promise<Work> {
-    return await (window as any).gestell.work.get(workId, userId)
-  },
-
-  async updateWork(workId: string, updateData: Partial<WorkData>): Promise<Work> {
-    // TODO: 实现更新作品的 API
-    throw new Error('Not implemented')
-  },
-
-  async deleteWork(workId: string): Promise<void> {
-    // TODO: 实现删除作品的 API
-    throw new Error('Not implemented')
-  }
-}
+import { workApi } from '../services/api'
 
 export const useWorkStore = defineStore('work', () => {
   // State
@@ -63,8 +38,11 @@ export const useWorkStore = defineStore('work', () => {
     error.value = null
     
     try {
-      const response = await workApi.getWorks(authorId)
-      works.value = response.works
+      if (!authorId) {
+        throw new Error('作者ID不能为空')
+      }
+      const response = await workApi.getUserWorks(authorId)
+      works.value = response.works || []
     } catch (err: any) {
       error.value = err.message || '获取作品列表失败'
       console.error('获取作品列表失败:', err)
@@ -73,12 +51,12 @@ export const useWorkStore = defineStore('work', () => {
     }
   }
 
-  const createWork = async (workData: WorkData) => {
+  const createWork = async (authorId: string, workData: Omit<WorkData, 'authorId'>) => {
     loading.value = true
     error.value = null
     
     try {
-      const response = await workApi.createWork(workData)
+      const response = await workApi.create(authorId, workData)
       const newWork = response.work
       works.value.push(newWork)
       currentWork.value = newWork
@@ -105,7 +83,7 @@ export const useWorkStore = defineStore('work', () => {
           throw new Error('作者未登录')
         }
         
-        const fetchedWork = await workApi.getWork(workId, authorId)
+        const fetchedWork = await workApi.get(workId, authorId)
         currentWork.value = fetchedWork
         // 如果不在列表中，添加到列表
         if (!works.value.find(w => w.id === workId)) {
@@ -119,12 +97,12 @@ export const useWorkStore = defineStore('work', () => {
     }
   }
 
-  const updateWork = async (workId: string, updateData: Partial<WorkData>) => {
+  const updateWork = async (workId: string, userId: string, updateData: Partial<WorkData>) => {
     loading.value = true
     error.value = null
     
     try {
-      const updatedWork = await workApi.updateWork(workId, updateData)
+      const updatedWork = await workApi.update(workId, userId, updateData)
       
       // 更新列表中的作品
       const index = works.value.findIndex(w => w.id === workId)
@@ -147,12 +125,12 @@ export const useWorkStore = defineStore('work', () => {
     }
   }
 
-  const deleteWork = async (workId: string) => {
+  const deleteWork = async (workId: string, userId: string) => {
     loading.value = true
     error.value = null
     
     try {
-      await workApi.deleteWork(workId)
+      await workApi.delete(workId, userId)
       
       // 从列表中移除
       works.value = works.value.filter(w => w.id !== workId)

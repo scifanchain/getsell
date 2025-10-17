@@ -110,7 +110,7 @@ const isMaximized = ref(false)
 const minimizeWindow = async () => {
   console.log('🔄 TitleBar: 最小化窗口')
   try {
-    await window.gestell.window.minimize()
+    await window.electronAPI.window.minimize()
     console.log('✅ TitleBar: 最小化成功')
   } catch (error) {
     console.error('❌ TitleBar: 最小化失败', error)
@@ -120,7 +120,7 @@ const minimizeWindow = async () => {
 const toggleMaximize = async () => {
   console.log('🔄 TitleBar: 切换最大化')
   try {
-    await window.gestell.window.toggleMaximize()
+    await window.electronAPI.window.toggleMaximize()
     isMaximized.value = !isMaximized.value
     console.log('✅ TitleBar: 切换最大化成功')
   } catch (error) {
@@ -139,7 +139,7 @@ const closeWindow = async () => {
   try {
     isClosingWindow = true;
     console.log('🔄 TitleBar: 开始关闭窗口')
-    await window.gestell.window.close()
+    await window.electronAPI.window.close()
   } catch (error) {
     console.error('关闭窗口失败:', error)
     isClosingWindow = false; // 失败时重置状态

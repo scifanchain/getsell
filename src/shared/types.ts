@@ -63,7 +63,7 @@ export interface WorkData {
   description?: string;
   authorId: string;
   genre?: string;
-  collaborationMode?: string;
+  collaborationMode?: 'solo' | 'collaborative';
 }
 
 export interface ChapterData {

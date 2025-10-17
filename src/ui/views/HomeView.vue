@@ -269,7 +269,7 @@ const handleCreateWork = async () => {
       }
     })
     
-    const response = await (window as any).gestell.work.create(userId, {
+    const response = await window.electronAPI.invoke('work:create', userId, {
       title: newWorkTitle.value.trim(),
       description: newWorkDescription.value.trim() || undefined,
       genre: newWorkGenre.value

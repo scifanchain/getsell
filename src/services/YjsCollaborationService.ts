@@ -3,7 +3,7 @@ import { WebsocketProvider } from 'y-websocket'
 import { WebrtcProvider } from 'y-webrtc'
 import { RepositoryContainer } from '../repositories/RepositoryContainer'
 import { ulid } from 'ulid'
-import { getCurrentTimestamp } from '../utils/timestamp'
+import { getCurrentTimestamp } from '../core/timestamp'
 
 /**
  * Yjs 协同编辑核心服务

@@ -436,7 +436,23 @@ import { useRoute, useRouter } from 'vue-router'
 import { useWorkStore } from '../stores/work'
 import { useAuthorStore } from '../stores/author'
 import ProseMirrorRenderer from '../components/ProseMirrorRenderer.vue'
-import type { Work, Chapter, ChapterData, Content } from '../../shared/types'
+import type { Work, Chapter, ChapterData } from '../../shared/types'
+
+// ContentDisplay 表示 API 返回的内容格式(ContentInfo)
+interface ContentDisplay {
+  id: string
+  chapterId?: string
+  title?: string
+  content: string  // 这里是从 contentJson 转换来的
+  contentJson?: string  // 向后兼容
+  format: string
+  wordCount: number
+  characterCount: number
+  authorId: string
+  createdAt: string | number
+  updatedAt: string | number
+  version: number
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -446,7 +462,7 @@ const workStore = useWorkStore()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const chapters = ref<Chapter[]>([])
-const contents = ref<Content[]>([])
+const contents = ref<ContentDisplay[]>([])
 const showWorkSettings = ref(false)
 const activeChapterId = ref<string | null>(null)  // 当前激活的章节ID
 const activeContentId = ref<string | null>(null)  // 当前激活的内容ID
@@ -554,9 +570,10 @@ const getDescriptionPreview = () => {
 }
 
 // 方法
-const formatDate = (dateString: string) => {
-  if (!dateString) return '未知'
-  const date = new Date(dateString)
+const formatDate = (dateValue: string | number) => {
+  if (!dateValue) return '未知'
+  // 如果是时间戳(数字),直接使用;如果是字符串,转换为Date
+  const date = typeof dateValue === 'number' ? new Date(dateValue) : new Date(dateValue)
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'short',
@@ -564,9 +581,9 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const formatDateShort = (dateString: string) => {
-  if (!dateString) return '未知'
-  const date = new Date(dateString)
+const formatDateShort = (dateValue: string | number) => {
+  if (!dateValue) return '未知'
+  const date = typeof dateValue === 'number' ? new Date(dateValue) : new Date(dateValue)
   return date.toLocaleDateString('zh-CN', {
     month: 'short',
     day: 'numeric'
@@ -630,18 +647,18 @@ const getChapterWordCount = (chapterId: string): number => {
 }
 
 // 获取章节下的所有内容
-const getChapterContents = (chapterId: string): Content[] => {
+const getChapterContents = (chapterId: string): ContentDisplay[] => {
   return contents.value.filter(content => content.chapterId === chapterId)
 }
 
 // 获取内容的字数
-const getContentWordCount = (content: Content): number => {
+const getContentWordCount = (content: ContentDisplay): number => {
   const text = typeof content.content === 'string' ? content.content : JSON.stringify(content.content)
   return text.length
 }
 
 // 获取内容预览（前200字）
-const getContentPreview = (content: Content): string => {
+const getContentPreview = (content: ContentDisplay): string => {
   let text = ''
   
   if (typeof content.content === 'string') {
@@ -702,7 +719,7 @@ const viewFullContent = (contentId: string) => {
 }
 
 // 获取完整的内容文本
-const getFullContentText = (content: Content): string => {
+const getFullContentText = (content: ContentDisplay): string => {
   if (typeof content.content === 'string') {
     return content.content
   } else {
@@ -820,7 +837,7 @@ const scrollToContent = (contentId: string) => {
     // 找到对应的章节ID并设置激活状态
     const content = contents.value.find(c => c.id === contentId)
     if (content) {
-      activeChapterId.value = content.chapterId
+      activeChapterId.value = content.chapterId || null
       activeContentId.value = contentId
     }
   }
@@ -929,7 +946,7 @@ const loadChapters = async () => {
     }
     
     // 加载章节
-    const chaptersResponse = await (window as any).gestell.chapter.list(workId.value, userId)
+    const chaptersResponse = await window.electronAPI.invoke('chapter:list', workId.value, userId)
     console.log('章节响应:', chaptersResponse)
     
     // 处理不同的响应格式
@@ -940,7 +957,7 @@ const loadChapters = async () => {
     }
     
     // 加载内容
-    const contentsResponse = await (window as any).gestell.content.getByWork(workId.value)
+    const contentsResponse = await window.electronAPI.invoke('content:getByWork', workId.value)
     console.log('内容响应:', contentsResponse)
     
     // 处理不同的响应格式

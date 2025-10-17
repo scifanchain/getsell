@@ -1,5 +1,5 @@
 import { IAuthorService, LoginCredentials, LoginResult, RegisterAuthorData, AuthorInfo, UpdateAuthorData, AuthorStats } from './interfaces';
-import { getCurrentTimestamp } from '../utils/timestamp';
+import { getCurrentTimestamp } from '../core/timestamp';
 import { RepositoryContainer } from '../repositories/RepositoryContainer';
 import { GestallCrypto } from '../crypto/crypto';
 import { ulid } from 'ulid';
