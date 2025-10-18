@@ -3,25 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Content Security Policy for Electron -->
-  <!-- Content Security Policy for Development Mode 
-       开发模式需要 'unsafe-inline' 来支持：
-       1. Vue 的动态 :style 绑定
-       2. Vite HMR 的样式热更新
-       注意：这个宽松的 CSP 仅用于开发，生产模式使用严格的 CSP -->
+  <!-- Strict Content Security Policy for Production 
+       生产模式需要 'unsafe-inline' 来支持 Vue 的动态 :style 绑定
+       这是 Vue 应用的必要妥协，因为 Vue 使用内联样式来实现动态样式绑定 -->
   <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self' 'unsafe-inline' 'unsafe-eval'; 
-    script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
+    default-src 'self'; 
+    script-src 'self'; 
     style-src 'self' 'unsafe-inline'; 
     img-src 'self' data: blob:; 
     font-src 'self' data:; 
-    connect-src 'self' ws: wss: http://localhost:* ws://localhost:*;
+    connect-src 'self' ws: wss:;
     object-src 'none';
     base-uri 'self';
     form-action 'self';
   ">
   <title>Gestell座架 - 去中心化科幻写作工具</title>
-  <!-- 使用外部 CSS 文件以符合 CSP 策略 -->
+  <!-- 使用外部 CSS 文件以符合严格的 CSP 策略 -->
   <link rel="stylesheet" href="./loading.css">
 </head>
 <body>

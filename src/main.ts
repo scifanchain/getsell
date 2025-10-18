@@ -59,6 +59,7 @@ function createWindow(): void {
       contextIsolation: true,
       allowRunningInsecureContent: false,
       experimentalFeatures: false,
+      webSecurity: true,
       preload: path.join(__dirname, '../src/preload.js')
     },
     show: false // 等待ready-to-show事件
@@ -74,12 +75,37 @@ function createWindow(): void {
     console.log('🧪 启动数据库性能测试模式');
   } else {
     // 正常模式：加载Vue应用
-    if (process.env.NODE_ENV === 'development') {
-      // 开发模式：连接Vite开发服务器
-      mainWindow.loadURL('http://localhost:3000');
+    const isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
+    
+    if (isDev) {
+      // 开发模式：连接Vite开发服务器，添加 CSP 用于开发
+      mainWindow.loadURL('http://localhost:3000').catch(err => {
+        console.error('❌ 无法连接到开发服务器:', err);
+        console.log('💡 请确保运行了 npm run dev:vite');
+      });
+      
+      // 开发模式下设置更宽松的 CSP
+      mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': [
+              "default-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data: blob:; " +
+              "font-src 'self' data:; " +
+              "connect-src 'self' ws: wss: http://localhost:* ws://localhost:*; " +
+              "object-src 'none';"
+            ]
+          }
+        });
+      });
     } else {
       // 生产模式：加载构建后的文件
-      mainWindow.loadFile(path.join(__dirname, '../dist/renderer/src/ui/index.html'));
+      const indexPath = path.join(__dirname, '../dist/renderer/index.html');
+      console.log('📄 加载生产模式页面:', indexPath);
+      mainWindow.loadFile(indexPath);
     }
   }
 

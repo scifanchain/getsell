@@ -25,15 +25,18 @@ export default defineConfig(({ mode }) => ({
   
   build: {
     outDir: mode === 'development' ? '../../dist/renderer' : 'dist/renderer',
+    emptyOutDir: true,
     rollupOptions: {
       input: {
-        // 生产环境使用安全的HTML模板
+        // 指定入口 HTML 文件
         main: resolve(__dirname, 'src/ui/index.html')
       }
     },
     // 减少构建时的内存占用
     chunkSizeWarningLimit: 1000,
-    sourcemap: mode === 'development' ? true : false
+    sourcemap: mode === 'development' ? true : false,
+    // 确保资源路径正确
+    assetsDir: 'assets'
   },
   
   resolve: {
