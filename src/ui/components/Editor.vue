@@ -264,20 +264,22 @@ const initCollaboration = async () => {
 
     // 设置用户信息和协作者监听
     awareness = provider.awareness
-    awareness.setLocalStateField('user', {
+    awareness?.setLocalStateField('user', {
       name: props.userName || `用户${props.userId}`,
       userId: props.userId,
       color: generateUserColor(props.userId)
     })
 
-    awareness.on('change', () => {
-      const states = Array.from(awareness!.getStates().values())
-      collaborators.value = states
-        .filter(state => state.user && state.user.userId !== props.userId)
-        .map(state => state.user)
-      
-      emit('collaborators-updated', collaborators.value)
-    })
+    if (awareness) {
+      awareness.on('change', () => {
+        const states = awareness ? Array.from(awareness.getStates().values()) : []
+        collaborators.value = states
+          .filter(state => state.user && state.user.userId !== props.userId)
+          .map(state => state.user)
+        
+        emit('collaborators-updated', collaborators.value)
+      })
+    }
 
     // 监听连接状态
     try {
