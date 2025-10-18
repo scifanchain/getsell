@@ -422,3 +422,132 @@ setInterval(async () => {
 ---
 
 **🎊 恭喜！客户端已成功迁移到 Hocuspocus！**
+
+---
+
+## 🌐 生产环境配置
+
+### 生产服务器连接
+
+如果使用生产环境的 Hocuspocus 服务器，请修改 `src/ui/components/Editor.vue` 中的默认配置：
+
+```typescript
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: '',
+  placeholder: '开始写作...',
+  readonly: false,
+  collaborationMode: false,
+  collaborationConfig: () => ({
+    websocketUrl: 'ws://106.53.71.197:2025',  // 生产服务器地址
+    webrtcSignaling: ['ws://106.53.71.197:2025'],  // WebRTC 信令服务器
+    maxConnections: 10
+  })
+})
+```
+
+### 生产环境配置选项
+
+```typescript
+provider = new HocuspocusProvider({
+  url: 'ws://106.53.71.197:2025',  // 生产服务器
+  name: roomName,
+  document: ydoc,
+  connect: true,                    // 自动连接
+  broadcast: true,                  // 广播同步
+  forceSyncInterval: 10000,         // 强制同步间隔 (10秒)
+  // token: 'your-jwt-token',       // JWT 认证 (如果需要)
+})
+```
+
+### 环境变量配置 (推荐)
+
+创建环境变量配置文件：
+
+```bash
+# .env.production
+VITE_COLLABORATION_SERVER=ws://106.53.71.197:2025
+```
+
+然后在代码中使用：
+
+```typescript
+const serverUrl = import.meta.env.VITE_COLLABORATION_SERVER || 'ws://localhost:4001'
+
+collaborationConfig: () => ({
+  websocketUrl: serverUrl,
+  webrtcSignaling: [serverUrl],
+  maxConnections: 10
+})
+```
+
+### 网络配置注意事项
+
+1. **防火墙**: 确保服务器端口 2025 可以访问
+2. **SSL/TLS**: 生产环境建议使用 wss:// 而不是 ws://
+3. **域名**: 建议使用域名而不是 IP 地址
+4. **负载均衡**: 如果有多个服务器，需要配置负载均衡
+
+### 监控和调试
+
+生产环境建议添加连接状态监控：
+
+```typescript
+provider.on('status', ({ status }: any) => {
+  console.log('🔗 生产服务器连接状态:', status)
+  // 可以发送到监控系统
+})
+
+provider.on('connect', () => {
+  console.log('✅ 已连接到生产服务器')
+})
+
+provider.on('disconnect', ({ event }: any) => {
+  console.error('❌ 与生产服务器断开连接:', event)
+})
+```
+
+---
+
+## 📊 性能优化建议
+
+### 生产环境优化
+
+1. **连接池**: 复用 WebSocket 连接
+2. **压缩**: 启用数据压缩
+3. **缓存**: 缓存频繁访问的文档
+4. **监控**: 实时监控连接数和性能
+
+### 故障转移
+
+```typescript
+// 多服务器故障转移
+const servers = [
+  'ws://106.53.71.197:2025',
+  'ws://backup-server.com:2025'
+]
+
+let currentServerIndex = 0
+
+function createProvider() {
+  const serverUrl = servers[currentServerIndex]
+  
+  const provider = new HocuspocusProvider({
+    url: serverUrl,
+    name: roomName,
+    document: ydoc,
+  })
+  
+  provider.on('disconnect', () => {
+    // 自动切换到下一个服务器
+    currentServerIndex = (currentServerIndex + 1) % servers.length
+    console.log('🔄 切换到备用服务器:', servers[currentServerIndex])
+    createProvider()
+  })
+  
+  return provider
+}
+```
+
+---
+
+**🚀 现在可以连接到生产服务器进行协作编辑了！**

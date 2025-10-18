@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import { WebsocketProvider } from 'y-websocket'
+import { HocuspocusProvider } from '@hocuspocus/provider'
 import { WebrtcProvider } from 'y-webrtc'
 import { RepositoryContainer } from '../repositories/RepositoryContainer'
 import { ulid } from 'ulid'
@@ -37,15 +37,15 @@ export interface YjsDocumentInfo {
 
 export class YjsCollaborationService {
   private documents = new Map<string, YjsDocumentInfo>()
-  private providers = new Map<string, (WebsocketProvider | WebrtcProvider)[]>()
+  private providers = new Map<string, (HocuspocusProvider | WebrtcProvider)[]>()
   private config: CollaborationConfig
   private repositories: RepositoryContainer
 
   constructor(repositories: RepositoryContainer, config: CollaborationConfig = {}) {
     this.repositories = repositories
     this.config = {
-      websocketUrl: config.websocketUrl || 'ws://localhost:4001/signaling',
-      webrtcSignaling: config.webrtcSignaling || ['ws://localhost:4001/signaling'],
+      websocketUrl: config.websocketUrl || (process.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001'),
+      webrtcSignaling: config.webrtcSignaling || [process.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001'],
       maxConnections: config.maxConnections || 10,
       autoSave: config.autoSave ?? true,
       saveInterval: config.saveInterval || 5000,
@@ -324,11 +324,11 @@ export class YjsCollaborationService {
     const docInfo = this.documents.get(contentId)
     if (!docInfo) return
 
-    const provider = new WebsocketProvider(
-      this.config.websocketUrl,
-      contentId,
-      docInfo.ydoc
-    )
+    const provider = new HocuspocusProvider({
+      url: this.config.websocketUrl,
+      name: contentId,
+      document: docInfo.ydoc,
+    })
 
     // 存储 provider 引用
     if (!this.providers.has(contentId)) {

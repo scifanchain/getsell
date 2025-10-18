@@ -83,8 +83,8 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false,
   collaborationMode: false,
   collaborationConfig: () => ({
-    websocketUrl: 'ws://localhost:4001/signaling',
-    webrtcSignaling: ['ws://localhost:4001/signaling'],
+    websocketUrl: import.meta.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001',
+    webrtcSignaling: [import.meta.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001'],
     maxConnections: 10
   })
 })
@@ -249,6 +249,10 @@ const initCollaboration = async () => {
         url: props.collaborationConfig.websocketUrl,
         name: roomName,
         document: ydoc,
+        // 生产环境配置
+        connect: true,
+        broadcast: true,
+        forceSyncInterval: 10000, // 强制同步间隔 10秒
         // 可选：传递用户信息用于认证
         // token: 'your-jwt-token',
       })
@@ -257,7 +261,7 @@ const initCollaboration = async () => {
         `content-${props.contentId}`,
         ydoc,
         {
-          signaling: props.collaborationConfig?.webrtcSignaling || ['ws://localhost:4001/signaling']
+          signaling: props.collaborationConfig?.webrtcSignaling || [import.meta.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001']
         }
       )
     }

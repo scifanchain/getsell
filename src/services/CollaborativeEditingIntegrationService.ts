@@ -128,7 +128,7 @@ export class CollaborativeEditingIntegrationService extends EventEmitter {
    */
   async connectNetworkProviders(config: CollaborationConfig, ydoc: Y.Doc): Promise<{
     webrtcProvider?: any
-    websocketProvider?: any
+    hocuspocusProvider?: any
     awareness?: any
   }> {
     try {
@@ -136,9 +136,9 @@ export class CollaborativeEditingIntegrationService extends EventEmitter {
       const providers: any = {}
 
       // 动态导入网络提供者（避免 SSR 问题）
-      const [WebrtcProvider, WebsocketProvider, Awareness] = await Promise.all([
+      const [WebrtcProvider, HocuspocusProvider, Awareness] = await Promise.all([
         import('y-webrtc').then(m => m.WebrtcProvider),
-        import('y-websocket').then(m => m.WebsocketProvider),
+        import('@hocuspocus/provider').then(m => m.HocuspocusProvider),
         import('y-protocols/awareness').then(m => m.Awareness)
       ])
 
@@ -172,17 +172,16 @@ export class CollaborativeEditingIntegrationService extends EventEmitter {
         })
       }
 
-      // WebSocket 提供者（备用）
+      // Hocuspocus 提供者（生产环境推荐）
       if (config.websocketUrl) {
-        providers.websocketProvider = new WebsocketProvider(
-          config.websocketUrl,
-          roomName,
-          ydoc,
-          { awareness }
-        )
+        providers.hocuspocusProvider = new HocuspocusProvider({
+          url: config.websocketUrl,
+          name: roomName,
+          document: ydoc,
+        })
 
-        providers.websocketProvider.on('status', (event: any) => {
-          this.updateConnectionStatus(config.contentId, event.status === 'connected')
+        providers.hocuspocusProvider.on('status', ({ status }: any) => {
+          this.updateConnectionStatus(config.contentId, status === 'connected')
         })
       }
 
@@ -258,8 +257,8 @@ export class CollaborativeEditingIntegrationService extends EventEmitter {
         if (connections.webrtcProvider) {
           connections.webrtcProvider.destroy()
         }
-        if (connections.websocketProvider) {
-          connections.websocketProvider.destroy()
+        if (connections.hocuspocusProvider) {
+          connections.hocuspocusProvider.destroy()
         }
       }
 
@@ -301,10 +300,10 @@ export class CollaborativeEditingIntegrationService extends EventEmitter {
    */
   async forceSync(contentId: string): Promise<void> {
     const connections = this.activeConnections.get(contentId)
-    if (connections?.websocketProvider) {
-      // 强制 WebSocket 重新连接
-      connections.websocketProvider.disconnect()
-      connections.websocketProvider.connect()
+    if (connections?.hocuspocusProvider) {
+      // 强制 Hocuspocus 重新连接
+      connections.hocuspocusProvider.disconnect()
+      connections.hocuspocusProvider.connect()
     }
   }
 

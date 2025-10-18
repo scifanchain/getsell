@@ -326,10 +326,16 @@ const selectedChapter = computed(() => {
 
 const collaborationConfig = {
   // 🔥 修复：使用正确的 WebSocket URL（不需要 /signaling 路径）
-  websocketUrl: 'ws://localhost:4001',
-  webrtcSignaling: ['ws://localhost:4001'],
+  websocketUrl: import.meta.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001',
+  webrtcSignaling: [import.meta.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001'],
   maxConnections: 10
 }
+
+// 调试：检查环境变量是否正确加载
+console.log('🔍 环境变量检查:', {
+  VITE_YJS_SERVER_URL: import.meta.env.VITE_YJS_SERVER_URL,
+  allEnv: import.meta.env
+})
 
 // 根据作品的协作模式自动判断是否使用协作编辑器
 // private: 单机模式

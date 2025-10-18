@@ -9,8 +9,13 @@ export default defineConfig(({ mode }) => ({
   // Electron渲染进程配置
   base: './',
   
-  // 开发模式的根目录
+  // 开发模式的根目录：保持为 src/ui 以简化开发服务器路径
+  // 这样访问 http://localhost:3000 就直接加载 src/ui/index.html
   root: mode === 'development' ? 'src/ui' : '.',
+  
+  // 环境变量目录：强制指向项目根目录，确保能读取 .env 文件
+  // 因为 root 设为 src/ui，所以需要向上两级 (../) 找到项目根目录
+  envDir: resolve(__dirname),
   
   // 优化配置，减少内存占用
   optimizeDeps: {

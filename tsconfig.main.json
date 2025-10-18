@@ -12,6 +12,7 @@
     "src/main.ts",
     "src/core/**/*",
     "src/crypto/**/*",
+    "src/services/**/*",
     "src/shared/**/*",
     "src/generated/**/*"
   ],

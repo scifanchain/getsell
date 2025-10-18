@@ -76,8 +76,8 @@ export class ServiceContainer {
     get yjsCollaborationService(): YjsCollaborationService {
         if (!this._yjsCollaborationService) {
             this._yjsCollaborationService = new YjsCollaborationService(this.repositories, {
-                websocketUrl: 'ws://localhost:4001/signaling',
-                webrtcSignaling: ['ws://localhost:4001/signaling'],
+                websocketUrl: process.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001',
+                webrtcSignaling: [process.env.VITE_YJS_SERVER_URL || 'ws://localhost:4001'],
                 maxConnections: 10,
                 autoSave: true,
                 saveInterval: 5000
