@@ -47,7 +47,7 @@ export const works = sqliteTable('works', {
   tags: text('tags'), // JSON 数组字符串
   authorId: text('authorId').notNull().default(''),
   collaborationMode: text('collaborationMode').notNull().default('private'), // 'private' | 'team' | 'public'
-  collaborators: text('collaborators'), // JSON 数组字符串 - team模式下的固定成员列表
+  collaborators: text('collaborators'), // JSON 数组字符串 - team和public模式下的固定成员列表
   status: text('status').notNull().default('draft'), // 'draft' | 'published' | 'archived'
   progressPercentage: real('progressPercentage').notNull().default(0.0),
   totalWords: integer('totalWords').notNull().default(0),

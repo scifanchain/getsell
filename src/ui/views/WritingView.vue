@@ -36,6 +36,7 @@
         </div>
 
         <Editor
+          ref="editorRef"
           :key="editorKey"
           :model-value="currentContent.content || ''"
           :content-id="currentContent.id"
@@ -237,6 +238,7 @@ interface Work {
   progressPercentage?: number
   authorId: string
   collaborators?: string
+  collaborationMode?: 'private' | 'team' | 'public'
 }
 
 interface WorkStats {
@@ -266,6 +268,9 @@ interface EditingChapter {
 // Composables
 const router = useRouter()
 const authorStore = useAuthorStore()
+
+// Editor ref - 用于在协作模式下获取最新内容
+const editorRef = ref<{ getContent: () => string } | null>(null)
 
 // Reactive data
 const currentWork = ref<Work | null>(null)
@@ -320,8 +325,9 @@ const selectedChapter = computed(() => {
 })
 
 const collaborationConfig = {
-  websocketUrl: 'ws://localhost:4001/signaling',
-  webrtcSignaling: ['ws://localhost:4001/signaling'],
+  // 🔥 修复：使用正确的 WebSocket URL（不需要 /signaling 路径）
+  websocketUrl: 'ws://localhost:4001',
+  webrtcSignaling: ['ws://localhost:4001'],
   maxConnections: 10
 }
 
@@ -455,21 +461,9 @@ onUnmounted(() => {
 
 // Watchers
 watch(selectedChapterId, async (newChapterId, oldChapterId) => {
-  console.log('👁️ selectedChapterId watcher 触发:', {
-    from: oldChapterId,
-    to: newChapterId,
-    hasCurrentContent: !!currentContent.value
-  })
-  
   if (newChapterId) {
-    console.log('👁️ 将加载章节内容:', newChapterId)
     await loadChapterContent(newChapterId)
-  } else {
-    console.log('👁️ selectedChapterId 被清空，但保持 currentContent 不变')
   }
-  // 移除自动清空 currentContent 的逻辑
-  // 因为根目录内容 (chapterId 为 null) 也是有效内容
-  // 只有在明确选择了章节但加载失败时才应该清空
 })
 
 // Methods
@@ -478,26 +472,24 @@ const saveContentToDatabase = async () => {
   const activeContent = currentContent.value
   const author = currentAuthor.value
   
-  console.log('💾 saveContentToDatabase 调用:', {
-    hasActiveContent: !!activeContent,
-    hasAuthor: !!author,
-    hasUnsavedChanges: hasUnsavedChanges.value
-  })
-  
   if (!activeContent || !author || !hasUnsavedChanges.value) {
-    console.log('⚠️ 保存条件不满足，跳过保存')
     return
   }
-  
-  console.log('✅ 开始执行保存...')
 
-  // 在协同模式下，同时保存内容和记录位置
-  if (isCollaborationActive.value && currentWork.value) {
-    saveStatus.value = 'saving'
-    try {
-      // 保存内容到数据库 (作为备份)
+  saveStatus.value = 'saving'
+
+  try {
+    // 协作模式：从 Editor 获取最新内容（Yjs 管理的内容）
+    if (isCollaborationActive.value && currentWork.value) {
+      let contentToSave = activeContent.content
+      
+      if (editorRef.value && editorRef.value.getContent) {
+        contentToSave = editorRef.value.getContent()
+      }
+      
+      // 保存到数据库作为持久化备份
       await contentService.updateContent(activeContent.id, author.id, {
-        content: activeContent.content,
+        content: contentToSave,
         format: 'prosemirror'
       })
       
@@ -508,71 +500,47 @@ const saveContentToDatabase = async () => {
         contentId: activeContent.id
       })
       
-      saveStatus.value = 'saved'
-      lastSaveTime.value = new Date()
-      hasUnsavedChanges.value = false
-      console.log('已保存内容并记录位置 (协同模式):', activeContent.id)
-      
-      // 保存成功后保持 saved 状态，不再恢复为其他状态
-    } catch (error) {
-      console.error('记录最后编辑内容失败 (协同模式):', error)
-      saveStatus.value = 'error'
-      // 3秒后恢复为 unsaved 状态
-      setTimeout(() => {
-        saveStatus.value = 'unsaved'
-      }, 3000)
-    }
-  } else {
-    // 非协同模式下，保存到数据库
-    saveStatus.value = 'saving'
-    try {
+      console.log('💾 协作内容已保存到数据库')
+    } 
+    // 私有模式：直接保存
+    else {
       await contentService.updateContent(activeContent.id, author.id, {
         content: activeContent.content,
         format: 'prosemirror'
       })
-      saveStatus.value = 'saved'
-      lastSaveTime.value = new Date()
-      hasUnsavedChanges.value = false
       
-      // 更新 updatedAt 时间
+      // 更新时间戳
       if (currentContent.value) {
-        currentContent.value = {
-          ...currentContent.value,
-          updatedAt: new Date().toISOString()
-        }
+        currentContent.value.updatedAt = new Date().toISOString()
       }
       
-      console.log('内容已保存到数据库:', activeContent.id)
-      
-      // 保存成功后保持 saved 状态，不再恢复为其他状态
-    } catch (error) {
-      console.error('保存内容失败:', error)
-      saveStatus.value = 'error'
-      // 3秒后恢复为 unsaved 状态
-      setTimeout(() => {
-        saveStatus.value = 'unsaved'
-      }, 3000)
+      console.log('💾 私有内容已保存到数据库')
     }
+    
+    saveStatus.value = 'saved'
+    lastSaveTime.value = new Date()
+    hasUnsavedChanges.value = false
+    
+  } catch (error) {
+    console.error('❌ 保存内容失败:', error)
+    saveStatus.value = 'error'
+    
+    // 3秒后恢复为 unsaved 状态
+    setTimeout(() => {
+      saveStatus.value = 'unsaved'
+    }, 3000)
   }
 }
 
 // 启动自动保存定时器
 const startAutoSave = () => {
-  // 清除现有定时器
   if (autoSaveTimer) {
     clearInterval(autoSaveTimer)
   }
   
-  console.log('🔄 启动自动保存定时器 (每30秒)')
-  
-  // 每30秒检查并保存
   autoSaveTimer = setInterval(async () => {
-    console.log('⏰ 自动保存定时器触发, hasUnsavedChanges:', hasUnsavedChanges.value)
     if (hasUnsavedChanges.value) {
-      console.log('💾 执行自动保存...')
       await saveContentToDatabase()
-    } else {
-      console.log('✓ 没有未保存的更改')
     }
   }, AUTO_SAVE_INTERVAL)
 }
@@ -580,7 +548,6 @@ const startAutoSave = () => {
 // 停止自动保存定时器
 const stopAutoSave = () => {
   if (autoSaveTimer) {
-    console.log('🛑 停止自动保存定时器')
     clearInterval(autoSaveTimer)
     autoSaveTimer = null
   }
@@ -588,51 +555,34 @@ const stopAutoSave = () => {
 
 // Collaborative editing methods
 const handleContentUpdate = async (content: string) => {
-  console.log('🔥🔥🔥 handleContentUpdate 被调用!', { contentLength: content.length })
-  
   const activeContent = currentContent.value
   const author = currentAuthor.value
   
-  console.log('检查条件:', {
-    hasActiveContent: !!activeContent,
-    hasAuthor: !!author,
-    authorId: author?.id
-  })
-  
   if (!activeContent || !author) {
-    console.log('❌ 条件不满足，提前返回')
     return
   }
 
-  // 更新本地内容
-  currentContent.value = { ...activeContent, content }
+  // 直接修改对象属性，保持引用稳定
+  activeContent.content = content
 
   const index = contents.value.findIndex(item => item.id === activeContent.id)
   if (index !== -1) {
-    contents.value[index] = {
-      ...contents.value[index],
-      content
-    }
+    contents.value[index].content = content
     contents.value = [...contents.value]
   }
 
-  // 检查内容是否为空（空文档或只有空段落）
+  // 检查内容是否为空
   const isEmpty = !content || 
                   content.trim() === '' || 
                   content === '{"type":"doc","content":[{"type":"paragraph"}]}' ||
                   content === '{"type":"doc","content":[]}'
   
   if (isEmpty) {
-    // 内容为空，保持 empty 状态
     hasUnsavedChanges.value = false
     saveStatus.value = 'empty'
-    console.log('📄 内容为空，状态保持: empty')
   } else {
-    // 有内容，标记为未保存
     hasUnsavedChanges.value = true
-    console.log('✏️ 内容已更新, 标记为未保存')
     
-    // 如果状态是 saved 或 empty，改为显示未保存
     if (saveStatus.value === 'saved' || saveStatus.value === 'empty') {
       saveStatus.value = 'unsaved'
     }
@@ -823,79 +773,48 @@ const handleContentSelect = async (contentId: string) => {
       return
     }
 
-    console.log('🔍 用户选择内容:', contentId)
-    console.log('🔍 当前状态 - 选择前:', {
-      selectedChapterId: selectedChapterId.value,
-      hasCurrentContent: !!currentContent.value,
-      currentContentId: currentContent.value?.id
-    })
+    // 如果选择的是不同的内容，临时清空以触发 editorKey 变化
+    const isDifferentContent = currentContent.value?.id !== contentId
+    if (isDifferentContent && currentContent.value) {
+      currentContent.value = null
+      await nextTick()
+    }
     
-    // 立即清空当前内容并设置加载状态，防止显示欢迎界面
-    currentContent.value = null
     isLoadingContent.value = true
     
-    // 直接加载指定的内容
     const content = await contentService.fetchContent(contentId, currentAuthor.value.id)
     if (!content) {
       showNotification('未找到该内容', 'error')
+      isLoadingContent.value = false
       return
     }
     
-    console.log('📦 从服务获取的完整内容对象:', content)
-    console.log('📦 内容字段检查:', {
-      hasId: !!content.id,
-      hasTitle: !!content.title,
-      hasContent: typeof content.content === 'string',
-      hasChapterId: !!content.chapterId,
-      contentType: typeof content.content,
-      contentLength: content.content.length || 0,
-      contentPreview: content.content?.substring(0, 100)
-    })
-    
-    // 先设置内容，确保编辑器能够显示
     currentContent.value = content
     
-    console.log('✅ 已设置 currentContent.value:', {
-      id: content.id,
-      title: content.title,
-      contentLength: content.content?.length || 0
-    })
+    console.log('✅ 已加载内容:', content.title || '无标题')
     
     // 根据内容是否为空设置初始保存状态
     hasUnsavedChanges.value = false
     if (!content.content || content.content.trim() === '' || content.content === '{"type":"doc","content":[{"type":"paragraph"}]}') {
       saveStatus.value = 'empty'
-      console.log('📄 内容为空，状态设为: empty')
     } else {
       saveStatus.value = 'saved'
-      console.log('📄 内容已加载，状态设为: saved')
     }
     
     // 使用 nextTick 确保响应式更新完成后再更新章节ID
     await nextTick()
     
-    // 然后更新选中的章节ID（避免在设置内容前触发watcher）
+    // 然后更新选中的章节ID
     if (content.chapterId) {
       if (selectedChapterId.value !== content.chapterId) {
-        console.log('🔄 更新 selectedChapterId 从', selectedChapterId.value, '到', content.chapterId)
         selectedChapterId.value = content.chapterId
       }
     } else {
       // 如果是根级别内容（chapterId 为 null），清空 selectedChapterId
-      console.log('ℹ️ 这是根级别内容（无章节关联）')
       if (selectedChapterId.value) {
-        console.log('🔄 清空 selectedChapterId 从', selectedChapterId.value, '到空字符串')
         selectedChapterId.value = ''
       }
     }
-    
-    console.log('📊 最终状态检查:', {
-      selectedChapterId: selectedChapterId.value,
-      hasCurrentContent: !!currentContent.value,
-      currentContentId: currentContent.value?.id,
-  contentChapterId: content.chapterId,
-      shouldShowEditor: !!currentContent.value
-    })
     
     // 记录最后访问的内容
     if (currentWork.value) {
@@ -905,16 +824,18 @@ const handleContentSelect = async (contentId: string) => {
           chapterId: content.chapterId,
           contentId: content.id
         })
-        console.log('已记录最后访问的内容:', content.id)
       } catch (error) {
         console.error('记录最后访问内容失败:', error)
       }
     }
+    
+    // 启动自动保存定时器
+    startAutoSave()
+    
   } catch (error: any) {
     console.error('❌ Load content failed:', error)
     showNotification(`加载内容失败: ${error.message || '未知错误'}`, 'error')
   } finally {
-    // 清除加载状态
     isLoadingContent.value = false
   }
 }
@@ -1111,20 +1032,12 @@ const handleAddContent = async (data: { title?: string, type?: string, workId?: 
         }
       }
 
-      // 🎯 自动加载新创建的内容到编辑器
+      // 自动加载新创建的内容到编辑器
       currentContent.value = newContent
-
-      console.log('✅ 已设置 currentContent.value', {
-        selectedChapterId: selectedChapterId.value,
-        hasCurrentContent: !!currentContent.value,
-        currentContentId: currentContent.value?.id,
-        shouldShowEditor: !!(selectedChapterId.value && currentContent.value)
-      })
 
       // 如果章节ID不同，更新选中的章节
       if (data.chapterId && selectedChapterId.value !== data.chapterId) {
         selectedChapterId.value = data.chapterId
-        console.log('🔄 已更新 selectedChapterId 为:', data.chapterId)
       }
 
       showNotification('内容创建成功', 'success')

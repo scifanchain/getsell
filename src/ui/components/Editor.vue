@@ -32,22 +32,11 @@
     ></div>
 
     <!-- 底部工具栏 -->
-    <div class="editor-footer" v-if="!readonly">
+    <div class="editor-footer" v-if="!readonly && collaborationMode">
       <div class="editor-info">
-        <span class="sync-status" v-if="collaborationMode">
+        <span class="sync-status">
           {{ syncStatus }}
         </span>
-      </div>
-      
-      <div class="editor-actions">
-        <button 
-          v-if="!collaborationMode"
-          @click="enableCollaboration" 
-          class="btn btn-outline"
-        >
-          <span class="icon">🤝</span>
-          开启协作
-        </button>
       </div>
     </div>
   </div>
@@ -68,7 +57,7 @@ import { buildMenuItems } from '../utils/prosemirror-menu'
 
 // Yjs 相关导入 (仅在协作模式下使用)
 import * as Y from 'yjs'
-import { ySyncPlugin, yCursorPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosemirror'
+import { ySyncPlugin, yCursorPlugin, yUndoPlugin, undo as yUndo, redo as yRedo, prosemirrorJSONToYXmlFragment } from 'y-prosemirror'
 import { WebrtcProvider } from 'y-webrtc'
 import { WebsocketProvider } from 'y-websocket'
 import { Awareness } from 'y-protocols/awareness'
@@ -135,8 +124,11 @@ const initEditor = async () => {
 
   let state: EditorState
 
-  if (props.collaborationMode && collaborationEnabled.value) {
-    await initCollaboration()
+  // 🔥 修复：如果 props.collaborationMode 为 true，无论 collaborationEnabled 状态如何都应该初始化协作
+  if (props.collaborationMode) {
+    if (!collaborationEnabled.value) {
+      await initCollaboration()
+    }
     state = createCollaborativeState()
   } else {
     state = createStandardState()
@@ -152,16 +144,11 @@ const initEditor = async () => {
       
       if (transaction.docChanged) {
         const content = getDocumentContent()
-        console.log('📝 Editor: 文档变化', { 
-          collaborationMode: props.collaborationMode,
-          contentLength: content.length,
-          willEmit: !props.collaborationMode
-        })
         
-        // 始终触发 change 事件,让父组件决定如何处理
+        // 触发 change 事件（父组件使用）
         emit('change', content)
         
-        // 非协作模式下也触发 modelValue 更新
+        // 非协作模式下触发 v-model 更新
         if (!props.collaborationMode) {
           emit('update:modelValue', content)
         }
@@ -184,24 +171,20 @@ const createStandardState = () => {
     })
   ]
 
-  // 尝试从 props.modelValue 加载初始内容
+  // 从 props.modelValue 加载初始内容
   let doc: ProseMirrorNode
   if (props.modelValue && props.modelValue.trim()) {
     try {
-      console.log('📄 createStandardState: 尝试加载初始内容，长度:', props.modelValue.length)
       const jsonContent = JSON.parse(props.modelValue)
       doc = ProseMirrorNode.fromJSON(schema, jsonContent)
-      console.log('✅ createStandardState: 初始内容加载成功')
     } catch (error) {
-      console.error('❌ createStandardState: 解析初始内容失败:', error)
-      console.log('📄 创建空文档')
+      console.error('❌ 解析初始内容失败:', error)
       doc = schema.nodeFromJSON({
         type: 'doc',
         content: [{ type: 'paragraph' }]
       })
     }
   } else {
-    console.log('📄 createStandardState: 无初始内容，创建空文档')
     doc = schema.nodeFromJSON({
       type: 'doc',
       content: [{ type: 'paragraph' }]
@@ -240,17 +223,31 @@ const createCollaborativeState = () => {
 
 const initCollaboration = async () => {
   if (!props.contentId || !props.userId) {
-    console.warn('协作模式需要 contentId 和 userId')
+    console.warn('⚠️ 协作模式需要 contentId 和 userId', {
+      contentId: props.contentId,
+      userId: props.userId
+    })
     return
   }
 
   try {
+    console.log('🚀 初始化协作模式', {
+      contentId: props.contentId,
+      userId: props.userId,
+      roomName: `content-${props.contentId}`
+    })
+
+    // 创建 Yjs 文档
     ydoc = new Y.Doc()
+    const yXmlFragment = ydoc.getXmlFragment('prosemirror')
     
+    // 创建 Provider（WebSocket 或 WebRTC）
     if (props.collaborationConfig?.websocketUrl) {
+      const roomName = `content-${props.contentId}`
+      console.log('📡 创建 WebSocket 连接到房间:', roomName)
       provider = new WebsocketProvider(
         props.collaborationConfig.websocketUrl,
-        `content-${props.contentId}`,
+        roomName,
         ydoc
       )
     } else {
@@ -263,6 +260,7 @@ const initCollaboration = async () => {
       )
     }
 
+    // 设置用户信息和协作者监听
     awareness = provider.awareness
     awareness.setLocalStateField('user', {
       name: props.userName || `用户${props.userId}`,
@@ -279,11 +277,34 @@ const initCollaboration = async () => {
       emit('collaborators-updated', collaborators.value)
     })
 
+    // 监听连接状态
     try {
       (provider as any).on('status', (event: any) => {
         connectionStatus.value = event.status
+        
         if (event.status === 'connected') {
           syncStatus.value = '已同步'
+          
+          // 连接成功后，检查服务器内容是否为空
+          // 只在服务器为空时才从 SQLite 加载初始内容（避免重复）
+          setTimeout(() => {
+            const fragmentLength = yXmlFragment.length
+            
+            if (fragmentLength === 0 && props.modelValue && props.modelValue.trim()) {
+              console.log('📥 从 SQLite 加载初始内容到协作文档')
+              
+              try {
+                const jsonContent = JSON.parse(props.modelValue)
+                ydoc!.transact(() => {
+                  prosemirrorJSONToYXmlFragment(schema, jsonContent, yXmlFragment)
+                })
+                console.log('✅ 初始内容已同步到服务器')
+              } catch (error) {
+                console.error('❌ 加载初始内容失败:', error)
+              }
+            }
+          }, 100) // 等待同步完成
+          
         } else if (event.status === 'connecting') {
           syncStatus.value = '同步中...'
         } else {
@@ -291,20 +312,42 @@ const initCollaboration = async () => {
         }
       })
     } catch (error) {
-      console.warn('无法监听连接状态:', error)
+      console.warn('⚠️ 无法监听连接状态:', error)
+    }
+
+    // WebSocket 错误和断开监听
+    if (provider && 'ws' in provider) {
+      const wsProvider = provider as WebsocketProvider
+      
+      wsProvider.on('connection-error', (error: any) => {
+        console.error('❌ WebSocket 连接错误:', error)
+      })
+      
+      // connection-close 是正常的重连行为，使用 log 级别
+      wsProvider.on('connection-close', (event: any) => {
+        console.log('🔌 WebSocket 连接关闭（将自动重连）:', event)
+      })
     }
 
     collaborationEnabled.value = true
     emit('collaboration-changed', true)
+    console.log('✅ 协作模式初始化完成')
     
   } catch (error) {
-    console.error('协作初始化失败:', error)
+    console.error('❌ 协作初始化失败:', error)
     collaborationEnabled.value = false
   }
 }
 
 const cleanupCollaboration = (shouldEmit = true) => {
+  console.log('🧹 清理协作资源', {
+    hasProvider: !!provider,
+    hasYdoc: !!ydoc,
+    contentId: props.contentId
+  })
+  
   if (provider) {
+    console.log('🔌 销毁 WebSocket Provider，房间:', `content-${props.contentId}`)
     provider.destroy()
     provider = null
   }
@@ -318,25 +361,7 @@ const cleanupCollaboration = (shouldEmit = true) => {
   if (shouldEmit) {
     emit('collaboration-changed', false)
   }
-}
-
-const toggleCollaboration = async () => {
-  if (collaborationEnabled.value) {
-    cleanupCollaboration()
-    await initEditor()
-  } else {
-    await enableCollaboration()
-  }
-}
-
-const enableCollaboration = async () => {
-  if (editorView) {
-    editorView.destroy()
-    editorView = null
-  }
-  
-  await initCollaboration()
-  await initEditor()
+  console.log('✅ 协作资源清理完成')
 }
 
 const getDocumentContent = (): string => {
@@ -420,20 +445,42 @@ const handleContentClick = () => {
   }
 }
 
-watch(() => props.collaborationMode, async (newMode) => {
+watch(() => props.collaborationMode, async (newMode, oldMode) => {
+  console.log('👀 [Editor] collaborationMode 变化:', { 
+    oldMode, 
+    newMode,
+    collaborationEnabled: collaborationEnabled.value 
+  })
+  
   if (newMode && !collaborationEnabled.value) {
-    await enableCollaboration()
+    console.log('🔄 [Editor] 启用协作模式...')
+    // 销毁当前编辑器
+    if (editorView) {
+      editorView.destroy()
+      editorView = null
+    }
+    // 初始化协作
+    await initCollaboration()
+    // 重新创建编辑器
+    await initEditor()
   } else if (!newMode && collaborationEnabled.value) {
+    console.log('🔄 [Editor] 禁用协作模式...')
     cleanupCollaboration()
     await initEditor()
   }
 })
 
 onMounted(() => {
+  console.log('🎬 [Editor] 组件挂载, props:', {
+    contentId: props.contentId,
+    userId: props.userId,
+    collaborationMode: props.collaborationMode
+  })
   initEditor()
 })
 
 onUnmounted(() => {
+  console.log('💀 [Editor] 组件卸载, contentId:', props.contentId)
   if (editorView) {
     editorView.destroy()
   }

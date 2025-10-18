@@ -337,6 +337,77 @@ export class DatabaseManager {
   }
 
   /**
+   * 清理已同步的变更记录（压缩日志）
+   * @param beforeVersion 清理此版本号之前的所有变更
+   */
+  compactChanges(beforeVersion: number): void {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      // 获取清理前的变更数量
+      const beforeCount = this.db
+        .prepare('SELECT COUNT(*) as count FROM crsql_changes WHERE db_version < ?')
+        .get(beforeVersion) as { count: number };
+
+      console.log(`[Database] 🗑️  准备清理 ${beforeCount.count} 条旧变更记录 (版本 < ${beforeVersion})...`);
+
+      // 删除指定版本之前的所有变更记录
+      const result = this.db
+        .prepare('DELETE FROM crsql_changes WHERE db_version < ?')
+        .run(beforeVersion);
+
+      console.log(`[Database] ✅ 已清理 ${result.changes} 条变更记录`);
+
+      // 运行 VACUUM 来回收磁盘空间（可选）
+      this.db.prepare('VACUUM').run();
+      console.log('[Database] 🧹 数据库已压缩');
+    } catch (error) {
+      console.error('[Database] ❌ 清理变更记录失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取变更记录的统计信息
+   */
+  getChangesStats(): {
+    totalChanges: number;
+    oldestVersion: number;
+    newestVersion: number;
+    estimatedSize: number;
+  } {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const stats = this.db
+      .prepare(`
+        SELECT 
+          COUNT(*) as totalChanges,
+          MIN(db_version) as oldestVersion,
+          MAX(db_version) as newestVersion
+        FROM crsql_changes
+      `)
+      .get() as {
+        totalChanges: number;
+        oldestVersion: number | null;
+        newestVersion: number | null;
+      };
+
+    // 估算存储大小（粗略估计：每条记录约 500 bytes）
+    const estimatedSize = stats.totalChanges * 500;
+
+    return {
+      totalChanges: stats.totalChanges,
+      oldestVersion: stats.oldestVersion ?? 0,
+      newestVersion: stats.newestVersion ?? 0,
+      estimatedSize,
+    };
+  }
+
+  /**
    * 关闭数据库连接
    */
   close(): void {
