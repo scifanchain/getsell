@@ -59,7 +59,7 @@ import { buildMenuItems } from '../utils/prosemirror-menu'
 import * as Y from 'yjs'
 import { ySyncPlugin, yCursorPlugin, yUndoPlugin, undo as yUndo, redo as yRedo, prosemirrorJSONToYXmlFragment } from 'y-prosemirror'
 import { WebrtcProvider } from 'y-webrtc'
-import { WebsocketProvider } from 'y-websocket'
+import { HocuspocusProvider } from '@hocuspocus/provider'
 import { Awareness } from 'y-protocols/awareness'
 
 interface Props {
@@ -111,7 +111,7 @@ const collaborators = ref<any[]>([])
 const syncStatus = ref('已同步')
 
 let ydoc: Y.Doc | null = null
-let provider: WebrtcProvider | WebsocketProvider | null = null
+let provider: WebrtcProvider | HocuspocusProvider | null = null
 let awareness: Awareness | null = null
 
 const initEditor = async () => {
@@ -241,15 +241,17 @@ const initCollaboration = async () => {
     ydoc = new Y.Doc()
     const yXmlFragment = ydoc.getXmlFragment('prosemirror')
     
-    // 创建 Provider（WebSocket 或 WebRTC）
+    // 创建 Provider（Hocuspocus WebSocket 或 WebRTC）
     if (props.collaborationConfig?.websocketUrl) {
       const roomName = `content-${props.contentId}`
-      console.log('📡 创建 WebSocket 连接到房间:', roomName)
-      provider = new WebsocketProvider(
-        props.collaborationConfig.websocketUrl,
-        roomName,
-        ydoc
-      )
+      console.log('📡 创建 Hocuspocus WebSocket 连接到房间:', roomName)
+      provider = new HocuspocusProvider({
+        url: props.collaborationConfig.websocketUrl,
+        name: roomName,
+        document: ydoc,
+        // 可选：传递用户信息用于认证
+        // token: 'your-jwt-token',
+      })
     } else {
       provider = new WebrtcProvider(
         `content-${props.contentId}`,
@@ -315,17 +317,22 @@ const initCollaboration = async () => {
       console.warn('⚠️ 无法监听连接状态:', error)
     }
 
-    // WebSocket 错误和断开监听
-    if (provider && 'ws' in provider) {
-      const wsProvider = provider as WebsocketProvider
-      
-      wsProvider.on('connection-error', (error: any) => {
-        console.error('❌ WebSocket 连接错误:', error)
+    // Hocuspocus Provider 错误和断开监听
+    if (provider && provider instanceof HocuspocusProvider) {
+      provider.on('connect', () => {
+        console.log('✅ Hocuspocus 连接成功')
       })
       
-      // connection-close 是正常的重连行为，使用 log 级别
-      wsProvider.on('connection-close', (event: any) => {
-        console.log('🔌 WebSocket 连接关闭（将自动重连）:', event)
+      provider.on('disconnect', ({ event }: any) => {
+        console.log('🔌 Hocuspocus 连接断开（将自动重连）:', event)
+      })
+      
+      provider.on('status', ({ status }: any) => {
+        console.log('📊 Hocuspocus 状态:', status)
+      })
+      
+      provider.on('synced', ({ state }: any) => {
+        console.log('✅ Hocuspocus 同步完成:', state)
       })
     }
 

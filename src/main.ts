@@ -28,11 +28,20 @@ import {
   KeyPair
 } from './shared/types';
 
+// macOS 特定：禁用 GPU 相关的警告信息
+if (process.platform === 'darwin') {
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+  // 可选：完全禁用 GPU 加速（如果上面的开关不够）
+  app.disableHardwareAcceleration();
+}
+
 // 版本信息
 console.log('🚀 Gestell启动中...');
 console.log('📦 Electron版本:', process.versions.electron);
 console.log('🟢 Node.js版本:', process.versions.node);
 console.log('🔧 Chrome版本:', process.versions.chrome);
+console.log('🖥️  平台:', process.platform);
 
 // 核心实例
 let crypto: any;

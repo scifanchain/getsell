@@ -183,7 +183,7 @@ async function handleLogin() {
   authorStore.clearError()
   
   try {
-    const result = await authorStore.loginUser(
+    const result = await authorStore.loginAuthor(
       loginForm.value.username,
       loginForm.value.password || undefined,
       loginForm.value.rememberMe
@@ -235,7 +235,7 @@ async function handleRegister() {
   authorStore.clearError()
   
   try {
-    const user = await authorStore.registerUser({
+    const user = await authorStore.registerAuthor({
       username: username.trim(),
       password: password.trim() || undefined,
       displayName: displayName.trim() || username.trim(),

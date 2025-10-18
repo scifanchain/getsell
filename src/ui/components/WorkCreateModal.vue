@@ -9,7 +9,6 @@
       <div class="modal-body">
         <form @submit.prevent="handleSubmit">
           <div class="form-group">
-            <label for="title">作品标题</label>
             <input
               id="title"
               v-model="formData.title"
@@ -20,7 +19,6 @@
           </div>
           
           <div class="form-group">
-            <label for="description">作品简介</label>
             <textarea
               id="description"
               v-model="formData.description"
@@ -30,7 +28,6 @@
           </div>
           
           <div class="form-group">
-            <label for="genre">类型</label>
             <select id="genre" v-model="formData.genre">
               <option value="science_fiction">科幻</option>
               <option value="fantasy">奇幻</option>
@@ -175,7 +172,7 @@ const handleSubmit = () => {
   border-radius: 8px;
   width: 700px;
   max-width: 90vw;
-  max-height: 80vh;
+  max-height: 90vh;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
@@ -258,7 +255,7 @@ const handleSubmit = () => {
 
 .form-group textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 60px;
 }
 
 .help-text {
